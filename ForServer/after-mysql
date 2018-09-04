@@ -1,0 +1,17 @@
+CREATE DATABASE testdb;
+GRANT USAGE,SELECT ON testdb.* TO 'testuser'@'localhost' IDENTIFIED BY 'testpassword';
+FLUSH PRIVILEGES;
+
+Required-Start: $local_fs $remote_fs $network $named $mysqld
+
+MYSQL_OK=1
+while [ 1 ] ; do
+  echo "SELECT version();" | mysql -utestuser -ptestpassword testdb > /dev/null 2>&1
+  MYSQL_OK=$?
+  if [ $MYSQL_OK -eq 0 ]; then
+    break
+  fi
+  sleep 1
+  echo -n "."
+done
+echo " Done"

@@ -1,0 +1,442 @@
+[
+{
+  "model": "gh.signtype",
+  "pk": 1,
+  "fields": {
+    "name": "\u00b0C"
+  }
+},
+{
+  "model": "gh.signtype",
+  "pk": 2,
+  "fields": {
+    "name": "\u043b\u043a"
+  }
+},
+{
+  "model": "gh.signtype",
+  "pk": 3,
+  "fields": {
+    "name": "%"
+  }
+},
+{
+  "model": "gh.signtype",
+  "pk": 4,
+  "fields": {
+    "name": "ppm"
+  }
+},
+{
+  "model": "gh.layouttype",
+  "pk": 1,
+  "fields": {
+    "name": "\u0422\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430",
+    "latin_name": "temperature",
+    "sign": 1,
+    "displayType": 2
+  }
+},
+{
+  "model": "gh.layouttype",
+  "pk": 2,
+  "fields": {
+    "name": "\u041e\u0441\u0432\u0435\u0449\u0435\u043d\u0438\u0435",
+    "latin_name": "lighting",
+    "sign": 2,
+    "displayType": 3
+  }
+},
+{
+  "model": "gh.layouttype",
+  "pk": 3,
+  "fields": {
+    "name": "\u0412\u043b\u0430\u0436\u043d\u043e\u0441\u0442\u044c \u043f\u043e\u0447\u0432\u044b",
+    "latin_name": "watering",
+    "sign": 3,
+    "displayType": 9
+  }
+},
+{
+  "model": "gh.layouttype",
+  "pk": 4,
+  "fields": {
+    "name": "\u0422\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430 \u0432\u043e\u0434\u044b",
+    "latin_name": "wateringBarrel",
+    "sign": 1,
+    "displayType": 8
+  }
+},
+{
+  "model": "gh.layouttype",
+  "pk": 5,
+  "fields": {
+    "name": "\u0412\u043b\u0430\u0436\u043d\u043e\u0441\u0442\u044c \u0432\u043e\u0437\u0434\u0443\u0445\u0430",
+    "latin_name": "misting",
+    "sign": 3,
+    "displayType": 13
+  }
+},
+{
+  "model": "gh.layouttype",
+  "pk": 6,
+  "fields": {
+    "name": "CO2",
+    "latin_name": "airing",
+    "sign": 4,
+    "displayType": 10
+  }
+},
+{
+  "model": "gh.layouttype",
+  "pk": 7,
+  "fields": {
+    "name": "\u0421\u043d\u0430\u0440\u0443\u0436\u0438",
+    "latin_name": "outdoor",
+    "sign": 1,
+    "displayType": 16
+  }
+},
+{
+  "model": "gh.layouttype",
+  "pk": 8,
+  "fields": {
+    "name": "\u041f\u0440\u043e\u0446\u0435\u0441\u0441\u043e\u0440",
+    "latin_name": "proc",
+    "sign": 1,
+    "displayType": 18
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 1,
+  "fields": {
+    "name": "\u0424\u043e\u0440\u0442\u043e\u0447\u043a\u0438",
+    "latin_name": "Window",
+    "isRaw": false,
+    "layout": 1
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 2,
+  "fields": {
+    "name": "\u0422\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430",
+    "latin_name": "Temperature",
+    "isRaw": true,
+    "layout": 1
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 3,
+  "fields": {
+    "name": "\u041e\u0441\u0432\u0435\u0449\u0451\u043d\u043d\u043e\u0441\u0442\u044c",
+    "latin_name": "Light",
+    "isRaw": true,
+    "layout": 2
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 4,
+  "fields": {
+    "name": "\u041f\u043e\u043b",
+    "latin_name": "WarmFloor",
+    "isRaw": false,
+    "layout": 1
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 5,
+  "fields": {
+    "name": "\u0421\u0432\u0435\u0442",
+    "latin_name": "Lamp",
+    "isRaw": false,
+    "layout": 2
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 6,
+  "fields": {
+    "name": "\u0412\u0435\u043d\u0442\u0438\u043b\u044f\u0442\u043e\u0440",
+    "latin_name": "Fan",
+    "isRaw": false,
+    "layout": 6
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 7,
+  "fields": {
+    "name": "\u041a\u0430\u043b\u043e\u0440\u0438\u0444\u0435\u0440",
+    "latin_name": "Heater",
+    "isRaw": false,
+    "layout": 6
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 8,
+  "fields": {
+    "name": "\u0422\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430 \u0432\u043e\u0434\u044b",
+    "latin_name": "WaterTemp",
+    "isRaw": true,
+    "layout": 4
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 9,
+  "fields": {
+    "name": "\u0412\u043b\u0430\u0436\u043d\u043e\u0441\u0442\u044c \u043f\u043e\u0447\u0432\u044b",
+    "latin_name": "SoilHumidity",
+    "isRaw": true,
+    "layout": 3
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 10,
+  "fields": {
+    "name": "CO2",
+    "latin_name": "CO2",
+    "isRaw": false,
+    "layout": 6
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 11,
+  "fields": {
+    "name": "\u041f\u043e\u043b\u0438\u0432",
+    "latin_name": "Pump",
+    "isRaw": false,
+    "layout": 3
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 12,
+  "fields": {
+    "name": "\u0422\u042d\u041d",
+    "latin_name": "WaterHeater",
+    "isRaw": false,
+    "layout": 4
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 13,
+  "fields": {
+    "name": "\u0412\u043b\u0430\u0436\u043d\u043e\u0441\u0442\u044c \u0432\u043e\u0437\u0434\u0443\u0445\u0430",
+    "latin_name": "AirHumidity",
+    "isRaw": true,
+    "layout": 5
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 14,
+  "fields": {
+    "name": "\u0422\u0443\u043c\u0430\u043d",
+    "latin_name": "Mistiner",
+    "isRaw": false,
+    "layout": 5
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 15,
+  "fields": {
+    "name": "\u0417\u0430\u0448\u0442\u043e\u0440\u0438\u0432\u0430\u043d\u0438\u0435",
+    "latin_name": "Curtain",
+    "isRaw": false,
+    "layout": 2
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 16,
+  "fields": {
+    "name": "\u0422\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430 \u043d\u0430 \u0443\u043b\u0438\u0446\u0435",
+    "latin_name": "OutdoorTemp",
+    "isRaw": true,
+    "layout": 7
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 17,
+  "fields": {
+    "name": "\u0422\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430 \u043f\u043e\u043b\u0430",
+    "latin_name": "WarmFloorTemp",
+    "isRaw": true,
+    "layout": 1
+  }
+},
+{
+  "model": "gh.itemtype",
+  "pk": 18,
+  "fields": {
+    "name": "\u041f\u0440\u043e\u0446\u0435\u0441\u0441\u043e\u0440",
+    "latin_name": "Processor",
+    "isRaw": true,
+    "layout": 8
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 1,
+  "fields": {
+    "param": "GlobalId",
+    "value": "3"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 2,
+  "fields": {
+    "param": "dayTime_1_start",
+    "value": "29100"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 3,
+  "fields": {
+    "param": "dayTime_1_end",
+    "value": "63060"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 4,
+  "fields": {
+    "param": "ratio_1_proportional",
+    "value": "1"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 5,
+  "fields": {
+    "param": "ratio_1_integral",
+    "value": "0.5"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 6,
+  "fields": {
+    "param": "ratio_1_differential",
+    "value": "0.1"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 7,
+  "fields": {
+    "param": "ratio_3_proportional",
+    "value": "0.1"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 8,
+  "fields": {
+    "param": "ratio_3_integral",
+    "value": "0.48"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 9,
+  "fields": {
+    "param": "ratio_3_differential",
+    "value": "0.01"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 22,
+  "fields": {
+    "param": "ratio_2_proportional",
+    "value": "0.1"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 23,
+  "fields": {
+    "param": "ratio_2_integral",
+    "value": "0.5"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 24,
+  "fields": {
+    "param": "ratio_2_differential",
+    "value": "0"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 28,
+  "fields": {
+    "param": "ratio_1_period",
+    "value": "5"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 29,
+  "fields": {
+    "param": "ratio_2_period",
+    "value": "10"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 30,
+  "fields": {
+    "param": "ratio_3_period",
+    "value": "15"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 31,
+  "fields": {
+    "param": "dayTime_2_start",
+    "value": "29100"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 32,
+  "fields": {
+    "param": "dayTime_2_end",
+    "value": "63060"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 33,
+  "fields": {
+    "param": "dayTime_3_start",
+    "value": "29100"
+  }
+},
+{
+  "model": "gh.settings",
+  "pk": 34,
+  "fields": {
+    "param": "dayTime_3_end",
+    "value": "63060"
+  }
+}
+]
