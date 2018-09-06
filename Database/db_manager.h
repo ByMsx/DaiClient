@@ -1,8 +1,10 @@
 #ifndef DATABASE_MANAGER_H
 #define DATABASE_MANAGER_H
 
-#include <QVector>
 #include <functional>
+#include <variant>
+
+#include <QVector>
 
 #include "Dai/database.h"
 
