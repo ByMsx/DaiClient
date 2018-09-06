@@ -153,7 +153,7 @@ void Worker::init_Database(QSettings* s)
 {
     auto info = Helpz::SettingsHelper(
                 s, "Database",
-                Z::Param{"Name", "devicehouse"},
+                Z::Param{"Name", "deviceaccess_local"},
                 Z::Param{"User", "DaiUser"},
                 Z::Param{"Password", ""},
                 Z::Param{"Host", "localhost"},
