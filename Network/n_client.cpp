@@ -35,9 +35,10 @@ void Client::sendVersion()
 }
 
 Client::Client(Worker *worker, const QString &hostname, quint16 port, const QString &login, const QString &password, const QUuid &device, int checkServerInterval) :
-    Helpz::DTLS::Client(Botan::split_on("dai/1.0,dai/0.9", ','), worker->database(),
+    Helpz::DTLS::Client(Botan::split_on("dai/1.0,dai/0.9", ','), worker->database_info(),
                            qApp->applicationDirPath() + "/tls_policy.conf", hostname, port, checkServerInterval),
-    m_login(login), m_password(password), m_device(device), m_import_config(false)
+    m_login(login), m_password(password), m_device(device), m_import_config(false),
+    worker(worker)
 {
     connect(&packTimer, &QTimer::timeout, this, &Client::sendPack);
     packTimer.setSingleShot(true);
@@ -269,7 +270,7 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
     case Cmd::ServerInfo:
     {
         close_connection();
-        emit setServerInfo(&msg);
+        emit setServerInfo(&msg, worker->database());
 
         auto wait_it = wait_map.find(Cmd::GetServerInfo);
         if (wait_it != wait_map.cend())

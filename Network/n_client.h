@@ -44,7 +44,7 @@ public:
 signals:
     void restart();
     void getServerInfo(QDataStream* ds) const;
-    void setServerInfo(QDataStream* s, bool* = nullptr, std::function<void(QVector<CodeItem> *)> = nullptr);
+    void setServerInfo(QDataStream* s, Database *db, bool* = nullptr, std::function<void(QVector<CodeItem> *)> = nullptr);
 
     void setControlState(quint32 section_id, quint32 device_type, const QVariant& raw_data);
     void writeToItem(quint32 item_id, const QVariant& raw_data);
@@ -108,6 +108,8 @@ private:
     QVector<QPair<QUuid, QString>> lastUserDevices;
 
     SectionManager* house_mng;
+
+    Worker *worker;
 };
 
 } // namespace Network

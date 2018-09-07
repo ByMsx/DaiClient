@@ -58,7 +58,7 @@ public:
     static dai::DjangoHelper* django;
     static dai::Network::WebSocket* webSock;
 
-    DBManager* database() const;
+    const Helpz::Database::ConnectionInfo& database_info() const;
 
     static std::unique_ptr<QSettings> settings();
 private:
@@ -120,6 +120,8 @@ public slots:
 
 //    void sendLostValues(const QVector<quint32> &ids);
 private:
+    DBManager* database() const;
+    std::unique_ptr<Helpz::Database::ConnectionInfo> db_info_;
     DBManager* db_mng;
 //    DBus::PegasIface dbus;
 

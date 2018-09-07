@@ -136,6 +136,7 @@ Worker::~Worker()
 }
 
 DBManager* Worker::database() const { return db_mng; }
+const Helpz::Database::ConnectionInfo &Worker::database_info() const { return *db_info_; }
 
 std::unique_ptr<QSettings> Worker::settings()
 {
@@ -151,7 +152,7 @@ void Worker::init_DBus(QSettings* s)
 
 void Worker::init_Database(QSettings* s)
 {
-    auto info = Helpz::SettingsHelper(
+    db_info_ = Helpz::SettingsHelper(
                 s, "Database",
                 Z::Param{"Name", "deviceaccess_local"},
                 Z::Param{"User", "DaiUser"},
@@ -161,8 +162,10 @@ void Worker::init_Database(QSettings* s)
                 Z::Param{"Driver", "QMYSQL"},
                 Z::Param{"ConnectOptions", QString()}
     ).unique_ptr<Helpz::Database::ConnectionInfo>();
+    if (!db_info_)
+        throw std::runtime_error("Failed get database config");
 
-    db_mng = new DBManager(*info);
+    db_mng = new DBManager(*db_info_);
 }
 
 void Worker::init_SectionManager(QSettings* s)

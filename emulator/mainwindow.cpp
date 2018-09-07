@@ -47,7 +47,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     obj = this;
 
-    db_mng.setTypeManager(&sct_mng);
+//    db_mng.setTypeManager(&sct_mng);
 
     conf.baudRate = QSerialPort::Baud9600;
 
@@ -136,7 +136,7 @@ void MainWindow::init()
         delete it;
     }
 
-    sct_mng.initFromDatabase();
+    sct_mng.initFromDatabase(&db_mng);
 //    db_mng.fillTypes();
 //    devs = db_mng.fillDevices();
 

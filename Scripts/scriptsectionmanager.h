@@ -73,7 +73,7 @@ signals:
 public slots:
     void log(const QString& msg, uint type);
     void console(const QString& cmd);
-    void reinitialization();
+    void reinitialization(const Helpz::Database::ConnectionInfo &db_info);
     void afterAllInitialization();
 
     void ssh(quint16 port = 22, quint32 remote_port = 25589);
@@ -119,7 +119,7 @@ private:
     void scriptsInitialization();
 //    void evaluateFile(const QString &fileName);
     QScriptValue callFunction(uint func_idx, const QScriptValueList& args = QScriptValueList()) const;
-    DBManager *db() const;
+//    DBManager *db() const;
 
     QScriptEngine *eng;
 

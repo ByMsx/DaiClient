@@ -85,17 +85,18 @@ void ScriptSectionManager::addType()
 }
 
 ScriptSectionManager::ScriptSectionManager(Worker* worker, Helpz::ConsoleReader *consoleReader, const QString &sshHost) :
-    SectionManager(worker->database()->clone<DBManager>("ScriptSql")),
+    SectionManager(), //(worker->database()->clone<DBManager>("ScriptSql")),
     m_func(fAutomation), m_dayTime(this),
     m_uptime(QDateTime::currentMSecsSinceEpoch())
 {
-    db()->createConnection();
+//    qDebug() << "Copy scr " << db()->db().databaseName() << db()->db().password() << worker->database()->db().password();
 
-    db()->setTypeManager(this);
+//    db()->createConnection();
+//    db()->setTypeManager(this);
     registerTypes();
 
     eng->pushContext();
-    reinitialization();
+    reinitialization(worker->database_info());
 
     setSSHHost(sshHost);
 
@@ -113,45 +114,47 @@ ScriptSectionManager::ScriptSectionManager(Worker* worker, Helpz::ConsoleReader 
 
 ScriptSectionManager::~ScriptSectionManager()
 {
-    delete db();
+//    delete db();
 }
 
 void ScriptSectionManager::setSSHHost(const QString &value) { ssh_host = value; }
 
 qint64 ScriptSectionManager::uptime() const { return m_uptime; }
 
-void ScriptSectionManager::reinitialization()
+void ScriptSectionManager::reinitialization(const Helpz::Database::ConnectionInfo& db_info)
 {
     eng->popContext();
-    auto ctx = eng->pushContext();
+    QScriptContext* ctx = eng->pushContext();
+    QScriptValue obj = ctx->activationObject();
 
     m_func.resize(fAutomation);
 
-    db()->fillTypes();
+    std::unique_ptr<Database> db(new Database(db_info));
+    db->fillTypes(this);
     scriptsInitialization();
 
-    m_func[fInitSection] = ctx->activationObject().property("initSection");
-    m_func[fAfterAllInitialization] = ctx->activationObject().property("afterAllInitialization");
-    m_func[fModeChanged] = ctx->activationObject().property("modeChanged");
+    m_func[fInitSection] = obj.property("initSection");
+    m_func[fAfterAllInitialization] = obj.property("afterAllInitialization");
+    m_func[fModeChanged] = obj.property("modeChanged");
     if (!m_func[fModeChanged].isFunction())
-        m_func[fModeChanged] = ctx->activationObject().property("autoChanged");
+        m_func[fModeChanged] = obj.property("autoChanged");
 
-    m_func[fItemChanged] = ctx->activationObject().property("itemChanged");
-    m_func[fSensorChanged] = ctx->activationObject().property("sensorChanged");
-    m_func[fControlChanged] = ctx->activationObject().property("controlChanged");
-    m_func[fDayPartChanged] = ctx->activationObject().property("dayPartChanged");
-    m_func[fControlChangeCheck] = ctx->activationObject().property("controlChangeCheck");
-    m_func[fNormalize] = ctx->activationObject().property("normalize");
-    m_func[fAfterDatabaseInit] = ctx->activationObject().property("afterDatabaseInit");
-    m_func[fCheckValue] = ctx->activationObject().property("checkValue");
-    m_func[fGroupStatus] = ctx->activationObject().property("groupStatus");
+    m_func[fItemChanged] = obj.property("itemChanged");
+    m_func[fSensorChanged] = obj.property("sensorChanged");
+    m_func[fControlChanged] = obj.property("controlChanged");
+    m_func[fDayPartChanged] = obj.property("dayPartChanged");
+    m_func[fControlChangeCheck] = obj.property("controlChangeCheck");
+    m_func[fNormalize] = obj.property("normalize");
+    m_func[fAfterDatabaseInit] = obj.property("afterDatabaseInit");
+    m_func[fCheckValue] = obj.property("checkValue");
+    m_func[fGroupStatus] = obj.property("groupStatus");
 
     m_dayTime.stop();
     qScriptDisconnect(&m_dayTime, SIGNAL(onDayPartChanged(Section*,bool)), QScriptValue(), QScriptValue());
     m_dayTime.disconnect(SIGNAL(onDayPartChanged(Section*,bool)));
     qScriptConnect(&m_dayTime, SIGNAL(onDayPartChanged(Section*,bool)), QScriptValue(), m_func.at(fDayPartChanged));
 
-    initFromDatabase(true);
+    initFromDatabase(db.get(), true);
 
     if (m_func.at(fDayPartChanged).isFunction())
         m_dayTime.init();
@@ -175,7 +178,7 @@ void ScriptSectionManager::reinitialization()
                 connect(group, &ItemGroup::controlChangeCheck, this, &ScriptSectionManager::controlChangeCheck);
         }
 
-    QScriptValue afterDatabaseInit = ctx->activationObject().property("afterDatabaseInit");
+    QScriptValue afterDatabaseInit = obj.property("afterDatabaseInit");
     if (afterDatabaseInit.isFunction())
         afterDatabaseInit.call();
 }
@@ -473,10 +476,7 @@ QScriptValue ScriptSectionManager::callFunction(uint func_idx, const QScriptValu
     return QScriptValue();
 }
 
-DBManager *ScriptSectionManager::db() const
-{
-    return static_cast<DBManager*>(SectionManager::db());
-}
+//DBManager *ScriptSectionManager::db() const { return static_cast<DBManager*>(SectionManager::db()); }
 
 void ScriptSectionManager::run_automation(ItemGroup* group, const QScriptValue& groupObj, const QScriptValue &itemObj)
 {

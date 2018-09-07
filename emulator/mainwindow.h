@@ -11,7 +11,7 @@
 #include <vector>
 
 //#include "simplemodbusdevice.h"
-#include "db_manager.h"
+#include "Database/db_manager.h"
 #include "Dai/sectionmanager.h"
 #include "Dai/typemanager/typemanager.h"
 

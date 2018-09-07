@@ -15,12 +15,12 @@ TEMPLATE = lib
 
 DEFINES += MODBUSPLUGIN_LIBRARY
 
-INCLUDEPATH += ../../lib/
+INCLUDEPATH += ../../../lib/
 
 #Target version
 VER_MAJ = 1
 VER_MIN = 1
-include(../../common.pri)
+include(../../../common.pri)
 
 SOURCES += modbusplugin.cpp
 
@@ -29,7 +29,7 @@ HEADERS += modbusplugin.h\
 
 OTHER_FILES = checkerinfo.json
 
-LIBS += -L$${DESTDIR}/../
+LIBS += -L$${DESTDIR}/../../
 LIBS += -lDai
 
 unix {
