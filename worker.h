@@ -134,7 +134,7 @@ private:
 //    RealSectionManager* sct_mng;
 
     friend class Checker;
-    using CheckerThread = Helpz::SettingsThreadHelper<Checker, Worker*, int>;
+    using CheckerThread = Helpz::SettingsThreadHelper<Checker, Worker*, int, QStringList>;
     CheckerThread::Type* checker_th;
 //    ScriptsThread* scripts;
 
