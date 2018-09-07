@@ -14,7 +14,7 @@ class DBManager : public QObject, public Database
 {
     Q_OBJECT
 public:
-    DBManager(const Helpz::Database::ConnectionInfo &info = {{}, {}, {}});
+    DBManager(const Helpz::Database::ConnectionInfo &info = {{}, {}, {}}, const QString& name = {});
 //    using Database::Database;
 
     bool setDayTime(uint id, const TimeRange& range);

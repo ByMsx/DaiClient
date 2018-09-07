@@ -11,8 +11,8 @@
 
 namespace Dai {
 
-DBManager::DBManager(const Helpz::Database::ConnectionInfo &info) :
-    QObject(), Database(info)
+DBManager::DBManager(const Helpz::Database::ConnectionInfo &info, const QString &name) :
+    QObject(), Database(info, name)
 {
     qRegisterMetaType<Dai::DBManager::LogDataT>("Dai::DBManager::LogDataT");
 }

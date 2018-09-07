@@ -129,7 +129,7 @@ void ScriptSectionManager::reinitialization(const Helpz::Database::ConnectionInf
 
     m_func.resize(fAutomation);
 
-    std::unique_ptr<Database> db(new Database(db_info));
+    std::unique_ptr<Database> db(new Database(db_info, "ProjectManager_" + QString::number((quintptr)this)));
     db->fillTypes(this);
     scriptsInitialization();
 

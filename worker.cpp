@@ -165,7 +165,7 @@ void Worker::init_Database(QSettings* s)
     if (!db_info_)
         throw std::runtime_error("Failed get database config");
 
-    db_mng = new DBManager(*db_info_);
+    db_mng = new DBManager(*db_info_, "Worker_" + QString::number((quintptr)this));
 }
 
 void Worker::init_SectionManager(QSettings* s)
