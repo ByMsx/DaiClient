@@ -23,9 +23,9 @@ class Checker : public QObject
 {
     Q_OBJECT
 public:
-    explicit Checker(Worker* worker, int interval = 1500, QObject *parent = 0);
+    explicit Checker(Worker* worker, int interval = 1500, const QStringList& plugins = {}, QObject *parent = 0);
     ~Checker();
-    void loadPlugins();
+    void loadPlugins(const QStringList& allowed_plugins);
 
     void breakChecking();
 public slots:

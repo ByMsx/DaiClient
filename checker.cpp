@@ -15,7 +15,7 @@ Q_LOGGING_CATEGORY(CheckerLog, "checker")
 
 #define MINIMAL_WRITE_INTERVAL    50
 
-Checker::Checker(Worker *worker, int interval, QObject *parent) :
+Checker::Checker(Worker *worker, int interval, const QStringList &plugins, QObject *parent) :
     QObject(parent),
     b_break(false)
 {
@@ -23,7 +23,7 @@ Checker::Checker(Worker *worker, int interval, QObject *parent) :
     sct_mng = worker->sct_mng->ptr();
 
     PluginTypeMng = sct_mng->PluginTypeMng;
-    loadPlugins();
+    loadPlugins(plugins);
 
 
 
@@ -60,7 +60,7 @@ Checker::~Checker()
             qWarning(CheckerLog) << "Unload fail" << plugin.loader->fileName() << plugin.loader->errorString();
 }
 
-void Checker::loadPlugins()
+void Checker::loadPlugins(const QStringList &allowed_plugins)
 {
     //    pluginLoader.emplace("modbus", nullptr);
     QString type;
@@ -73,8 +73,18 @@ void Checker::loadPlugins()
 
     std::unique_ptr<QSettings> settings;
 
+    bool finded;
     for (const QString& fileName: pluginsDir.entryList(QDir::Files))
     {
+        finded = false;
+        for (const QString& plugin_name: allowed_plugins)
+            if (fileName.startsWith("lib" + plugin_name)) {
+                finded = true;
+                break;
+            }
+        if (!finded)
+            continue;
+
         std::shared_ptr<QPluginLoader> loader = std::make_shared<QPluginLoader>(pluginsDir.absoluteFilePath(fileName));
         if (loader->load() || loader->isLoaded())
         {
