@@ -374,6 +374,10 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
             Helpz::parse_out(msg, log_type, date_ms);
             if (log_type != Dai::ValueLog && log_type != Dai::EventLog)
                 break;
+
+            qCDebug(NetClientLog) << "Request sync" << (log_type == Dai::ValueLog ? "values" : "events")
+                                  << "range from" << date_ms;
+
             send(cmd) << log_type << getLogRange(log_type, date_ms);
         }
         break;
@@ -385,11 +389,14 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
         if (log_type != Dai::ValueLog && log_type != Dai::EventLog)
             break;
 
+        qCDebug(NetClientLog) << "Request sync" << (log_type == Dai::ValueLog ? "values" : "events")
+                              << "from:" << range.first << "to:" << range.second;
+
         auto res = getLogData(log_type, range);
         try {
             switch (log_type) {
-            case ValueLog: send(cmd) << log_type << res.not_found << std::get<0>(res.data); qDebug() << std::get<0>(res.data).size(); break;
-            case EventLog: send(cmd) << log_type << res.not_found << std::get<1>(res.data); qDebug() << std::get<1>(res.data).size();  break;
+            case ValueLog: send(cmd) << log_type << res.not_found << std::get<0>(res.data); qDebug() << "Send values size" << std::get<0>(res.data).size(); break;
+            case EventLog: send(cmd) << log_type << res.not_found << std::get<1>(res.data); qDebug() << "Send events size" << std::get<1>(res.data).size();  break;
             default: break;
             }
         }
