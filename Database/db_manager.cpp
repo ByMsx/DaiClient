@@ -93,7 +93,7 @@ DBManager::LogDataT DBManager::getLogData(quint8 log_type, const QPair<quint32, 
     case EventLog: {
         QVector<EventPackItem> pack;
         getLogRangeValues({"house_eventlog", {"id", "type", "date", "who", "msg"}}, [&pack](const QSqlQuery& q) {
-            pack.push_back(EventPackItem{ q.value(1).toUInt(), q.value(0).toUInt(),
+            pack.push_back(EventPackItem{ q.value(0).toUInt(), q.value(1).toUInt(),
                                      q.value(2).toDateTime().toMSecsSinceEpoch(), q.value(3).toString(), q.value(4).toString()});
         });
         res.data = std::move(pack);
