@@ -14,7 +14,11 @@
 
 namespace dai {
 
-WebSockItem::WebSockItem(Dai::Worker *obj) : w(obj) {
+WebSockItem::WebSockItem(Dai::Worker *obj) :
+    QObject(), dai::project::base(),
+    w(obj)
+{
+    set_id(1);
     connect(w, &Dai::Worker::modeChanged, this, &WebSockItem::modeChanged, Qt::QueuedConnection);
 }
 
