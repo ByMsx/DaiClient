@@ -63,6 +63,7 @@ Client::Client(Worker *worker, const QString &hostname, quint16 port, const QStr
 
 // -----> Sync database
     connect(this, &Client::getLogRange, worker->database(), &DBManager::getLogRange, Qt::BlockingQueuedConnection);
+    connect(this, &Client::getLogData, worker->database(), &DBManager::getLogData, Qt::BlockingQueuedConnection);
 // <--------------------
 
     connect(worker, &Worker::paramValuesChanged, this, &Client::sendParamValues, Qt::QueuedConnection);
@@ -373,6 +374,10 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
             Helpz::parse_out(msg, log_type, date_ms);
             if (log_type != Dai::ValueLog && log_type != Dai::EventLog)
                 break;
+
+            qCDebug(NetClientLog) << "Request sync" << (log_type == Dai::ValueLog ? "values" : "events")
+                                  << "range from" << date_ms;
+
             send(cmd) << log_type << getLogRange(log_type, date_ms);
         }
         break;
@@ -385,10 +390,14 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
             break;
 
         auto res = getLogData(log_type, range);
+
+        qCDebug(NetClientLog) << "Request sync" << (log_type == Dai::ValueLog ? "values" : "events")
+                              << "from:" << range.first << "to:" << range.second;
+
         try {
             switch (log_type) {
-            case ValueLog: send(cmd) << log_type << res.not_found << std::get<0>(res.data); break;
-            case EventLog: send(cmd) << log_type << res.not_found << std::get<1>(res.data); break;
+            case ValueLog: send(cmd) << log_type << res.not_found << std::get<0>(res.data); qDebug() << std::get<0>(res.data).size(); break;
+            case EventLog: send(cmd) << log_type << res.not_found << std::get<1>(res.data); qDebug() << std::get<1>(res.data).size();  break;
             default: break;
             }
         }
