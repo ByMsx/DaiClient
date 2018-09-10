@@ -19,6 +19,8 @@ WebSockItem::WebSockItem(Dai::Worker *obj) :
     w(obj)
 {
     set_id(1);
+    set_title("localhost");
+    set_teams({1});
     connect(w, &Dai::Worker::modeChanged, this, &WebSockItem::modeChanged, Qt::QueuedConnection);
 }
 

@@ -1,5 +1,5 @@
-#ifndef GREENHOUSE_CHECKER_H
-#define GREENHOUSE_CHECKER_H
+#ifndef DAI_CHECKER_H
+#define DAI_CHECKER_H
 
 #include <QThread>
 #include <QTimer>
@@ -70,4 +70,4 @@ public:
 
 } // namespace Dai
 
-#endif // GREENHOUSE_CHECKER_H
+#endif // DAI_CHECKER_H

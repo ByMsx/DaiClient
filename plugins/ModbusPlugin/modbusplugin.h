@@ -1,5 +1,5 @@
-#ifndef GREENHOUSE_MODBUSPLUGIN_H
-#define GREENHOUSE_MODBUSPLUGIN_H
+#ifndef DAI_MODBUSPLUGIN_H
+#define DAI_MODBUSPLUGIN_H
 
 #include <QLoggingCategory>
 #include <QModbusRtuSerialMaster>
@@ -99,4 +99,4 @@ private:
 } // namespace Modbus
 } // namespace Dai
 
-#endif // GREENHOUSE_MODBUSPLUGIN_H
+#endif // DAI_MODBUSPLUGIN_H
