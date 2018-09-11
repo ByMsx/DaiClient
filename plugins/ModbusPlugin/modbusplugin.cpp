@@ -165,6 +165,7 @@ bool ModbusPlugin::check(Device* dev)
     };
 
     std::map<QModbusDataUnit::RegisterType, DevItems> modbusInfoMap;
+    DeviceItem* info_item = nullptr;
 
     for (DeviceItem* item: dev->items())
 //    for (int i = 0; i < dev->item_size(); ++i)
@@ -173,9 +174,55 @@ bool ModbusPlugin::check(Device* dev)
         const auto rgsType = static_cast<QModbusDataUnit::RegisterType>(item->registerType());
         if (    rgsType > QModbusDataUnit::Invalid &&
                 rgsType <= QModbusDataUnit::HoldingRegisters)
-            modbusInfoMap[rgsType][item->unit()] = item;
+        {
+            if (item->unit() == -1)
+                info_item = item;
+            else
+                modbusInfoMap[rgsType][item->unit()] = item;
+        }
     }
 
+    if (info_item)
+    {
+        auto requestPair = std::make_pair(dev->address(), QModbusDataUnit::Invalid);
+        if (devStatusCache.find(requestPair) == devStatusCache.cend()) {
+            devStatusCache[requestPair] = QModbusDevice::NoError;
+
+            QModbusReply *reply = sendRawRequest(QModbusRequest(QModbusPdu::WriteFileRecord), dev->address());
+            if (reply)
+            {
+                auto setInfo = [this, reply, dev, info_item]() {
+                    if (reply->error() == QModbusDevice::NoError)
+                    {
+                        quint16 slave_id = 0;
+                        quint8 ver_major = 0, ver_minor = 0;
+
+                        QByteArray info_data = reply->rawResult().data().right(4);
+                        QDataStream ds(info_data);
+//                        ds.setByteOrder(QDataStream::BigEndian);
+                        ds >> slave_id >> ver_major >> ver_minor;
+
+                        QString dev_info = QString("Ver%1.%2 (%3)").arg((int)ver_major).arg((int)ver_minor).arg(slave_id);
+                        QMetaObject::invokeMethod(info_item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, dev_info));
+                    }
+                    else
+                        qCWarning(ModbusLog).noquote() << tr("Failed to send info request: %1 Device address: %2 (%3)")
+                                            .arg(reply->errorString()) .arg(dev->address()) .arg(reply->error() == QModbusDevice::ProtocolError ?
+                                                                                                    tr("Mobus exception: 0x%1").arg(reply->rawResult().exceptionCode(), -1, 16) :
+                                                                                                    tr("code: 0x%1").arg(reply->error(), -1, 16));
+                    reply->deleteLater();
+                };
+
+                if (!reply->isFinished())
+                    connect(reply, &QModbusReply::finished, setInfo);
+                else
+                    setInfo();
+            }
+            else
+                qCCritical(ModbusLog) << "Failed to send info request:" << errorString() << "Device address:" << dev->address();
+        }
+    }
+    
     for (auto modbusInfo: modbusInfoMap)
         if (!b_break)
             proccessRegister(modbusInfo.first, modbusInfo.second);
