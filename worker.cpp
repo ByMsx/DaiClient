@@ -288,7 +288,8 @@ void Worker::init_LogTimer(int period)
 /*static*/ void* Worker::django_handle = nullptr;
 void Worker::initDjangoLib(QSettings *s)
 {
-    django_handle = dlopen("./plugins/libdjango.so", RTLD_LAZY);
+    QByteArray plugin_file = (qApp->applicationDirPath() + "/plugins/libdjango.so").toLocal8Bit();
+    django_handle = dlopen(plugin_file.constData(), RTLD_LAZY);
     if (!django_handle)
         throw std::runtime_error(dlerror());
 
@@ -305,7 +306,8 @@ void Worker::initDjangoLib(QSettings *s)
 /*static*/ void* Worker::websock_handle = nullptr;
 void Worker::initWebSocketManagerLib(QSettings *s)
 {
-    websock_handle = dlopen("./plugins/libwebsocket.so", RTLD_LAZY);
+    QByteArray plugin_file = (qApp->applicationDirPath() + "/plugins/libwebsocket.so").toLocal8Bit();
+    websock_handle = dlopen(plugin_file.constData(), RTLD_LAZY);
     if (!websock_handle)
         throw std::runtime_error(dlerror());
 
