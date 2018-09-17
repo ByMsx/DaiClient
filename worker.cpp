@@ -265,7 +265,7 @@ void Worker::init_LogTimer(int period)
                     ValuePackItem packItem{ db_id.toUInt(), dev_item->id(), cur_date.toMSecsSinceEpoch(),
                                     dev_item->getRawValue(), dev_item->getValue() };
                     QMetaObject::invokeMethod(g_mng_th->ptr(), "change", Qt::QueuedConnection,
-                                              Q_ARG(Dai::ValuePackItem, packItem), Q_ARG(bool, false));
+                                              Q_ARG(ValuePackItem, packItem), Q_ARG(bool, false));
                 }
                 else
                 {
