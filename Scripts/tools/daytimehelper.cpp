@@ -4,13 +4,13 @@
 
 #include <QTimer>
 
-#include <Dai/sectionmanager.h>
+#include <Dai/project.h>
 #include "daytimehelper.h"
 
 namespace Dai {
 
-DayTimeHelper::DayTimeHelper(SectionManager *house_mng, QObject *parent) :
-    QObject(parent), house_mng(house_mng)
+DayTimeHelper::DayTimeHelper(Project *prj, QObject *parent) :
+    QObject(parent), prj(prj)
 {
     m_timer.setSingleShot(true);
     m_timer.setTimerType(Qt::VeryCoarseTimer);
@@ -37,7 +37,7 @@ void DayTimeHelper::init()
 
     std::optional<qint64> next_secs;
 
-    for (Section* sct: house_mng->sections())
+    for (Section* sct: prj->sections())
     {
         day_secs = zero_secs + sct->dayTime()->start();
         night_secs = zero_secs + sct->dayTime()->end();
@@ -79,7 +79,7 @@ void DayTimeHelper::onTimer()
         return value_secs >= (current_secs - 1) && value_secs <= (current_secs + 1);
     };
 
-    for (Section* sct: house_mng->sections())
+    for (Section* sct: prj->sections())
     {
         if (checkDayPartChanged(sct->dayTime()->start()))
             emit onDayPartChanged(sct, true);

@@ -10,7 +10,7 @@
 
 #include <Helpz/consolereader.h>
 
-#include "scriptsectionmanager.h"
+#include "scriptedproject.h"
 #include "paramgroupclass.h"
 
 #include "tools/automationhelper.h"
@@ -57,7 +57,7 @@ struct ArgumentGetter {
 };
 
 template<typename T, template<typename> class P, typename... Args>
-void ScriptSectionManager::addType()
+void ScriptedProject::addType()
 {
     auto ctor = [](QScriptContext* ctx, QScriptEngine* eng) -> QScriptValue {
         if ((unsigned)ctx->argumentCount() >= sizeof...(Args))
@@ -81,11 +81,11 @@ void ScriptSectionManager::addType()
 
     eng->globalObject().setProperty(name, value);
 
-//    qCDebug(ManagerLog) << "Register for script:" << name;
+//    qCDebug(ProjectLog) << "Register for script:" << name;
 }
 
-ScriptSectionManager::ScriptSectionManager(Worker* worker, Helpz::ConsoleReader *consoleReader, const QString &sshHost) :
-    SectionManager(), //(worker->database()->clone<DBManager>("ScriptSql")),
+ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleReader, const QString &sshHost) :
+    Project(), //(worker->database()->clone<DBManager>("ScriptSql")),
     m_func(fAutomation), m_dayTime(this),
     m_uptime(QDateTime::currentMSecsSinceEpoch())
 {
@@ -100,28 +100,28 @@ ScriptSectionManager::ScriptSectionManager(Worker* worker, Helpz::ConsoleReader 
 
     setSSHHost(sshHost);
 
-    using T = ScriptSectionManager;
+    using T = ScriptedProject;
     connect(this, &T::modeChanged, worker, &Worker::modeChanged, Qt::QueuedConnection);
     connect(this, &T::sctItemChanged, worker, &Worker::newValue);
     connect(this, &T::groupStatusChanged, worker, &Worker::groupStatusChanged, Qt::QueuedConnection);
 //    connect(worker, &Worker::dumpSectionsInfo, this, &T::dumpInfo, Qt::BlockingQueuedConnection);
 
-    connect(this, &ScriptSectionManager::dayTimeChanged, &m_dayTime, &DayTimeHelper::init, Qt::QueuedConnection);
+    connect(this, &ScriptedProject::dayTimeChanged, &m_dayTime, &DayTimeHelper::init, Qt::QueuedConnection);
 
     if (consoleReader)
         connect(consoleReader, &Helpz::ConsoleReader::textReceived, this, &T::console);
 }
 
-ScriptSectionManager::~ScriptSectionManager()
+ScriptedProject::~ScriptedProject()
 {
 //    delete db();
 }
 
-void ScriptSectionManager::setSSHHost(const QString &value) { ssh_host = value; }
+void ScriptedProject::setSSHHost(const QString &value) { ssh_host = value; }
 
-qint64 ScriptSectionManager::uptime() const { return m_uptime; }
+qint64 ScriptedProject::uptime() const { return m_uptime; }
 
-void ScriptSectionManager::reinitialization(const Helpz::Database::ConnectionInfo& db_info)
+void ScriptedProject::reinitialization(const Helpz::Database::ConnectionInfo& db_info)
 {
     eng->popContext();
     QScriptContext* ctx = eng->pushContext();
@@ -162,20 +162,20 @@ void ScriptSectionManager::reinitialization(const Helpz::Database::ConnectionInf
     for(Device* dev: devices())
         for (DeviceItem* dev_item: dev->items())
                 if (dev_item->needNormalize())
-                    connect(dev_item, &DeviceItem::normalize, this, &ScriptSectionManager::normalize);
+                    connect(dev_item, &DeviceItem::normalize, this, &ScriptedProject::normalize);
 
     for(Section* sct: sections())
         for (ItemGroup* group: sct->groups())
         {
-            connect(group, &ItemGroup::getStatus, this, &ScriptSectionManager::groupStatus);
-            connect(group, &ItemGroup::checkValue, this, &ScriptSectionManager::checkValue);
-            connect(group, &ItemGroup::statusChanged, this, &ScriptSectionManager::statusChanged);
-            connect(group, &ItemGroup::itemChanged, this, &ScriptSectionManager::itemChanged);
-            connect(group, &ItemGroup::itemChanged, this, &ScriptSectionManager::sctItemChanged);
-            connect(group, &ItemGroup::modeChanged, this, &ScriptSectionManager::groupModeChanged);
+            connect(group, &ItemGroup::getStatus, this, &ScriptedProject::groupStatus);
+            connect(group, &ItemGroup::checkValue, this, &ScriptedProject::checkValue);
+            connect(group, &ItemGroup::statusChanged, this, &ScriptedProject::statusChanged);
+            connect(group, &ItemGroup::itemChanged, this, &ScriptedProject::itemChanged);
+            connect(group, &ItemGroup::itemChanged, this, &ScriptedProject::sctItemChanged);
+            connect(group, &ItemGroup::modeChanged, this, &ScriptedProject::groupModeChanged);
 
             if (m_func.at(fControlChangeCheck).isFunction())
-                connect(group, &ItemGroup::controlChangeCheck, this, &ScriptSectionManager::controlChangeCheck);
+                connect(group, &ItemGroup::controlChangeCheck, this, &ScriptedProject::controlChangeCheck);
         }
 
     QScriptValue afterDatabaseInit = obj.property("afterDatabaseInit");
@@ -183,7 +183,7 @@ void ScriptSectionManager::reinitialization(const Helpz::Database::ConnectionInf
         afterDatabaseInit.call();
 }
 
-void ScriptSectionManager::registerTypes()
+void ScriptedProject::registerTypes()
 {
     qRegisterMetaType<Section*>("Section*");
     qRegisterMetaType<Sections*>("Sections*");
@@ -193,7 +193,7 @@ void ScriptSectionManager::registerTypes()
 
     eng = new QScriptEngine(this);
     connect(eng, &QScriptEngine::signalHandlerException,
-            this, &ScriptSectionManager::handlerException);
+            this, &ScriptedProject::handlerException);
 
     addType<QTimer>();
     addType<QProcess>();
@@ -257,7 +257,7 @@ void initTypes(QScriptValue& parent, const QString& prop_name, BaseTypeManager<T
     }
 }
 
-void ScriptSectionManager::scriptsInitialization()
+void ScriptedProject::scriptsInitialization()
 {
     auto readScriptFile = [](const QString& fileBase) -> QString
     {
@@ -372,10 +372,10 @@ void ScriptSectionManager::scriptsInitialization()
     }
 }
 
-Section *ScriptSectionManager::addSection(quint32 id, const QString &name, const TimeRange &dayTime)
+Section *ScriptedProject::addSection(quint32 id, const QString &name, const TimeRange &dayTime)
 {
-    auto sct = SectionManager::addSection(id, name, dayTime);
-    connect(sct, &Section::groupInitialized, this, &ScriptSectionManager::groupInitialized);
+    auto sct = Project::addSection(id, name, dayTime);
+    connect(sct, &Section::groupInitialized, this, &ScriptedProject::groupInitialized);
 //    connect(sct, SIGNAL(autoChanged(uint,bool)), SLOT(autoChanged(uint,bool)));
 //    connect(sct, SIGNAL(itemChanged(DeviceItem*)), SLOT(itemChanged(DeviceItem*)));
 //    connect(sct, SIGNAL(itemChanged(DeviceItem*)), SIGNAL(sctItemChanged(DeviceItem*)));
@@ -385,7 +385,7 @@ Section *ScriptSectionManager::addSection(quint32 id, const QString &name, const
     return sct;
 }
 
-QScriptValue ScriptSectionManager::valueFromVariant(const QVariant &data) const
+QScriptValue ScriptedProject::valueFromVariant(const QVariant &data) const
 {
     switch (data.type()) {
     case QVariant::Bool:                return data.toBool();
@@ -405,7 +405,7 @@ QScriptValue ScriptSectionManager::valueFromVariant(const QVariant &data) const
     }
 }
 
-void ScriptSectionManager::log(const QString &msg, uint type)
+void ScriptedProject::log(const QString &msg, uint type)
 {
     switch (type) {
     case QtCriticalMsg: qCCritical(ScriptLog).noquote() << msg; break;
@@ -418,7 +418,7 @@ void ScriptSectionManager::log(const QString &msg, uint type)
     }
 }
 
-void ScriptSectionManager::console(const QString &cmd)
+void ScriptedProject::console(const QString &cmd)
 {
     QString script = cmd.trimmed();
     if (script.isEmpty() || !eng->canEvaluate(script))
@@ -450,7 +450,7 @@ void ScriptSectionManager::console(const QString &cmd)
     (is_error ? qCritical(ScriptLog) : qInfo(ScriptLog)).noquote() << "CONSOLE ["<< script << "] >" << res.toString();
 }
 
-//void ScriptSectionManager::evaluateFile(const QString& fileName)
+//void ScriptedProject::evaluateFile(const QString& fileName)
 //{
 //    QFile scriptFile(fileName);
 //    scriptFile.open(QIODevice::ReadOnly);
@@ -461,7 +461,7 @@ void ScriptSectionManager::console(const QString &cmd)
 //    check_error( fileName, eng->evaluate(contents, fileName) );
 //}
 
-QScriptValue ScriptSectionManager::callFunction(uint func_idx, const QScriptValueList& args) const
+QScriptValue ScriptedProject::callFunction(uint func_idx, const QScriptValueList& args) const
 {
     if (func_idx < m_func.size())
     {
@@ -476,16 +476,14 @@ QScriptValue ScriptSectionManager::callFunction(uint func_idx, const QScriptValu
     return QScriptValue();
 }
 
-//DBManager *ScriptSectionManager::db() const { return static_cast<DBManager*>(SectionManager::db()); }
-
-void ScriptSectionManager::run_automation(ItemGroup* group, const QScriptValue& groupObj, const QScriptValue &itemObj)
+void ScriptedProject::run_automation(ItemGroup* group, const QScriptValue& groupObj, const QScriptValue &itemObj)
 {
     auto automation = m_automation.find(group->type());
     if (automation != m_automation.cend())
         callFunction(automation->second, { (groupObj.isValid() ? groupObj : eng->newQObject(group)), itemObj });
 }
 
-void ScriptSectionManager::groupModeChanged(uint mode, quint32 /*group_id*/)
+void ScriptedProject::groupModeChanged(uint mode, quint32 /*group_id*/)
 {
     auto group = static_cast<ItemGroup*>(sender());
     if (!group)
@@ -497,7 +495,7 @@ void ScriptSectionManager::groupModeChanged(uint mode, quint32 /*group_id*/)
 }
 
 QElapsedTimer t;
-void ScriptSectionManager::itemChanged(DeviceItem *item)
+void ScriptedProject::itemChanged(DeviceItem *item)
 {
     t.restart();
 
@@ -518,22 +516,22 @@ void ScriptSectionManager::itemChanged(DeviceItem *item)
 //    eng->collectGarbage();
 
     if (t.elapsed() > 500)
-        qCWarning(ManagerLog) << "itemChanged timeout" << t.elapsed();
+        qCWarning(ProjectLog) << "itemChanged timeout" << t.elapsed();
 
     t.invalidate();
 }
 
-void ScriptSectionManager::statusChanged(quint32 status)
+void ScriptedProject::statusChanged(quint32 status)
 {
     groupStatusChanged(static_cast<ItemGroup*>(sender())->id(), status);
 }
 
-void ScriptSectionManager::afterAllInitialization()
+void ScriptedProject::afterAllInitialization()
 {
     callFunction(fAfterAllInitialization);
 }
 
-void ScriptSectionManager::ssh(quint16 port, quint32 remote_port)
+void ScriptedProject::ssh(quint16 port, quint32 remote_port)
 {
     if (pid > 0)
         QProcess::startDetached("kill", { QString::number(pid) });
@@ -541,10 +539,10 @@ void ScriptSectionManager::ssh(quint16 port, quint32 remote_port)
     QStringList args{"-o", "StrictHostKeyChecking=no", "-N", "-R", QString("0.0.0.0:%1:localhost:22").arg(remote_port), "-p", QString::number(port), "root@" + ssh_host };
     QProcess::startDetached("ssh", args, QString(), &pid);
 
-    qCInfo(ManagerLog) << "SSH Client started" << pid;
+    qCInfo(ProjectLog) << "SSH Client started" << pid;
 }
 
-QVariantMap ScriptSectionManager::run_command(const QString &programm, const QVariantList &args, int timeout_msec) const
+QVariantMap ScriptedProject::run_command(const QString &programm, const QVariantList &args, int timeout_msec) const
 {
     QStringList args_list;
     for (const QVariant& arg: args)
@@ -562,7 +560,7 @@ QVariantMap ScriptSectionManager::run_command(const QString &programm, const QVa
     return result;
 }
 
-void ScriptSectionManager::groupInitialized(ItemGroup* group)
+void ScriptedProject::groupInitialized(ItemGroup* group)
 {
     QString func_name = GroupTypeMng.name(group->type()) + "Initialized";
     auto func = eng->currentContext()->activationObject().property(func_name);
@@ -575,18 +573,18 @@ void ScriptSectionManager::groupInitialized(ItemGroup* group)
         qCDebug(ScriptLog) << "Group type" << group->type() << GroupTypeMng.name(group->type()) << "havent init function" << func_name;
 }
 
-QVariant ScriptSectionManager::normalize(const QVariant &val)
+QVariant ScriptedProject::normalize(const QVariant &val)
 {
     return callFunction(fNormalize, { eng->newQObject(sender()), valueFromVariant(val) }).toVariant();
 }
 
-bool ScriptSectionManager::controlChangeCheck(DeviceItem *item, const QVariant &raw_data)
+bool ScriptedProject::controlChangeCheck(DeviceItem *item, const QVariant &raw_data)
 {
     auto ret = callFunction(fControlChangeCheck, { eng->newQObject(sender()), eng->newQObject(item), valueFromVariant(raw_data) });
     return ret.isBool() && ret.toBool();
 }
 
-bool ScriptSectionManager::checkValue(DeviceItem* item) const
+bool ScriptedProject::checkValue(DeviceItem* item) const
 {
     auto ret = callFunction(fCheckValue, { eng->newQObject(sender()),
                                            valueFromVariant(item->getValue()),
@@ -594,22 +592,22 @@ bool ScriptSectionManager::checkValue(DeviceItem* item) const
     return ret.isBool() && ret.toBool();
 }
 
-quint32 ScriptSectionManager::groupStatus(ItemGroup::ValueType val) const
+quint32 ScriptedProject::groupStatus(ItemGroup::ValueType val) const
 {
     auto ret = callFunction(fGroupStatus, { eng->newQObject(sender()), eng->toScriptValue(val) });
     return ret.isNumber() ? ret.toUInt32() : val->status();
 }
 
-void ScriptSectionManager::handlerException(const QScriptValue &exception)
+void ScriptedProject::handlerException(const QScriptValue &exception)
 {
     if (eng->hasUncaughtException())
-        qCCritical(ManagerLog) << exception.toString() << eng->uncaughtExceptionBacktrace();
+        qCCritical(ProjectLog) << exception.toString() << eng->uncaughtExceptionBacktrace();
 }
 
-void ScriptSectionManager::check_error(const QString& str, const QScriptValue& result) const
+void ScriptedProject::check_error(const QString& str, const QScriptValue& result) const
 {
     if (result.isError()) {
-        qCCritical(ManagerLog) << QString::fromLatin1("%0 %1(%2): %3")
+        qCCritical(ProjectLog) << QString::fromLatin1("%0 %1(%2): %3")
                         .arg(str)
                         .arg(result.property("fileName").toString())
                         .arg(result.property("lineNumber").toInt32())
@@ -617,7 +615,7 @@ void ScriptSectionManager::check_error(const QString& str, const QScriptValue& r
     }
 }
 
-void ScriptSectionManager::check_error(const QString &name, const QString &code) const
+void ScriptedProject::check_error(const QString &name, const QString &code) const
 {
     check_error(name, eng->evaluate(code, name));
 }

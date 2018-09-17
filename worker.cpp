@@ -83,7 +83,7 @@ Worker::Worker(QObject *parent) :
     QMetaObject::invokeMethod(&logg(), "init", Qt::QueuedConnection);
 
     init_Database(s.get());
-    init_SectionManager(s.get());
+    init_Project(s.get());
     init_Checker(s.get());
     init_GlobalClient(s.get());
     init_LogTimer(log_period);
@@ -125,18 +125,18 @@ Worker::~Worker()
     checker_th->quit();
 
     g_mng_th->quit();
-    sct_mng->quit();
+    prj->quit();
 
     if (!g_mng_th->wait(15000))
         g_mng_th->terminate();
     if (!checker_th->wait(15000))
         checker_th->terminate();
-    if (!sct_mng->wait(15000))
-        sct_mng->terminate();
+    if (!prj->wait(15000))
+        prj->terminate();
 
     delete g_mng_th;
     delete checker_th;
-    delete sct_mng;
+    delete prj;
 
     delete db_mng;
 }
@@ -174,7 +174,7 @@ void Worker::init_Database(QSettings* s)
     db_mng = new DBManager(*db_info_, "Worker_" + QString::number((quintptr)this));
 }
 
-void Worker::init_SectionManager(QSettings* s)
+void Worker::init_Project(QSettings* s)
 {
     Helpz::ConsoleReader* cr = nullptr;
     if (Service::instance().isImmediately())
@@ -182,9 +182,9 @@ void Worker::init_SectionManager(QSettings* s)
 
 //    qRegisterMetaType<std::shared_ptr<Dai::Prt::ServerInfo>>("std::shared_ptr<Dai::Prt::ServerInfo>");
 
-    sct_mng = ScriptsThread()(s, "Server", this, cr, Z::Param{"SSHHost", "80.89.129.98"});
-    sct_mng->start(QThread::HighPriority);
-//    while (!sct_mng->ptr() && !sct_mng->wait(5));
+    prj = ScriptsThread()(s, "Server", this, cr, Z::Param{"SSHHost", "80.89.129.98"});
+    prj->start(QThread::HighPriority);
+//    while (!prj->ptr() && !prj->wait(5));
 }
 
 void Worker::init_Checker(QSettings* s)
@@ -240,11 +240,11 @@ void Worker::init_LogTimer(int period)
 
         QVariant db_id;
 
-        ItemTypeManager* typeMng = &sct_mng->ptr()->ItemTypeMng;
+        ItemTypeManager* typeMng = &prj->ptr()->ItemTypeMng;
 
         static std::map<quint32, QVariant> cachedValues;
 
-        for (Device* dev: sct_mng->ptr()->devices())
+        for (Device* dev: prj->ptr()->devices())
             for (DeviceItem* dev_item: dev->items())
             {
                 if (typeMng->saveAlgorithm(dev_item->type()) != ItemType::saSaveByTimer)
@@ -375,7 +375,7 @@ void Worker::processCommands(const QStringList &args)
 
     if (parser.isSet(opt.at(0)))
     {
-        QMetaObject::invokeMethod(sct_mng->ptr(), "console", Qt::QueuedConnection,
+        QMetaObject::invokeMethod(prj->ptr(), "console", Qt::QueuedConnection,
                                   Q_ARG(QString, parser.value(opt.at(0))));
     }
     else if (false) {
@@ -473,31 +473,31 @@ void Worker::saveServerData(const QUuid &devive_uuid, const QString &login, cons
 
 QByteArray Worker::sections()
 {
-    while (!sct_mng->ptr() && !sct_mng->wait(5));
+    while (!prj->ptr() && !prj->wait(5));
 
     QByteArray buff;
     {
         QDataStream ds(&buff, QIODevice::WriteOnly);
         ds.setVersion(QDataStream::Qt_5_7);
-        sct_mng->ptr()->dumpInfoToStream(&ds);
+        prj->ptr()->dumpInfoToStream(&ds);
     }
     return buff;
 
-//    std::shared_ptr<Prt::ServerInfo> info = sct_mng->ptr()->dumpInfoToStream();
+//    std::shared_ptr<Prt::ServerInfo> info = prj->ptr()->dumpInfoToStream();
 //    return serialize( info.get() );
 }
 
 bool Worker::setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs)
 {
     bool res = false;
-    if (Section* sct = sct_mng->ptr()->sectionById( section_id ))
+    if (Section* sct = prj->ptr()->sectionById( section_id ))
     {
         TimeRange tempRange( dayStartSecs, dayEndSecs );
         if (*sct->dayTime() != tempRange)
             if (res = db_mng->setDayTime( section_id, tempRange ), res)
             {
                 *sct->dayTime() = tempRange;
-                sct_mng->ptr()->dayTimeChanged(/*sct*/);
+                prj->ptr()->dayTimeChanged(/*sct*/);
             }
     }
     return res;
@@ -505,14 +505,14 @@ bool Worker::setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs)
 
 void Worker::setControlState(quint32 section_id, quint32 item_type, const Variant &raw_data)
 {
-    if (auto sct = sct_mng->ptr()->sectionById( section_id ))
+    if (auto sct = prj->ptr()->sectionById( section_id ))
         QMetaObject::invokeMethod(sct, "setControlState", Qt::QueuedConnection,
                                   Q_ARG(uint, item_type), Q_ARG(QVariant, raw_data.m_var) );
 }
 
 void Worker::writeToItem(quint32 item_id, const QVariant &raw_data)
 {
-    if (DeviceItem* item = sct_mng->ptr()->itemById( item_id ))
+    if (DeviceItem* item = prj->ptr()->itemById( item_id ))
         QMetaObject::invokeMethod(item->group(), "writeToControl", Qt::QueuedConnection,
                                   Q_ARG(DeviceItem*, item), Q_ARG(QVariant, raw_data) );
 }
@@ -521,7 +521,7 @@ bool Worker::setMode(uint mode_id, quint32 group_id)
 {
     bool res = db_mng->setMode(mode_id, group_id);
     if (res)
-        QMetaObject::invokeMethod(sct_mng->ptr(), "setMode", Qt::QueuedConnection, Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id) );
+        QMetaObject::invokeMethod(prj->ptr(), "setMode", Qt::QueuedConnection, Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id) );
     return res;
 }
 
@@ -542,7 +542,7 @@ bool Worker::setCode(const CodeItem& item)
         return false;
     }
 
-    CodeManager& CodeMng = sct_mng->ptr()->CodeMng;
+    CodeManager& CodeMng = prj->ptr()->CodeMng;
     CodeItem* code = CodeMng.getType(item.id());
 
     qDebug() << "SetCode" << item.id() << item.text.length() << code->id();
@@ -560,7 +560,7 @@ void Worker::setParamValues(const ParamValuesPack &pack)
     ParamValuesPack params = pack;
     Param* p;
 
-    for(Section* sct: sct_mng->ptr()->sections())
+    for(Section* sct: prj->ptr()->sections())
         for (ItemGroup* group: sct->groups())
         {
             params.erase(std::remove_if(params.begin(), params.end(), [&](const ParamValueItem& param)
@@ -674,7 +674,7 @@ bool Worker::setSettings(quint16 cmd, QDataStream *msg)
 
             if (db_mng->setSignTypes(&signs))
             {
-                sct_mng->ptr()->SignMng = signs;
+                prj->ptr()->SignMng = signs;
                 return true;
             }
             qCDebug(Helpz::ServiceLog) << "setSignTypes" << info->items_size();
@@ -684,11 +684,11 @@ bool Worker::setSettings(quint16 cmd, QDataStream *msg)
         if (auto info = static_cast<Prt::TypesInfo*>(msg))
         {
             ItemTypeManager itemTypes;
-            sct_mng->ptr()->fillItemTypes(&itemTypes, info);
+            prj->ptr()->fillItemTypes(&itemTypes, info);
 
             if (db_mng->setItemTypes(&itemTypes))
             {
-                sct_mng->ptr()->ItemTypeMng = itemTypes;
+                prj->ptr()->ItemTypeMng = itemTypes;
                 return true;
             }
         }
@@ -697,11 +697,11 @@ bool Worker::setSettings(quint16 cmd, QDataStream *msg)
         if (auto info = static_cast<Prt::TypesInfo*>(msg))
         {
             ItemGroupTypeManager groupTypes;
-            sct_mng->ptr()->fillGroupTypes(&groupTypes, info);
+            prj->ptr()->fillGroupTypes(&groupTypes, info);
 
             if (db_mng->setGroupTypes(&groupTypes))
             {
-                sct_mng->ptr()->GroupTypeMng = groupTypes;
+                prj->ptr()->GroupTypeMng = groupTypes;
                 return true;
             }
         }
@@ -716,7 +716,7 @@ bool Worker::setSettings(quint16 cmd, QDataStream *msg)
             if (db_mng->setGroups(groups))
             {
                 qCDebug(Helpz::ServiceLog) << "Set Groups complite";
-//                sct_mng->ptr()->GroupTypeMng = groupTypes;
+//                prj->ptr()->GroupTypeMng = groupTypes;
                 return true;
             }
         }
@@ -726,10 +726,10 @@ bool Worker::setSettings(quint16 cmd, QDataStream *msg)
         {
             Sections sctList;
             for(auto& sct: info->items())
-                sctList.push_back(std::make_shared<Section>(sct, sct_mng->ptr()));
+                sctList.push_back(std::make_shared<Section>(sct, prj->ptr()));
             if (db_mng->setSections([&sctList]() -> const Sections& { return sctList; }))
             {
-//                sct_mng->ptr()->GroupTypeMng = groupTypes;
+//                prj->ptr()->GroupTypeMng = groupTypes;
                 return true;
             }
         }
@@ -743,7 +743,7 @@ bool Worker::setSettings(quint16 cmd, QDataStream *msg)
 
             if (db_mng->setDeviceItems(dev_items))
             {
-//                sct_mng->ptr()->GroupTypeMng = groupTypes;
+//                prj->ptr()->GroupTypeMng = groupTypes;
                 return true;
             }
         }
@@ -757,7 +757,7 @@ bool Worker::setSettings(quint16 cmd, QDataStream *msg)
 
             if (db_mng->setDevices([&devList]() -> const Devices& { return devList; }))
             {
-//                sct_mng->ptr()->GroupTypeMng = groupTypes;
+//                prj->ptr()->GroupTypeMng = groupTypes;
                 return true;
             }
         }
@@ -767,11 +767,11 @@ bool Worker::setSettings(quint16 cmd, QDataStream *msg)
         if (auto info = static_cast<Prt::TypesInfo*>(msg))
         {
             StatusManager status_mng;
-            sct_mng->ptr()->fillStatuses(&status_mng, info);
+            prj->ptr()->fillStatuses(&status_mng, info);
 
             if (db_mng->setStatuses(&status_mng))
             {
-                sct_mng->ptr()->StatusMng = status_mng;
+                prj->ptr()->StatusMng = status_mng;
                 return true;
             }
         }
@@ -780,11 +780,11 @@ bool Worker::setSettings(quint16 cmd, QDataStream *msg)
         if (auto info = static_cast<Prt::TypesInfo*>(msg))
         {
             StatusTypeManager statusType_mng;
-            sct_mng->ptr()->fillStatusTypes(&statusType_mng, info);
+            prj->ptr()->fillStatusTypes(&statusType_mng, info);
 
             if (db_mng->setStatusTypes(&statusType_mng))
             {
-                sct_mng->ptr()->StatusTypeMng = statusType_mng;
+                prj->ptr()->StatusTypeMng = statusType_mng;
                 return true;
             }
         }
@@ -793,11 +793,11 @@ bool Worker::setSettings(quint16 cmd, QDataStream *msg)
         if (auto info = static_cast<Prt::TypesInfo*>(msg))
         {
             ParamTypeManager paramType_mng;
-            sct_mng->ptr()->fillParamTypes(&paramType_mng, info);
+            prj->ptr()->fillParamTypes(&paramType_mng, info);
 
             if (db_mng->setParamTypes(&paramType_mng))
             {
-                sct_mng->ptr()->ParamMng = paramType_mng;
+                prj->ptr()->ParamMng = paramType_mng;
                 return true;
             }
         }
@@ -806,11 +806,11 @@ bool Worker::setSettings(quint16 cmd, QDataStream *msg)
         if (auto info = static_cast<Prt::TypesInfo*>(msg))
         {
 //            StatusTypeManager statusType_mng;
-//            sct_mng->ptr()->fillStatusTypes(&statusType_mng, info);
+//            prj->ptr()->fillStatusTypes(&statusType_mng, info);
 
             if (db_mng->setParamValues(info->paramvalues()))
             {
-//                sct_mng->ptr()->StatusTypeMng = statusType_mng;
+//                prj->ptr()->StatusTypeMng = statusType_mng;
                 return true;
             }
         }
@@ -819,11 +819,11 @@ bool Worker::setSettings(quint16 cmd, QDataStream *msg)
         if (auto info = static_cast<Prt::TypesInfo*>(msg))
         {
             CodeManager code_mng;
-            sct_mng->ptr()->fillCodes(&code_mng, info);
+            prj->ptr()->fillCodes(&code_mng, info);
 
             if (db_mng->setCodes(&code_mng))
             {
-                sct_mng->ptr()->CodeMng = code_mng;
+                prj->ptr()->CodeMng = code_mng;
                 return true;
             }
         }
@@ -843,10 +843,10 @@ void Worker::newValue(DeviceItem *item)
         item_values_timer.start();
 
     QVariant db_id;
-    bool immediately = sct_mng->ptr()->ItemTypeMng.saveAlgorithm(item->type()) == ItemType::saSaveImmediately;
-    if (immediately && !db_mng->logChanges(item, cur_date, &db_id))
+    bool immediately = prj->ptr()->ItemTypeMng.saveAlgorithm(item->type()) == ItemType::saSaveImmediately;
+    if (!immediately || !db_mng->logChanges(item, cur_date, &db_id))
     {
-        qWarning(Service::Log) << "Упущенное значение";
+        qWarning(Service::Log) << "Упущенное значение:" << item->toString() << item->getValue().toString();
         // TODO: Error event
     }
 

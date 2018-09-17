@@ -107,7 +107,7 @@ private:
     Helpz::Network::WaiterMap wait_map;
     QVector<QPair<QUuid, QString>> lastUserDevices;
 
-    SectionManager* house_mng;
+    Project* prj;
 
     Worker *worker;
 };

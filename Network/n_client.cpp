@@ -7,7 +7,7 @@
 
 #include "worker.h"
 #include "Database/db_manager.h"
-#include "Dai/sectionmanager.h"
+#include "Dai/project.h"
 #include "n_client.h"
 
 #include <Helpz/dtls_version.h>
@@ -15,7 +15,7 @@
 #include <Helpz/db_version.h>
 #include <Helpz/srv_version.h>
 #include "lib.h"
-#include "version.h"
+//#include "version.h"
 
 namespace Dai {
 
@@ -31,7 +31,7 @@ void Client::sendVersion()
         << Helpz::Database::ver_major() << Helpz::Database::ver_minor() << Helpz::Database::ver_build()
         << Helpz::Service::ver_major() << Helpz::Service::ver_minor() << Helpz::Service::ver_build()
         << Lib::ver_major() << Lib::ver_minor() << Lib::ver_build()
-        << DaiClient::Version::MAJOR << DaiClient::Version::MINOR << DaiClient::Version::BUILD;
+        << (quint8)VER_MJ << (quint8)VER_MN << (int)VER_B;
 }
 
 Client::Client(Worker *worker, const QString &hostname, quint16 port, const QString &login, const QString &password, const QUuid &device, int checkServerInterval) :
@@ -71,12 +71,12 @@ Client::Client(Worker *worker, const QString &hostname, quint16 port, const QStr
     connect(worker, &Worker::modeChanged, this, &Client::modeChanged, Qt::QueuedConnection);
     connect(worker, &Worker::groupStatusChanged, this, &Client::groupStatusChanged, Qt::QueuedConnection);
 
-    while (!worker->sct_mng->ptr() && !worker->sct_mng->wait(5));
-    house_mng = worker->sct_mng->ptr();
+    while (!worker->prj->ptr() && !worker->prj->wait(5));
+    prj = worker->prj->ptr();
 
-    connect(this, &Client::getServerInfo, worker->sct_mng->ptr(), &SectionManager::dumpInfoToStream, Qt::DirectConnection);
-    connect(this, &Client::setServerInfo, worker->sct_mng->ptr(), &SectionManager::initFromStream, Qt::BlockingQueuedConnection);
-    connect(this, &Client::execScript, worker->sct_mng->ptr(), &ScriptSectionManager::console, Qt::QueuedConnection);
+    connect(this, &Client::getServerInfo, worker->prj->ptr(), &Project::dumpInfoToStream, Qt::DirectConnection);
+    connect(this, &Client::setServerInfo, worker->prj->ptr(), &Project::initFromStream, Qt::BlockingQueuedConnection);
+    connect(this, &Client::execScript, worker->prj->ptr(), &ScriptedProject::console, Qt::QueuedConnection);
 
     if (canConnect())
         init_client();
@@ -284,17 +284,17 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
         sendVersion();
         send(Cmd::DateTime) << dt << dt.timeZone();
 
-        send(Cmd::ItemTypeList) << house_mng->ItemTypeMng;
-        send(Cmd::GroupTypeList) << house_mng->GroupTypeMng;
-        send(Cmd::ModeTypeLIst) << house_mng->ModeTypeMng;
-        send(Cmd::SignList) << house_mng->SignMng;
-        send(Cmd::StatusTypeList) << house_mng->StatusTypeMng;
-        send(Cmd::StatusList) << house_mng->StatusMng;
-        send(Cmd::ParamList) << house_mng->ParamMng;
+        send(Cmd::ItemTypeList) << prj->ItemTypeMng;
+        send(Cmd::GroupTypeList) << prj->GroupTypeMng;
+        send(Cmd::ModeTypeLIst) << prj->ModeTypeMng;
+        send(Cmd::SignList) << prj->SignMng;
+        send(Cmd::StatusTypeList) << prj->StatusTypeMng;
+        send(Cmd::StatusList) << prj->StatusMng;
+        send(Cmd::ParamList) << prj->ParamMng;
 
-        send(Cmd::CodesChecksum) << house_mng->get_codes_checksum();
+        send(Cmd::CodesChecksum) << prj->get_codes_checksum();
 
-        send(Cmd::ServerStructureInfo) << house_mng->sections() << house_mng->devices();
+        send(Cmd::ServerStructureInfo) << prj->sections() << prj->devices();
         break;
 
 //        QByteArray dateData;
@@ -355,7 +355,7 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
         break;
 
     case Cmd::GetCode:
-        send(cmd) << Helpz::applyParse(&CodeManager::type, &house_mng->CodeMng, msg);
+        send(cmd) << Helpz::applyParse(&CodeManager::type, &prj->CodeMng, msg);
         break;
 
     case Cmd::Restart:

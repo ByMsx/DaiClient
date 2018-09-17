@@ -73,7 +73,7 @@ public:
 
     // CheckerInterface interface
 public:
-    void configure(QSettings* settings, SectionManager*) override;
+    void configure(QSettings* settings, Project*) override;
     bool check(Device *dev) override;
     void stop() override;
     void write(DeviceItem* item, const QVariant& raw_data) override;

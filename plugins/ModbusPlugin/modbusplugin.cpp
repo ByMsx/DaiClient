@@ -40,7 +40,7 @@ ModbusPlugin::~ModbusPlugin()
     qDebug() << "~ModbusPlugin" << this;
 }
 
-void ModbusPlugin::configure(QSettings *settings, SectionManager *)
+void ModbusPlugin::configure(QSettings *settings, Project *)
 {
     using Helpz::Param;
     conf = Helpz::SettingsHelper(

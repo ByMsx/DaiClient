@@ -1,5 +1,5 @@
-#ifndef SCRIPTSECTIONMANAGER_H
-#define SCRIPTSECTIONMANAGER_H
+#ifndef SCRIPTEDPROJECT_H
+#define SCRIPTEDPROJECT_H
 
 #include <QScriptEngine>
 #include <QtSerialBus/qmodbusdataunit.h>
@@ -7,7 +7,7 @@
 
 #include <Helpz/simplethread.h>
 
-#include <Dai/sectionmanager.h>
+#include <Dai/project.h>
 
 #include "tools/daytimehelper.h"
 #include "tools/automationhelper.h"
@@ -26,7 +26,7 @@ class DBManager;
 class AutomationHelper;
 class DayTimeHelper;
 
-class ScriptSectionManager : public SectionManager
+class ScriptedProject : public Project
 {
     Q_OBJECT
     Q_PROPERTY(qint64 uptime READ uptime)
@@ -50,8 +50,8 @@ public:
     };
     Q_ENUM(ScriptFunction)
 
-    ScriptSectionManager(Worker* worker, Helpz::ConsoleReader* consoleReader, const QString &sshHost);
-    ~ScriptSectionManager();
+    ScriptedProject(Worker* worker, Helpz::ConsoleReader* consoleReader, const QString &sshHost);
+    ~ScriptedProject();
 
     void setSSHHost(const QString &value);
 
@@ -119,7 +119,6 @@ private:
     void scriptsInitialization();
 //    void evaluateFile(const QString &fileName);
     QScriptValue callFunction(uint func_idx, const QScriptValueList& args = QScriptValueList()) const;
-//    DBManager *db() const;
 
     QScriptEngine *eng;
 
@@ -137,4 +136,4 @@ private:
 
 } // namespace Dai
 
-#endif // SCRIPTSECTIONMANAGER_H
+#endif // SCRIPTEDPROJECT_H

@@ -12,7 +12,7 @@
 
 //#include "simplemodbusdevice.h"
 #include "Database/db_manager.h"
-#include "Dai/sectionmanager.h"
+#include "Dai/project.h"
 #include "Dai/typemanager/typemanager.h"
 
 class QProcess;
@@ -85,7 +85,7 @@ private:
     Ui::MainWindow *ui;
 
     Dai::DBManager db_mng;
-    Dai::SectionManager sct_mng;
+    Dai::Project prj;
 //    Dai::TypeManagers mng;
 //    Dai::Devices devs;
 

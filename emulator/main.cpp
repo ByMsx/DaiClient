@@ -1,10 +1,10 @@
 #include <QApplication>
 
 #include "mainwindow.h"
-#include "version.h"
+//#include "version.h"
 
 namespace Dai {
-    QString getVersionString() { return DaiEmulator::Version::getVersionString(); }
+    QString getVersionString() { return "1.1.100"/*DaiEmulator::Version::getVersionString()*/; }
 }
 
 int main(int argc, char *argv[])

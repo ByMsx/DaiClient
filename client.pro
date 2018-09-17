@@ -28,12 +28,12 @@ SOURCES += main.cpp \
     Scripts/tools/resthelper.cpp \
     Scripts/tools/severaltimeshelper.cpp \
     Scripts/tools/pidhelper.cpp \
-    Scripts/scriptsectionmanager.cpp \
     Scripts/tools/daytimehelper.cpp \
     Scripts/tools/inforegisterhelper.cpp \
     Scripts/paramgroupclass.cpp \
     Scripts/paramgroupprototype.cpp \
-    checker.cpp
+    checker.cpp \
+    Scripts/scriptedproject.cpp
 
 HEADERS  += \
     DBus/d_iface.h \
@@ -46,12 +46,12 @@ HEADERS  += \
     Scripts/tools/resthelper.h \
     Scripts/tools/severaltimeshelper.h \
     Scripts/tools/pidhelper.h \
-    Scripts/scriptsectionmanager.h \
     Scripts/tools/daytimehelper.h \
     Scripts/tools/inforegisterhelper.h \
     Scripts/paramgroupprototype.h \
     Scripts/paramgroupclass.h \
-    checker.h
+    checker.h \
+    Scripts/scriptedproject.h
 
 #Target version
 VER_MAJ = 1

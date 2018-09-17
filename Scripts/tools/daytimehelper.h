@@ -10,7 +10,7 @@ namespace Dai {
 class DayTimeHelper : public QObject {
     Q_OBJECT
 public:
-    DayTimeHelper(SectionManager* house_mng, QObject* parent = nullptr);
+    DayTimeHelper(Project* prj, QObject* parent = nullptr);
 
     void stop();
 signals:
@@ -22,7 +22,7 @@ private slots:
     void onTimer();
 
 private:
-    SectionManager* house_mng;
+    Project* prj;
     QTimer m_timer;
 };
 

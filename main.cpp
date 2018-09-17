@@ -1,10 +1,10 @@
 #include <QCoreApplication>
 
 #include "worker.h"
-#include "version.h"
+//#include "version.h"
 
 namespace Dai {
-    QString getVersionString() { return DaiClient::Version::getVersionString(); }
+    QString getVersionString() { return "1.2.100"/*DaiClient::Version::getVersionString()*/; }
 }
 
 int main(int argc, char *argv[])

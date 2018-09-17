@@ -19,22 +19,22 @@ Checker::Checker(Worker *worker, int interval, const QStringList &plugins, QObje
     QObject(parent),
     b_break(false)
 {
-    while (!worker->sct_mng->ptr() && !worker->sct_mng->wait(5));
-    sct_mng = worker->sct_mng->ptr();
+    while (!worker->prj->ptr() && !worker->prj->wait(5));
+    prj = worker->prj->ptr();
 
-    PluginTypeMng = sct_mng->PluginTypeMng;
+    PluginTypeMng = prj->PluginTypeMng;
     loadPlugins(plugins);
 
 
 
 
-    connect(sct_mng, &SectionManager::controlStateChanged, this, &Checker::write_data, Qt::QueuedConnection);
+    connect(prj, &Project::controlStateChanged, this, &Checker::write_data, Qt::QueuedConnection);
 
-    connect(sct_mng, SIGNAL(modbusStop()), SLOT(stop()), Qt::QueuedConnection);
-    connect(sct_mng, SIGNAL(modbusStart()), SLOT(start()), Qt::QueuedConnection);
-//    connect(sct_mng, SIGNAL(modbusRead(int,uchar,int,quint16)),
+    connect(prj, SIGNAL(modbusStop()), SLOT(stop()), Qt::QueuedConnection);
+    connect(prj, SIGNAL(modbusStart()), SLOT(start()), Qt::QueuedConnection);
+//    connect(prj, SIGNAL(modbusRead(int,uchar,int,quint16)),
 //            SLOT(read2(int,uchar,int,quint16)), Qt::BlockingQueuedConnection);
-//    connect(sct_mng, SIGNAL(modbusWrite(int,uchar,int,quint16)), SLOT(write(int,uchar,int,quint16)), Qt::QueuedConnection);
+//    connect(prj, SIGNAL(modbusWrite(int,uchar,int,quint16)), SLOT(write(int,uchar,int,quint16)), Qt::QueuedConnection);
 
     connect(&check_timer, &QTimer::timeout, this, &Checker::checkDevices);
     check_timer.setInterval(interval);
@@ -48,7 +48,7 @@ Checker::Checker(Worker *worker, int interval, const QStringList &plugins, QObje
 
 
     checkDevices(); // Первый опрос контроллеров
-    QMetaObject::invokeMethod(sct_mng, "afterAllInitialization", Qt::QueuedConnection);
+    QMetaObject::invokeMethod(prj, "afterAllInitialization", Qt::QueuedConnection);
 }
 
 Checker::~Checker()
@@ -106,7 +106,7 @@ void Checker::loadPlugins(const QStringList &allowed_plugins)
 
                         if (!settings)
                             settings = Worker::settings();
-                        pl_type->checker->configure(settings.get(), sct_mng);
+                        pl_type->checker->configure(settings.get(), prj);
                         continue;
                     }
                     else
@@ -152,7 +152,7 @@ void Checker::checkDevices()
 {
     b_break = false;
 
-    for (Device* dev: sct_mng->devices())
+    for (Device* dev: prj->devices())
     {
         if (b_break) break;
 

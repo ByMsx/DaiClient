@@ -42,12 +42,12 @@ void term_handler(int)
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
-    db_mng(), sct_mng(&db_mng),
+    db_mng(), prj(&db_mng),
     m_socat(nullptr)
 {
     obj = this;
 
-//    db_mng.setTypeManager(&sct_mng);
+//    db_mng.setTypeManager(&prj);
 
     conf.baudRate = QSerialPort::Baud9600;
 
@@ -136,13 +136,13 @@ void MainWindow::init()
         delete it;
     }
 
-    sct_mng.initFromDatabase(&db_mng);
+    prj.initFromDatabase(&db_mng);
 //    db_mng.fillTypes();
 //    devs = db_mng.fillDevices();
 
     std::map<quint32, bool> hasZeroUnit;
     std::map<quint32, bool>::iterator hasZeroUnitIt;
-    for (GH::Device* dev: sct_mng.devices())
+    for (GH::Device* dev: prj.devices())
     {
         hasZeroUnit.clear();
 //        hasZeroUnit = false;
@@ -162,7 +162,7 @@ void MainWindow::init()
     }
 
 //    int column = -1;
-    for (GH::Device* dev: sct_mng.devices())
+    for (GH::Device* dev: prj.devices())
     {
         if (dev->items().size() == 0 ||
                 dev->items().first()->type() == GH::Prt::itProcessor)
@@ -196,7 +196,7 @@ void MainWindow::init()
 
         connect(item.serialPort, &QSerialPort::readyRead, this, &MainWindow::socketDataReady);
 
-        item.box = new MainBox(&sct_mng.ItemTypeMng, dev, item.device, ui->content);
+        item.box = new MainBox(&prj.ItemTypeMng, dev, item.device, ui->content);
         modbus_list.emplace(dev->address(), item);
 
         box->addWidget( item.box, box->rowCount(), 0, 1, 2 );
@@ -272,7 +272,7 @@ MainWindow::SocatInfo MainWindow::createSocat()
 
 void MainWindow::changeTemperature()
 {
-    for (GH::Device* dev: sct_mng.devices())
+    for (GH::Device* dev: prj.devices())
         for (GH::DeviceItem* item: dev->items())
         {
             if (!item->isControl() && item->isConnected())
@@ -317,7 +317,7 @@ void MainWindow::proccessData()
         uint type = buff.at(0);
         uchar adr = buff.at(1);
 
-        for (GH::DevicePtr& dev: sct_mng.devices())
+        for (GH::DevicePtr& dev: prj.devices())
             if (dev->type() == type && dev->address() == adr)
             {
                 if (!dev->item(0).isauto())

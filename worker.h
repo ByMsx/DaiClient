@@ -14,7 +14,7 @@
 #include "checker.h"
 #include "DBus/d_iface.h"
 #include "Network/n_client.h"
-#include "Scripts/scriptsectionmanager.h"
+#include "Scripts/scriptedproject.h"
 
 #include "../server/django/djangohelper.h"
 #include "../server/websocket/websocket.h"
@@ -64,7 +64,7 @@ public:
 private:
     void init_DBus(QSettings* s);
     void init_Database(QSettings *s);
-    void init_SectionManager(QSettings* s);
+    void init_Project(QSettings* s);
     void init_Checker(QSettings* s);
     void init_GlobalClient(QSettings* s);
     void init_LogTimer(int period);
@@ -123,20 +123,17 @@ private:
     DBManager* database() const;
     std::unique_ptr<Helpz::Database::ConnectionInfo> db_info_;
     DBManager* db_mng;
-//    DBus::PegasIface dbus;
 
     friend class Network::Client;
     using NetworkClientThread = Helpz::SettingsThreadHelper<Network::Client, Worker*, QString, quint16, QString, QString, QUuid, int>;
     NetworkClientThread::Type* g_mng_th;
 
-    using ScriptsThread = Helpz::SettingsThreadHelper<ScriptSectionManager, Worker*, Helpz::ConsoleReader*, QString>;
-    ScriptsThread::Type* sct_mng;
-//    RealSectionManager* sct_mng;
+    using ScriptsThread = Helpz::SettingsThreadHelper<ScriptedProject, Worker*, Helpz::ConsoleReader*, QString>;
+    ScriptsThread::Type* prj;
 
     friend class Checker;
     using CheckerThread = Helpz::SettingsThreadHelper<Checker, Worker*, int, QStringList>;
     CheckerThread::Type* checker_th;
-//    ScriptsThread* scripts;
 
     QTimer logTimer;
 
