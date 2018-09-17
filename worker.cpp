@@ -197,8 +197,9 @@ void Worker::init_Checker(QSettings* s)
 
 void Worker::init_GlobalClient(QSettings* s)
 {
-    qRegisterMetaType<QVector<Dai::ValuePackItem>>("QVector<Dai::ValuePackItem>");
-    qRegisterMetaType<QVector<Dai::EventPackItem>>("QVector<Dai::EventPackItem>");
+    qRegisterMetaType<ValuePackItem>("ValuePackItem");
+    qRegisterMetaType<QVector<ValuePackItem>>("QVector<Dai::ValuePackItem>");
+    qRegisterMetaType<QVector<EventPackItem>>("QVector<Dai::EventPackItem>");
     qRegisterMetaType<QVector<quint32>>("QVector<quint32>");
 
     g_mng_th = NetworkClientThread()(
