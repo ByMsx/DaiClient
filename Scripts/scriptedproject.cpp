@@ -215,6 +215,7 @@ void ScriptedProject::registerTypes()
     qRegisterMetaType<Devices>("Devices");
     qScriptRegisterSequenceMetaType<Devices>(eng);
 
+    qRegisterMetaType<DeviceItem*>("DeviceItem*");
     qRegisterMetaType<DeviceItems>("DeviceItems");
     qScriptRegisterSequenceMetaType<DeviceItems>(eng);
 
@@ -226,6 +227,7 @@ void ScriptedProject::registerTypes()
     qScriptRegisterMetaType<ItemGroup::ValueType>(eng, sharedPtrToScriptValue<ItemGroup::ValueType>, emptyFromScriptValue<ItemGroup::ValueType>);
 //    qScriptRegisterMetaType<SectionPtr>(eng, sharedPtrToScriptValue<SectionPtr>, emptyFromScriptValue<SectionPtr>);
     qScriptRegisterMetaType<std::string>(eng, stdstringToScriptValue, emptyFromScriptValue<std::string>);
+//    qScriptRegisterMetaType<DeviceItem*>(eng, )
 
 //    qScriptRegisterMetaType<DeviceItem::ValueType>(eng, itemValueToScriptValue, itemValueFromScriptValue);
     //    qScriptRegisterSequenceMetaType<DeviceItem::ValueList>(eng);
