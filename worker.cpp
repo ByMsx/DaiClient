@@ -844,11 +844,12 @@ void Worker::newValue(DeviceItem *item)
 
     QVariant db_id;
     bool immediately = prj->ptr()->ItemTypeMng.saveAlgorithm(item->type()) == ItemType::saSaveImmediately;
-    if (!immediately || !db_mng->logChanges(item, cur_date, &db_id))
+    if (immediately && !db_mng->logChanges(item, cur_date, &db_id))
     {
         qWarning(Service::Log) << "Упущенное значение:" << item->toString() << item->getValue().toString();
         // TODO: Error event
-    }
+    } else if (prj->ptr()->ItemTypeMng.saveAlgorithm(item->type()) == ItemType::saInvalid)
+        qWarning(Service::Log) << "Неправильный параметр сохранения" << item->toString();
 
     ValuePackItem pack_item{db_id.toUInt(), item->id(), cur_date.toMSecsSinceEpoch(), item->getRawValue(), item->getValue()};
     emit change(pack_item, immediately);
