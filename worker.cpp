@@ -659,6 +659,26 @@ bool Worker::setSettings(quint16 cmd, QDataStream *msg)
     return false;
 }
 
+bool Worker::applyStructModify(quint16 cmd, QDataStream *msg)
+{
+    using namespace Network;
+    qCDebug(Service::Log) << "applyStructModify" << (Cmd::Commands)cmd;
+
+    try {
+        switch ((Cmd::Commands)cmd) {
+        case Cmd::SetDevices:
+            if (Helpz::applyParse(&Database::applyModifyDevices, db_mng, *msg))
+                return true;
+            break;
+
+        default: break;
+        }
+    } catch(const std::exception& e) {
+        qCritical() << "EXCEPTION: applyStructModify" << (Cmd::Commands)cmd << e.what();
+    }
+    return false;
+}
+
 /*bool Worker::setSettings(uchar stType, google::protobuf::Message *msg)
 {
     qCDebug(Helpz::ServiceLog) << "setSettings" << (Network::SettingsType)stType;

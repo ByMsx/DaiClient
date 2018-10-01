@@ -399,6 +399,23 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
     }
 // <--------------------
 
+// -----> Struct modify
+    case Cmd::structModifyDevices:
+        break;
+    case Cmd::structModifyDeviceItems:     break;
+    case Cmd::structModifySections:        break;
+    case Cmd::structModifyGroups:          break;
+    case Cmd::structModifyGroupItems:      break;
+    case Cmd::structModifyGroupParams:     break;
+    case Cmd::structModifyGroupTypes:      break;
+    case Cmd::structModifyGroupItemTypes:  break;
+    case Cmd::structModifyGroupParamTypes: break;
+    case Cmd::structModifyGroupStatuses:   break;
+    case Cmd::structModifyStatusTypes:     break;
+    case Cmd::structModifySigns:           break;
+    case Cmd::structModifyScripts:         break;
+// <--------------------
+
     case Cmd::FilePart:
     {
         if (!fileInfo)

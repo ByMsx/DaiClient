@@ -53,6 +53,7 @@ signals:
     void execScript(const QString& script);
 
     bool setSettings(quint16 cmd, QDataStream* msg);
+    bool structModify(quint16 cmd, QDataStream* msg);
     void setParamValues(const ParamValuesPack& pack);
 
 // -----> Sync database

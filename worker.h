@@ -112,6 +112,8 @@ public slots:
 
     void setParamValues(const ParamValuesPack& pack);
     bool setSettings(quint16 cmd, QDataStream* msg);
+    bool applyStructModify(quint16 cmd, QDataStream* msg);
+
 //    bool setSettings(uchar stType, google::protobuf::Message* msg);
 public slots:
     void newValue(DeviceItem* item);
