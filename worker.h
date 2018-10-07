@@ -62,6 +62,7 @@ public:
 
     static std::unique_ptr<QSettings> settings();
 private:
+    int init_logging(QSettings* s);
     void init_DBus(QSettings* s);
     void init_Database(QSettings *s);
     void init_Project(QSettings* s);

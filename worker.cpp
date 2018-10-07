@@ -69,19 +69,7 @@ Worker::Worker(QObject *parent) :
 {
     auto s = settings();
 
-    auto [log_debug, log_syslog, log_period] = Helpz::SettingsHelper(
-            s.get(), "Log",
-            Z::Param{"Debug", false},
-        Z::Param{"Syslog", true},
-        Z::Param{"Period", 60 * 30} // 30 минут
-    )();
-
-    logg().debug = log_debug;
-#ifdef Q_OS_UNIX
-    logg().syslog = log_syslog;
-#endif
-    QMetaObject::invokeMethod(&logg(), "init", Qt::QueuedConnection);
-
+    int log_period = init_logging(s.get());
     init_Database(s.get());
     init_Project(s.get());
     init_Checker(s.get());
@@ -148,6 +136,23 @@ std::unique_ptr<QSettings> Worker::settings()
 {
     QString configFileName = QCoreApplication::applicationDirPath() + QDir::separator() + QCoreApplication::applicationName() + ".conf";
     return std::unique_ptr<QSettings>(new QSettings(configFileName, QSettings::NativeFormat));
+}
+
+int Worker::init_logging(QSettings *s)
+{
+    auto [log_debug, log_syslog, log_period] = Helpz::SettingsHelper(
+            s, "Log",
+            Z::Param{"Debug", false},
+        Z::Param{"Syslog", true},
+        Z::Param{"Period", 60 * 30} // 30 минут
+    )();
+
+    logg().debug = log_debug;
+#ifdef Q_OS_UNIX
+    logg().syslog = log_syslog;
+#endif
+    QMetaObject::invokeMethod(&logg(), "init", Qt::QueuedConnection);
+    return log_period;
 }
 
 void Worker::init_DBus(QSettings* s)
