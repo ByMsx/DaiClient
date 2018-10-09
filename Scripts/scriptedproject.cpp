@@ -154,7 +154,7 @@ void ScriptedProject::reinitialization(const Helpz::Database::ConnectionInfo& db
     m_dayTime.disconnect(SIGNAL(onDayPartChanged(Section*,bool)));
     qScriptConnect(&m_dayTime, SIGNAL(onDayPartChanged(Section*,bool)), QScriptValue(), m_func.at(fDayPartChanged));
 
-    initFromDatabase(db.get(), true);
+    db->initProject(this, true);
 
     if (m_func.at(fDayPartChanged).isFunction())
         m_dayTime.init();

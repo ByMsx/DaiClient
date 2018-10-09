@@ -69,7 +69,7 @@ linux-rasp-pi2-g++|linux-opi-zero-g++|linux-rasp-pi3-g++ {
 }
 
 LIBS += -L$${DESTDIR}
-LIBS += -lDai -lHelpzService -lHelpzNetwork -lHelpzDB -lHelpzDTLS -lbotan-2 -lboost_system -ldl
+LIBS += -lDai -lDaiPlus -lHelpzService -lHelpzNetwork -lHelpzDB -lHelpzDTLS -lbotan-2 -lboost_system -ldl
 
 #DBUS_ADAPTORS += DBus/dai.xml
 #message($$[QT_INSTALL_PREFIX])
@@ -78,7 +78,7 @@ DBUS_FILES += DBus/dai.xml
 OTHER_FILES += $$DBUS_FILES ForServer/DAIClient
 
 DBUS_INCLUDES = \
-    DBus/param.h
+    plus/DBus/param.h
 #    DBus/message.h
 
 DBUS_TYPE = adaptor

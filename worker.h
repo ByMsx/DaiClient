@@ -7,7 +7,7 @@
 #include <Helpz/service.h>
 #include <Helpz/settingshelper.h>
 
-#include "DBus/dbus_param.h"
+#include "plus/DBus/dbus_param.h"
 #include "DBus/message.h"
 
 #include "Database/db_manager.h"

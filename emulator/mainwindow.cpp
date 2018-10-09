@@ -136,7 +136,8 @@ void MainWindow::init()
         delete it;
     }
 
-    prj.initFromDatabase(&db_mng);
+    db_mng.initProject(&prj);
+
 //    db_mng.fillTypes();
 //    devs = db_mng.fillDevices();
 

@@ -76,6 +76,7 @@ Client::Client(Worker *worker, const QString &hostname, quint16 port, const QStr
 
     connect(this, &Client::getServerInfo, worker->prj->ptr(), &Project::dumpInfoToStream, Qt::DirectConnection);
     connect(this, &Client::setServerInfo, worker->prj->ptr(), &Project::initFromStream, Qt::BlockingQueuedConnection);
+    connect(this, &Client::saveServerInfo, worker->database(), &Database::saveProject, Qt::BlockingQueuedConnection);
     connect(this, &Client::execScript, worker->prj->ptr(), &ScriptedProject::console, Qt::QueuedConnection);
 
     if (canConnect())
@@ -271,7 +272,9 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
     case Cmd::ServerInfo:
     {
         close_connection();
-        emit setServerInfo(&msg, worker->database());
+        QVector<ParamTypeItem> param_values;
+        emit setServerInfo(&msg, &param_values);
+        emit saveServerInfo(param_values, worker->prj->ptr());
 
         auto wait_it = wait_map.find(Cmd::GetServerInfo);
         if (wait_it != wait_map.cend())

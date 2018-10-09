@@ -13,7 +13,7 @@
 #include <Dai/typemanager/typemanager.h>
 #include <Dai/param/paramgroup.h>
 #include <Dai/deviceitem.h>
-#include <Dai/network.h>
+#include <plus/dai/network.h>
 
 #include "Database/db_manager.h"
 
@@ -44,7 +44,8 @@ public:
 signals:
     void restart();
     void getServerInfo(QDataStream* ds) const;
-    void setServerInfo(QDataStream* s, Database *db, bool* = nullptr, std::function<void(QVector<CodeItem> *)> = nullptr);
+    void setServerInfo(QDataStream* s, QVector<ParamTypeItem> *param_items_out, bool* = nullptr);
+    void saveServerInfo(const QVector<ParamTypeItem>& param_values, Project *proj);
 
     void setControlState(quint32 section_id, quint32 device_type, const QVariant& raw_data);
     void writeToItem(quint32 item_id, const QVariant& raw_data);

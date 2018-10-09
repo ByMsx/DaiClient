@@ -15,7 +15,7 @@ include(../../common.pri)
 DESTDIR=$${DESTDIR}../
 
 LIBS += -L$${DESTDIR} -L$${DESTDIR}/helpz
-LIBS += -lDai -lHelpzService -lHelpzDB -lHelpzNetwork
+LIBS += -lDai -lDaiPlus -lHelpzService -lHelpzDB -lHelpzNetwork
 
 SOURCES += main.cpp \
     ../Database/db_manager.cpp \

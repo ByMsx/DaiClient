@@ -6,13 +6,15 @@
 
 #include <memory>
 
+#include <Dai/project.h>
+
 #include "Network/n_client.h"
 #include "db_manager.h"
 
 namespace Dai {
 
 DBManager::DBManager(const Helpz::Database::ConnectionInfo &info, const QString &name) :
-    QObject(), Database(info, name)
+    Database(info, name)
 {
     qRegisterMetaType<Dai::DBManager::LogDataT>("Dai::DBManager::LogDataT");
 }

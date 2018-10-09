@@ -6,11 +6,11 @@
 
 #include <QVector>
 
-#include "Dai/database.h"
+#include "plus/dai/database.h"
 
 namespace Dai {
 
-class DBManager : public QObject, public Database
+class DBManager : public Database
 {
     Q_OBJECT
 public:

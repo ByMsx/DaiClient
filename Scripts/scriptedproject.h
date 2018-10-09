@@ -6,6 +6,7 @@
 //#include <QQmlEngine>
 
 #include <Helpz/simplethread.h>
+#include <Helpz/db_connectioninfo.h>
 
 #include <Dai/project.h>
 
