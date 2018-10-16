@@ -671,12 +671,32 @@ bool Worker::applyStructModify(quint16 cmd, QDataStream *msg)
 
     try {
         switch ((Cmd::Commands)cmd) {
-        case Cmd::SetDevices:
-            if (Helpz::applyParse(&Database::applyModifyDevices, db_mng, *msg))
-                return true;
-            break;
+        case Cmd::structModifyDevices:
+            return Helpz::applyParse(&Database::applyModifyDevices, db_mng, *msg);
+        case Cmd::structModifyDeviceItems:
+            return Helpz::applyParse(&Database::applyModifyDeviceItems, db_mng, *msg);
+        case Cmd::structModifyDeviceItemTypes:
+            return Helpz::applyParse(&Database::applyModifyDeviceItemTypes, db_mng, *msg);
+        case Cmd::structModifySections:
+            return Helpz::applyParse(&Database::applyModifySections, db_mng, *msg);
+        case Cmd::structModifyGroups:
+            return Helpz::applyParse(&Database::applyModifyGroups, db_mng, *msg);
+        case Cmd::structModifyGroupTypes:
+            return Helpz::applyParse(&Database::applyModifyGroupTypes, db_mng, *msg);
+        case Cmd::structModifyGroupParams:
+            return Helpz::applyParse(&Database::applyModifyGroupParams, db_mng, *msg);
+        case Cmd::structModifyGroupParamTypes:
+            return Helpz::applyParse(&Database::applyModifyGroupParamTypes, db_mng, *msg);
+        case Cmd::structModifyGroupStatuses:
+            return Helpz::applyParse(&Database::applyModifyGroupStatuses, db_mng, *msg);
+        case Cmd::structModifyGroupStatusTypes:
+            return Helpz::applyParse(&Database::applyModifyGroupStatusTypes, db_mng, *msg);
+        case Cmd::structModifySigns:
+            return Helpz::applyParse(&Database::applyModifySigns, db_mng, *msg);
+        case Cmd::structModifyScripts:
+            return Helpz::applyParse(&Database::applyModifyScripts, db_mng, *msg);
 
-        default: break;
+        default: return false;
         }
     } catch(const std::exception& e) {
         qCritical() << "EXCEPTION: applyStructModify" << (Cmd::Commands)cmd << e.what();

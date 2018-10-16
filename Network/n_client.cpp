@@ -50,6 +50,7 @@ Client::Client(Worker *worker, const QString &hostname, quint16 port, const QStr
 
     connect(this, &Client::restart, worker, &Worker::serviceRestart, Qt::QueuedConnection);
     connect(this, &Client::setSettings, worker, &Worker::setSettings, Qt::BlockingQueuedConnection);
+    connect(this, &Client::structModify, worker, &Worker::applyStructModify, Qt::BlockingQueuedConnection);
     connect(this, &Client::setControlState, [worker](quint32 section_id, quint32 item_type, const QVariant &raw_data) {
         QMetaObject::invokeMethod(worker, "setControlState", Qt::QueuedConnection, Q_ARG(quint32, section_id), Q_ARG(quint32, item_type), Q_ARG(Dai::Variant, raw_data));
     });
@@ -404,19 +405,21 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
 
 // -----> Struct modify
     case Cmd::structModifyDevices:
+    case Cmd::structModifyDeviceItems:
+    case Cmd::structModifyDeviceItemTypes:
+    case Cmd::structModifySections:
+    case Cmd::structModifyGroups:
+    case Cmd::structModifyGroupParams:
+    case Cmd::structModifyGroupTypes:
+    case Cmd::structModifyGroupParamTypes:
+    case Cmd::structModifyGroupStatuses:
+    case Cmd::structModifyGroupStatusTypes:
+    case Cmd::structModifySigns:
+    case Cmd::structModifyScripts: {
+        qCDebug(NetClientLog) << "Received strucrure modify" << (Cmd::Commands)cmd << "size" << msg.device()->size();
+        send(cmd) << structModify(cmd, &msg);
         break;
-    case Cmd::structModifyDeviceItems:     break;
-    case Cmd::structModifySections:        break;
-    case Cmd::structModifyGroups:          break;
-    case Cmd::structModifyGroupItems:      break;
-    case Cmd::structModifyGroupParams:     break;
-    case Cmd::structModifyGroupTypes:      break;
-    case Cmd::structModifyGroupItemTypes:  break;
-    case Cmd::structModifyGroupParamTypes: break;
-    case Cmd::structModifyGroupStatuses:   break;
-    case Cmd::structModifyStatusTypes:     break;
-    case Cmd::structModifySigns:           break;
-    case Cmd::structModifyScripts:         break;
+    }
 // <--------------------
 
     case Cmd::FilePart:
