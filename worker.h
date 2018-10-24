@@ -16,8 +16,8 @@
 #include "Network/n_client.h"
 #include "Scripts/scriptedproject.h"
 
-#include "../server/django/djangohelper.h"
-#include "../server/websocket/websocket.h"
+#include "plus/dai/djangohelper.h"
+#include "plus/dai/websocket.h"
 
 namespace Dai {
 class Worker;
@@ -55,9 +55,6 @@ public:
     explicit Worker(QObject *parent = 0);
     ~Worker();
 
-    static dai::DjangoHelper* django;
-    static dai::Network::WebSocket* webSock;
-
     const Helpz::Database::ConnectionInfo& database_info() const;
 
     static std::unique_ptr<QSettings> settings();
@@ -70,13 +67,11 @@ private:
     void init_GlobalClient(QSettings* s);
     void init_LogTimer(int period);
 
-    static void* django_handle;
-    void initDjangoLib(QSettings *s);
+    void initDjango(QSettings *s);
 
-    static void* websock_handle;
     std::shared_ptr<dai::WebSockItem> websock_item;
-    void initWebSocketManagerLib(QSettings *s);
-    std::shared_ptr<dai::project::base> proj_in_team_by_id(uint32_t team_id, uint32_t proj_id);
+    void initWebSocketManager(QSettings *s);
+//    std::shared_ptr<dai::project::base> proj_in_team_by_id(uint32_t team_id, uint32_t proj_id);
 signals:
     void serviceRestart();
 
@@ -137,6 +132,13 @@ private:
     friend class Checker;
     using CheckerThread = Helpz::SettingsThreadHelper<Checker, Worker*, int, QStringList>;
     CheckerThread::Type* checker_th;
+
+    using DjangoThread = Helpz::SettingsThreadHelper<dai::DjangoHelper, QString>;
+    DjangoThread::Type* django_th = nullptr;
+
+    using WebSocketThread = Helpz::SettingsThreadHelper<dai::Network::WebSocket, QString, QString, quint16>;
+    WebSocketThread::Type* webSock_th = nullptr;
+    friend class dai::WebSockItem;
 
     QTimer logTimer;
 

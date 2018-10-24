@@ -1,6 +1,4 @@
 
-#include <dlfcn.h>
-
 #include <QDebug>
 #include <QSettings>
 
@@ -53,7 +51,8 @@ void WebSockItem::send_script(const QString &script) {
 void WebSockItem::send_restart() { w->serviceRestart(); }
 
 void WebSockItem::modeChanged(uint mode_id, uint group_id) {
-    QMetaObject::invokeMethod(Dai::Worker::webSock, "sendModeChanged", Qt::QueuedConnection,
+
+    QMetaObject::invokeMethod(w->webSock_th->ptr(), "sendModeChanged", Qt::QueuedConnection,
                               Q_ARG(ProjInfo, this), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id));
 }
 
@@ -76,13 +75,8 @@ Worker::Worker(QObject *parent) :
     init_GlobalClient(s.get());
     init_LogTimer(log_period);
 
-    try {
-        initDjangoLib(s.get());
-        initWebSocketManagerLib(s.get());
-    }
-    catch(const std::runtime_error& e ) {
-        qCCritical(Service::Log) << e.what();
-    }
+    initDjango(s.get());
+    initWebSocketManager(s.get());
 
     init_DBus(s.get());
     emit started();
@@ -92,20 +86,8 @@ Worker::Worker(QObject *parent) :
 
 Worker::~Worker()
 {
-    if (webSock)
-    {
-        webSock->get_proj_in_team_by_id.disconnect_all_slots();
-        webSock = nullptr;
-        dlclose(websock_handle);
-        websock_handle = nullptr;
-    }
-
-    if (django) {
-        django = nullptr;
-        dlclose(django_handle);
-        django_handle = nullptr;
-    }
-
+    webSock_th->quit();
+    django_th->quit();
 
     logTimer.stop();
 
@@ -115,6 +97,10 @@ Worker::~Worker()
     g_mng_th->quit();
     prj->quit();
 
+    if (!webSock_th->wait(15000))
+        webSock_th->terminate();
+    if (!django_th->wait(15000))
+        django_th->terminate();
     if (!g_mng_th->wait(15000))
         g_mng_th->terminate();
     if (!checker_th->wait(15000))
@@ -122,6 +108,8 @@ Worker::~Worker()
     if (!prj->wait(15000))
         prj->terminate();
 
+    delete webSock_th;
+    delete django_th;
     delete g_mng_th;
     delete checker_th;
     delete prj;
@@ -290,49 +278,36 @@ void Worker::init_LogTimer(int period)
     logTimer.start();
 }
 
-/*static*/ dai::DjangoHelper* Worker::django = nullptr;
-/*static*/ void* Worker::django_handle = nullptr;
-void Worker::initDjangoLib(QSettings *s)
+void Worker::initDjango(QSettings *s)
 {
-    QByteArray plugin_file = (qApp->applicationDirPath() + "/plugins/libdjango.so").toLocal8Bit();
-    django_handle = dlopen(plugin_file.constData(), RTLD_LAZY);
-    if (!django_handle)
-        throw std::runtime_error(dlerror());
-
-    typedef dai::DjangoHelper* (*DjangoGetFunc)(QSettings *);
-
-    DjangoGetFunc get_django = (DjangoGetFunc)dlsym(django_handle, "get_django");
-    if (!get_django)
-        throw std::runtime_error(dlerror());
-
-    django = get_django(s);
+    django_th = DjangoThread()(s, "Django",
+                             Helpz::Param{"manage", "/var/www/dai/manage.py"});
+    django_th->start();
+    while (!django_th->ptr() && !django_th->wait(5));
 }
 
-/*static*/ dai::Network::WebSocket* Worker::webSock = nullptr;
-/*static*/ void* Worker::websock_handle = nullptr;
-void Worker::initWebSocketManagerLib(QSettings *s)
+void Worker::initWebSocketManager(QSettings *s)
 {
-    QByteArray plugin_file = (qApp->applicationDirPath() + "/plugins/libwebsocket.so").toLocal8Bit();
-    websock_handle = dlopen(plugin_file.constData(), RTLD_LAZY);
-    if (!websock_handle)
-        throw std::runtime_error(dlerror());
+    webSock_th = WebSocketThread()(
+                s, "WebSocket",
+                Helpz::Param{"CertPath", QString()},
+                Helpz::Param{"KeyPath", QString()},
+                Helpz::Param<quint16>{"Port", 25589});
+    webSock_th->start();
 
-    typedef dai::Network::WebSocket* (*WebSockGetFunc)(QSettings *, dai::DjangoHelper *);
+    while (!webSock_th->ptr() && !webSock_th->wait(5));
+    QObject::connect(webSock_th->ptr(), &dai::Network::WebSocket::checkAuth,
+                     django_th->ptr(), &dai::DjangoHelper::checkToken, Qt::BlockingQueuedConnection);
 
-    WebSockGetFunc get_websock = (WebSockGetFunc)dlsym(websock_handle, "get_websocket");
-    if (!get_websock)
-        throw std::runtime_error(dlerror());
-
-    webSock = get_websock(s, django);
     websock_item.reset(new dai::WebSockItem(this));
-    webSock->get_proj_in_team_by_id.connect(
-                std::bind(&Worker::proj_in_team_by_id, this, std::placeholders::_1, std::placeholders::_2));
+//    webSock_th->ptr()->get_proj_in_team_by_id.connect(
+//                std::bind(&Worker::proj_in_team_by_id, this, std::placeholders::_1, std::placeholders::_2));
 }
 
-std::shared_ptr<dai::project::base> Worker::proj_in_team_by_id(uint32_t team_id, uint32_t proj_id) {
+//std::shared_ptr<dai::project::base> Worker::proj_in_team_by_id(uint32_t team_id, uint32_t proj_id) {
     // TODO: Check team_id valid
-    return std::static_pointer_cast<dai::project::base>(websock_item);
-}
+//    return std::static_pointer_cast<dai::project::base>(websock_item);
+//}
 
 void Worker::logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QString &str)
 {
@@ -344,8 +319,8 @@ void Worker::logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QStr
     if (db_mng->eventLog(type, ctx->category, str, cur_date, &db_id)) {
         EventPackItem item{db_id.toUInt(), type, cur_date.toMSecsSinceEpoch(), ctx->category, str};
         QMetaObject::invokeMethod(g_mng_th->ptr(), "eventLog", Qt::QueuedConnection, Q_ARG(EventPackItem, item));
-        if (webSock && websock_item)
-            QMetaObject::invokeMethod(webSock, "sendEventMessage", Qt::QueuedConnection,
+        if (webSock_th)
+            QMetaObject::invokeMethod(webSock_th->ptr(), "sendEventMessage", Qt::QueuedConnection,
                                       QArgument<dai::project::info>("ProjInfo", websock_item.get()), Q_ARG(quint32, db_id.toUInt()), Q_ARG(quint32, item.type_id),
                                       Q_ARG(QString, item.category), Q_ARG(QString, item.text), Q_ARG(QDateTime, cur_date));
     }
@@ -900,9 +875,9 @@ void Worker::newValue(DeviceItem *item)
     ValuePackItem pack_item{db_id.toUInt(), item->id(), cur_date.toMSecsSinceEpoch(), item->getRawValue(), item->getValue()};
     emit change(pack_item, immediately);
 
-    if (webSock && websock_item) {
+    if (webSock_th) {
         QVector<Dai::ValuePackItem> pack{pack_item};
-        QMetaObject::invokeMethod(webSock, "sendDeviceItemValues", Qt::QueuedConnection,
+        QMetaObject::invokeMethod(webSock_th->ptr(), "sendDeviceItemValues", Qt::QueuedConnection,
                                   QArgument<dai::project::info>("ProjInfo", websock_item.get()), Q_ARG(QVector<Dai::ValuePackItem>, pack));
     }
 }

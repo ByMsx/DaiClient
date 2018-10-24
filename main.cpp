@@ -4,7 +4,8 @@
 //#include "version.h"
 
 namespace Dai {
-    QString getVersionString() { return "1.2.100"/*DaiClient::Version::getVersionString()*/; }
+#define STR(x) #x
+    QString getVersionString() { return STR(VER_MJ) "." STR(VER_MN) "." STR(VER_B); }
 }
 
 int main(int argc, char *argv[])

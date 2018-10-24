@@ -1,4 +1,4 @@
-QT += core network dbus sql
+QT += core network dbus sql websockets
 QT -= gui
 
 QT += script

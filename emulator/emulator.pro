@@ -1,4 +1,4 @@
-QT += core network gui sql serialport dbus serialbus
+QT += core network gui sql serialport dbus serialbus websockets
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -15,7 +15,7 @@ include(../../common.pri)
 DESTDIR=$${DESTDIR}../
 
 LIBS += -L$${DESTDIR} -L$${DESTDIR}/helpz
-LIBS += -lDai -lDaiPlus -lHelpzService -lHelpzDB -lHelpzNetwork
+LIBS += -lDai -lDaiPlus -lHelpzService -lHelpzDB -lHelpzNetwork -lbotan-2
 
 SOURCES += main.cpp \
     ../Database/db_manager.cpp \
