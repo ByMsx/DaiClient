@@ -6,10 +6,6 @@
 QT += core serialport serialbus
 QT -= gui
 
-CONFIG(debug, debug|release) {
-    QT += dbus
-}
-
 TARGET = ModbusPlugin
 TEMPLATE = lib
 
@@ -33,6 +29,8 @@ LIBS += -L$${DESTDIR}/../../
 LIBS += -lDai
 
 unix {
+    CONFIG(debug, debug|release): QT += dbus
+
     target.path = /opt/dai/plugins
     INSTALLS += target
 }

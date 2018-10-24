@@ -71,7 +71,7 @@ void ModbusPlugin::configure(QSettings *settings, Project *)
 //                Param{"InterFrameDelay", 0}
 //            )};
 
-#ifdef QT_DEBUG
+#if defined(QT_DEBUG) && defined(Q_OS_UNIX)
     if (QDBusConnection::sessionBus().isConnected())
     {
         QDBusInterface iface("ru.deviceaccess.Dai.Emulator", "/", "", QDBusConnection::sessionBus());

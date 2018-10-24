@@ -2,6 +2,7 @@
 #include <QProcess>
 #include <QCoreApplication>
 #include <QRegularExpression>
+#include <QDir>
 #include <QFile>
 
 #include <iostream>

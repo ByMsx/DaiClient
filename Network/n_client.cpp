@@ -51,9 +51,7 @@ Client::Client(Worker *worker, const QString &hostname, quint16 port, const QStr
     connect(this, &Client::restart, worker, &Worker::serviceRestart, Qt::QueuedConnection);
     connect(this, &Client::setSettings, worker, &Worker::setSettings, Qt::BlockingQueuedConnection);
     connect(this, &Client::structModify, worker, &Worker::applyStructModify, Qt::BlockingQueuedConnection);
-    connect(this, &Client::setControlState, [worker](quint32 section_id, quint32 item_type, const QVariant &raw_data) {
-        QMetaObject::invokeMethod(worker, "setControlState", Qt::QueuedConnection, Q_ARG(quint32, section_id), Q_ARG(quint32, item_type), Q_ARG(Dai::Variant, raw_data));
-    });
+    connect(this, &Client::setControlState, worker, &Worker::setControlState, Qt::QueuedConnection);
     connect(this, &Client::writeToItem, worker, &Worker::writeToItem, Qt::QueuedConnection);
 
     connect(this, &Client::setMode, worker, &Worker::setMode, Qt::QueuedConnection);

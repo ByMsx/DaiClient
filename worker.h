@@ -2,17 +2,12 @@
 #define WORKER_H
 
 #include <QTimer>
-#include <QDBusVariant>
 
 #include <Helpz/service.h>
 #include <Helpz/settingshelper.h>
 
-#include "plus/DBus/dbus_param.h"
-#include "DBus/message.h"
-
 #include "Database/db_manager.h"
 #include "checker.h"
-#include "DBus/d_iface.h"
 #include "Network/n_client.h"
 #include "Scripts/scriptedproject.h"
 
@@ -60,7 +55,6 @@ public:
     static std::unique_ptr<QSettings> settings();
 private:
     int init_logging(QSettings* s);
-    void init_DBus(QSettings* s);
     void init_Database(QSettings *s);
     void init_Project(QSettings* s);
     void init_Checker(QSettings* s);
@@ -84,7 +78,6 @@ signals:
 
     void paramValuesChanged(const ParamValuesPack& pack);
 
-
 //    std::shared_ptr<Dai::Prt::ServerInfo> dumpSectionsInfo() const;
 public slots:
     void logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QString &str);
@@ -101,7 +94,7 @@ public slots:
     QByteArray sections();
     bool setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs);
 
-    void setControlState(quint32 section_id, quint32 item_type, const Dai::Variant& raw_data);
+    void setControlState(quint32 section_id, quint32 item_type, const QVariant &raw_data);
     void writeToItem(quint32 item_id, const QVariant &raw_data);
     bool setMode(uint mode_id, quint32 group_id);
     bool setCode(const CodeItem &item);

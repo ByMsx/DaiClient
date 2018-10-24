@@ -1,12 +1,14 @@
 
 #include <QDebug>
+#include <QDir>
+#include <QCommandLineOption>
+#include <QCommandLineParser>
 #include <QSettings>
+#include <QJsonArray>
+#include <QJsonDocument>
 
 #include <Helpz/consolereader.h>
 #include <Dai/checkerinterface.h>
-
-#include "dai_adaptor.h"
-#include "DBus/d_iface.h"
 
 #include "worker.h"
 
@@ -78,7 +80,6 @@ Worker::Worker(QObject *parent) :
     initDjango(s.get());
     initWebSocketManager(s.get());
 
-    init_DBus(s.get());
     emit started();
 
 //    QTimer::singleShot(15000, thread(), SLOT(quit())); // check delete error
@@ -141,12 +142,6 @@ int Worker::init_logging(QSettings *s)
 #endif
     QMetaObject::invokeMethod(&logg(), "init", Qt::QueuedConnection);
     return log_period;
-}
-
-void Worker::init_DBus(QSettings* s)
-{
-    new ClientAdaptor( this );
-    DBus::init(s, "ru.deviceaccess.Dai.Client", this);
 }
 
 void Worker::init_Database(QSettings* s)
@@ -484,11 +479,11 @@ bool Worker::setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs)
     return res;
 }
 
-void Worker::setControlState(quint32 section_id, quint32 item_type, const Variant &raw_data)
+void Worker::setControlState(quint32 section_id, quint32 item_type, const QVariant &raw_data)
 {
     if (auto sct = prj->ptr()->sectionById( section_id ))
         QMetaObject::invokeMethod(sct, "setControlState", Qt::QueuedConnection,
-                                  Q_ARG(uint, item_type), Q_ARG(QVariant, raw_data.m_var) );
+                                  Q_ARG(uint, item_type), Q_ARG(QVariant, raw_data) );
 }
 
 void Worker::writeToItem(quint32 item_id, const QVariant &raw_data)
