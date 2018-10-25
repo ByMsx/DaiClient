@@ -170,7 +170,11 @@ void Worker::init_Project(QSettings* s)
 
 //    qRegisterMetaType<std::shared_ptr<Dai::Prt::ServerInfo>>("std::shared_ptr<Dai::Prt::ServerInfo>");
 
-    prj = ScriptsThread()(s, "Server", this, cr, Z::Param{"SSHHost", "80.89.129.98"});
+    prj = ScriptsThread()(s, "Server", this,
+                          cr,
+                          Z::Param{"SSHHost", "80.89.129.98"},
+                          Z::Param{"AllowShell", false}
+                          );
     prj->start(QThread::HighPriority);
 //    while (!prj->ptr() && !prj->wait(5));
 }

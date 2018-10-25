@@ -51,7 +51,7 @@ public:
     };
     Q_ENUM(ScriptFunction)
 
-    ScriptedProject(Worker* worker, Helpz::ConsoleReader* consoleReader, const QString &sshHost);
+    ScriptedProject(Worker* worker, Helpz::ConsoleReader* consoleReader, const QString &sshHost, bool allow_shell);
     ~ScriptedProject();
 
     void setSSHHost(const QString &value);
@@ -131,6 +131,7 @@ private:
 
     qint64 m_uptime;
 
+    bool allow_shell_;
     QString ssh_host;
     qint64 pid = -1;
 };

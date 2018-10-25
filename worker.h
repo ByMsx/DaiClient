@@ -119,7 +119,7 @@ private:
     using NetworkClientThread = Helpz::SettingsThreadHelper<Network::Client, Worker*, QString, quint16, QString, QString, QUuid, int>;
     NetworkClientThread::Type* g_mng_th;
 
-    using ScriptsThread = Helpz::SettingsThreadHelper<ScriptedProject, Worker*, Helpz::ConsoleReader*, QString>;
+    using ScriptsThread = Helpz::SettingsThreadHelper<ScriptedProject, Worker*, Helpz::ConsoleReader*, QString, bool>;
     ScriptsThread::Type* prj;
 
     friend class Checker;

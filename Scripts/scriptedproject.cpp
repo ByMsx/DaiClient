@@ -84,10 +84,11 @@ void ScriptedProject::addType()
 //    qCDebug(ProjectLog) << "Register for script:" << name;
 }
 
-ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleReader, const QString &sshHost) :
+ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleReader, const QString &sshHost, bool allow_shell) :
     Project(), //(worker->database()->clone<DBManager>("ScriptSql")),
     m_func(fAutomation), m_dayTime(this),
-    m_uptime(QDateTime::currentMSecsSinceEpoch())
+    m_uptime(QDateTime::currentMSecsSinceEpoch()),
+    ssh_host(sshHost), allow_shell_(allow_shell)
 {
 //    qDebug() << "Copy scr " << db()->db().databaseName() << db()->db().password() << worker->database()->db().password();
 
@@ -117,7 +118,7 @@ ScriptedProject::~ScriptedProject()
 //    delete db();
 }
 
-void ScriptedProject::setSSHHost(const QString &value) { ssh_host = value; }
+void ScriptedProject::setSSHHost(const QString &value) { if (ssh_host != value) ssh_host = value; }
 
 qint64 ScriptedProject::uptime() const { return m_uptime; }
 
@@ -546,19 +547,26 @@ void ScriptedProject::ssh(quint16 port, quint32 remote_port)
 
 QVariantMap ScriptedProject::run_command(const QString &programm, const QVariantList &args, int timeout_msec) const
 {
-    QStringList args_list;
-    for (const QVariant& arg: args)
-        args_list.push_back(arg.toString());
-
-    QProcess proc;
-    proc.start(programm, args_list);
-
+    QString error;
+    int exit_code = 0;
     QVariantMap result;
-    if (proc.waitForStarted(timeout_msec) && proc.waitForFinished(timeout_msec) && proc.bytesAvailable())
-        result["output"] = QString::fromUtf8(proc.readAllStandardOutput());
+    if (allow_shell_)
+    {
+        QStringList args_list;
+        for (const QVariant& arg: args)
+            args_list.push_back(arg.toString());
 
-    result["error"] = QString::fromUtf8(proc.readAllStandardError());
-    result["code"] = proc.exitCode();
+        QProcess proc;
+        proc.start(programm, args_list);
+        if (proc.waitForStarted(timeout_msec) && proc.waitForFinished(timeout_msec) && proc.bytesAvailable())
+            result["output"] = QString::fromUtf8(proc.readAllStandardOutput());
+
+        exit_code = proc.exitCode();
+        error = QString::fromUtf8(proc.readAllStandardError());
+    }
+
+    result["code"] = exit_code;
+    result["error"] = error;
     return result;
 }
 
