@@ -1,2 +1,2 @@
 TEMPLATE = subdirs
-SUBDIRS += ModbusPlugin
+SUBDIRS += ModbusPlugin RandomPlugin
