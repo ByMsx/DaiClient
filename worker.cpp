@@ -87,7 +87,8 @@ Worker::Worker(QObject *parent) :
 
 Worker::~Worker()
 {
-    webSock_th->quit();
+    if (webSock_th)
+        webSock_th->quit();
     django_th->quit();
 
     logTimer.stop();
@@ -98,7 +99,7 @@ Worker::~Worker()
     g_mng_th->quit();
     prj->quit();
 
-    if (!webSock_th->wait(15000))
+    if (webSock_th && !webSock_th->wait(15000))
         webSock_th->terminate();
     if (!django_th->wait(15000))
         django_th->terminate();
@@ -109,7 +110,8 @@ Worker::~Worker()
     if (!prj->wait(15000))
         prj->terminate();
 
-    delete webSock_th;
+    if (webSock_th)
+        delete webSock_th;
     delete django_th;
     delete g_mng_th;
     delete checker_th;
@@ -287,6 +289,10 @@ void Worker::initDjango(QSettings *s)
 
 void Worker::initWebSocketManager(QSettings *s)
 {
+    std::tuple<bool> en_t = Helpz::SettingsHelper(s, "WebSocket", Helpz::Param{"Enabled", true})();
+    if (!std::get<0>(en_t))
+        return;
+
     webSock_th = WebSocketThread()(
                 s, "WebSocket",
                 Helpz::Param{"CertPath", QString()},
