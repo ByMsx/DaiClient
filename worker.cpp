@@ -306,7 +306,8 @@ void Worker::initWebSocketManager(QSettings *s)
 
 void Worker::logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QString &str)
 {
-    if (qstrcmp(ctx->category, Helpz::Network::DetailLog().categoryName()) == 0)
+    if (qstrcmp(ctx->category, Helpz::Network::DetailLog().categoryName()) == 0 ||
+            qstrncmp(ctx->category, "net", 3) == 0)
         return;
 
     QDateTime cur_date = QDateTime::currentDateTime();

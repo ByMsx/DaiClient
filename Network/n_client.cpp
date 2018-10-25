@@ -111,7 +111,7 @@ void Client::change(const ValuePackItem& item, bool immediately)
 
 void Client::eventLog(const EventPackItem& item)
 {
-    if (item.type_id == QtDebugMsg && item.category == "net")
+    if (item.type_id == QtDebugMsg && item.category.startsWith("net"))
         return;
     event_pack_.push_back(item);
     packTimer.start(1000);
