@@ -188,7 +188,7 @@ bool ModbusPlugin::check(Device* dev)
         if (devStatusCache.find(requestPair) == devStatusCache.cend()) {
             devStatusCache[requestPair] = QModbusDevice::NoError;
 
-            QModbusReply *reply = sendRawRequest(QModbusRequest(QModbusPdu::WriteFileRecord), dev->address());
+            QModbusReply *reply = sendRawRequest(QModbusRequest(QModbusPdu::ReportServerId), dev->address());
             if (reply)
             {
                 auto setInfo = [this, reply, dev, info_item]() {
@@ -202,7 +202,7 @@ bool ModbusPlugin::check(Device* dev)
 //                        ds.setByteOrder(QDataStream::BigEndian);
                         ds >> slave_id >> ver_major >> ver_minor;
 
-                        QString dev_info = QString("Ver%1.%2 (%3)").arg((int)ver_major).arg((int)ver_minor).arg(slave_id);
+                        QString dev_info = QString("%1.%2 (%3)").arg((int)ver_major).arg((int)ver_minor).arg(slave_id);
                         QMetaObject::invokeMethod(info_item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, dev_info));
                     }
                     else
