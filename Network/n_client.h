@@ -53,8 +53,7 @@ signals:
     bool setCode(const CodeItem&);
     void execScript(const QString& script);
 
-    bool setSettings(quint16 cmd, QDataStream* msg);
-    bool structModify(quint16 cmd, QDataStream* msg);
+    bool structModify(quint8 cmd, QDataStream* msg);
     void setParamValues(const ParamValuesPack& pack);
 
 // -----> Sync database

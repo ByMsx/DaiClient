@@ -100,8 +100,7 @@ public slots:
     bool setCode(const CodeItem &item);
 
     void setParamValues(const ParamValuesPack& pack);
-    bool setSettings(quint16 cmd, QDataStream* msg);
-    bool applyStructModify(quint16 cmd, QDataStream* msg);
+    bool applyStructModify(quint8 structType, QDataStream* msg);
 
 //    bool setSettings(uchar stType, google::protobuf::Message* msg);
 public slots:

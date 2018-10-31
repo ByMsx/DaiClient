@@ -8,6 +8,8 @@
 #include <QJsonDocument>
 
 #include <Helpz/consolereader.h>
+
+#include <Dai/commands.h>
 #include <Dai/checkerinterface.h>
 
 #include "worker.h"
@@ -568,298 +570,47 @@ void Worker::setParamValues(const ParamValuesPack &pack)
     emit paramValuesChanged(pack);
 }
 
-template<typename T>
-bool saveSettings(QDataStream& msg, Database* db_mng, bool (Database::*saveFunc)(T*))
-{
-    T manager; msg >> manager;
-    if (msg.status() != QDataStream::Ok)
-        return false;
-
-    return (db_mng->*saveFunc)(&manager);
-}
-
-bool Worker::setSettings(quint16 cmd, QDataStream *msg)
+bool Worker::applyStructModify(quint8 structType, QDataStream *msg)
 {
     using namespace Network;
-    qCDebug(Service::Log) << "setSettings" << (Cmd::Commands)cmd;
-
-    ServiceRestarter restarter(this);
+    qCDebug(Service::Log) << "applyStructModify" << (StructureType)structType;
 
     try {
-        switch ((Cmd::Commands)cmd) {
-        case Cmd::SetSignTypes:
-            if (saveSettings(*msg, db_mng, &Database::setSignTypes))
-                return true;
-            break;
-        case Cmd::SetItemTypes:
-            if (saveSettings(*msg, db_mng, &Database::setItemTypes))
-                return true;
-            break;
-        case Cmd::SetGroupTypes:
-            if (saveSettings(*msg, db_mng, &Database::setGroupTypes))
-                return true;
-            break;
-        case Cmd::SetStatus:
-            if (saveSettings(*msg, db_mng, &Database::setStatuses))
-                return true;
-            break;
-        case Cmd::SetStatusTypes:
-            if (saveSettings(*msg, db_mng, &Database::setStatusTypes))
-                return true;
-            break;
-        case Cmd::SetParamTypes:
-            if (saveSettings(*msg, db_mng, &Database::setParamTypes))
-                return true;
-            break;
-        case Cmd::SetCodes:
-            if (saveSettings(*msg, db_mng, &Database::setCodes))
-                return true;
-            break;
-        case Cmd::SetParamValues2:
-            if (Helpz::applyParse(&Database::setParamValues, db_mng, *msg))
-                return true;
-            break;
-        case Cmd::SetGroups:
-            if (Helpz::applyParse(&Database::setSimpleGroups, db_mng, *msg))
-                return true;
-            break;
-        case Cmd::SetSections:
-            if (Helpz::applyParse(&Database::setSimpleSections, db_mng, *msg))
-                return true;
-            break;
-        case Cmd::SetDeviceItems:
-            if (Helpz::applyParse(&Database::setSimpleDeviceItems, db_mng, *msg))
-                return true;
-            break;
-        case Cmd::SetDevices:
-            if (Helpz::applyParse(&Database::setSimpleDevices, db_mng, *msg))
-                return true;
-            break;
-
-        default: break;
-        }
-    } catch(const std::exception& e) {
-        qCritical() << "EXCEPTION: setSettings" << (Cmd::Commands)cmd << e.what();
-    }
-    restarter.isOk = false;
-    return false;
-}
-
-bool Worker::applyStructModify(quint16 cmd, QDataStream *msg)
-{
-    using namespace Network;
-    qCDebug(Service::Log) << "applyStructModify" << (Cmd::Commands)cmd;
-
-    try {
-        switch ((Cmd::Commands)cmd) {
-        case Cmd::structModifyDevices:
+        switch ((StructureType)structType) {
+        case stDevices:
             return Helpz::applyParse(&Database::applyModifyDevices, db_mng, *msg);
-        case Cmd::structModifyDeviceItems:
+        case stCheckerType:
+            return Helpz::applyParse(&Database::applyModifyCheckerTypes, db_mng, *msg);
+        case stDeviceItems:
             return Helpz::applyParse(&Database::applyModifyDeviceItems, db_mng, *msg);
-        case Cmd::structModifyDeviceItemTypes:
+        case stDeviceItemTypes:
             return Helpz::applyParse(&Database::applyModifyDeviceItemTypes, db_mng, *msg);
-        case Cmd::structModifySections:
+        case stSections:
             return Helpz::applyParse(&Database::applyModifySections, db_mng, *msg);
-        case Cmd::structModifyGroups:
+        case stGroups:
             return Helpz::applyParse(&Database::applyModifyGroups, db_mng, *msg);
-        case Cmd::structModifyGroupTypes:
+        case stGroupTypes:
             return Helpz::applyParse(&Database::applyModifyGroupTypes, db_mng, *msg);
-        case Cmd::structModifyGroupParams:
+        case stGroupParams:
             return Helpz::applyParse(&Database::applyModifyGroupParams, db_mng, *msg);
-        case Cmd::structModifyGroupParamTypes:
+        case stGroupParamTypes:
             return Helpz::applyParse(&Database::applyModifyGroupParamTypes, db_mng, *msg);
-        case Cmd::structModifyGroupStatuses:
+        case stGroupStatuses:
             return Helpz::applyParse(&Database::applyModifyGroupStatuses, db_mng, *msg);
-        case Cmd::structModifyGroupStatusTypes:
+        case stGroupStatusTypes:
             return Helpz::applyParse(&Database::applyModifyGroupStatusTypes, db_mng, *msg);
-        case Cmd::structModifySigns:
+        case stSigns:
             return Helpz::applyParse(&Database::applyModifySigns, db_mng, *msg);
-        case Cmd::structModifyScripts:
+        case stScripts:
             return Helpz::applyParse(&Database::applyModifyScripts, db_mng, *msg);
 
         default: return false;
         }
     } catch(const std::exception& e) {
-        qCritical() << "EXCEPTION: applyStructModify" << (Cmd::Commands)cmd << e.what();
+        qCritical() << "EXCEPTION: applyStructModify" << (StructureType)structType << e.what();
     }
     return false;
 }
-
-/*bool Worker::setSettings(uchar stType, google::protobuf::Message *msg)
-{
-    qCDebug(Helpz::ServiceLog) << "setSettings" << (Network::SettingsType)stType;
-
-    ServiceRestarter restarter(this);
-
-    switch ((Network::SettingsType)stType) {
-    case Network::stSignType:
-        if (auto info = static_cast<Prt::TypeInfoList*>(msg))
-        {
-            SignManager signs;
-            for (const Prt::TypeInfo& it: info->items())
-                signs.add(it.id(), QString::fromStdString(it.name()));
-
-            if (db_mng->setSignTypes(&signs))
-            {
-                prj->ptr()->SignMng = signs;
-                return true;
-            }
-            qCDebug(Helpz::ServiceLog) << "setSignTypes" << info->items_size();
-        }
-        break;
-    case Network::stItemType:
-        if (auto info = static_cast<Prt::TypesInfo*>(msg))
-        {
-            ItemTypeManager itemTypes;
-            prj->ptr()->fillItemTypes(&itemTypes, info);
-
-            if (db_mng->setItemTypes(&itemTypes))
-            {
-                prj->ptr()->ItemTypeMng = itemTypes;
-                return true;
-            }
-        }
-        break;
-    case Network::stGroupType:
-        if (auto info = static_cast<Prt::TypesInfo*>(msg))
-        {
-            ItemGroupTypeManager groupTypes;
-            prj->ptr()->fillGroupTypes(&groupTypes, info);
-
-            if (db_mng->setGroupTypes(&groupTypes))
-            {
-                prj->ptr()->GroupTypeMng = groupTypes;
-                return true;
-            }
-        }
-        break;
-    case Network::stGroup:
-        if (auto info = static_cast<Prt::GroupList*>(msg))
-        {
-            qCDebug(Helpz::ServiceLog) << "Try to set Groups";
-            std::vector<const Prt::GroupObject*> groups;
-            for (const Prt::GroupObject& group: info->items())
-                groups.push_back(&group);
-            if (db_mng->setGroups(groups))
-            {
-                qCDebug(Helpz::ServiceLog) << "Set Groups complite";
-//                prj->ptr()->GroupTypeMng = groupTypes;
-                return true;
-            }
-        }
-        break;
-    case Network::stSection:
-        if (auto info = static_cast<Prt::SectionList*>(msg))
-        {
-            Sections sctList;
-            for(auto& sct: info->items())
-                sctList.push_back(std::make_shared<Section>(sct, prj->ptr()));
-            if (db_mng->setSections([&sctList]() -> const Sections& { return sctList; }))
-            {
-//                prj->ptr()->GroupTypeMng = groupTypes;
-                return true;
-            }
-        }
-        break;
-    case Network::stDeviceItem:
-        if (auto info = static_cast<Prt::DeviceItemList*>(msg))
-        {
-            std::vector<Prt::DeviceItem*> dev_items;
-            for(auto& item: *info->mutable_items())
-                dev_items.push_back(&item);
-
-            if (db_mng->setDeviceItems(dev_items))
-            {
-//                prj->ptr()->GroupTypeMng = groupTypes;
-                return true;
-            }
-        }
-        break;
-    case Network::stDevice:
-        if (auto info = static_cast<Prt::DeviceList*>(msg))
-        {
-            Devices devList;
-            for(auto& dev: info->items())
-                devList.push_back(std::make_shared<Device>(dev));
-
-            if (db_mng->setDevices([&devList]() -> const Devices& { return devList; }))
-            {
-//                prj->ptr()->GroupTypeMng = groupTypes;
-                return true;
-            }
-        }
-        break;
-
-    case Network::stStatus:
-        if (auto info = static_cast<Prt::TypesInfo*>(msg))
-        {
-            StatusManager status_mng;
-            prj->ptr()->fillStatuses(&status_mng, info);
-
-            if (db_mng->setStatuses(&status_mng))
-            {
-                prj->ptr()->StatusMng = status_mng;
-                return true;
-            }
-        }
-        break;
-    case Network::stStatusType:
-        if (auto info = static_cast<Prt::TypesInfo*>(msg))
-        {
-            StatusTypeManager statusType_mng;
-            prj->ptr()->fillStatusTypes(&statusType_mng, info);
-
-            if (db_mng->setStatusTypes(&statusType_mng))
-            {
-                prj->ptr()->StatusTypeMng = statusType_mng;
-                return true;
-            }
-        }
-        break;
-    case Network::stParamTypes:
-        if (auto info = static_cast<Prt::TypesInfo*>(msg))
-        {
-            ParamTypeManager paramType_mng;
-            prj->ptr()->fillParamTypes(&paramType_mng, info);
-
-            if (db_mng->setParamTypes(&paramType_mng))
-            {
-                prj->ptr()->ParamMng = paramType_mng;
-                return true;
-            }
-        }
-        break;
-    case Network::stParamValues:
-        if (auto info = static_cast<Prt::TypesInfo*>(msg))
-        {
-//            StatusTypeManager statusType_mng;
-//            prj->ptr()->fillStatusTypes(&statusType_mng, info);
-
-            if (db_mng->setParamValues(info->paramvalues()))
-            {
-//                prj->ptr()->StatusTypeMng = statusType_mng;
-                return true;
-            }
-        }
-        break;
-    case Network::stCodes:
-        if (auto info = static_cast<Prt::TypesInfo*>(msg))
-        {
-            CodeManager code_mng;
-            prj->ptr()->fillCodes(&code_mng, info);
-
-            if (db_mng->setCodes(&code_mng))
-            {
-                prj->ptr()->CodeMng = code_mng;
-                return true;
-            }
-        }
-        break;
-    default: break;
-    }
-    restarter.isOk = false;
-    return false;
-}*/
 
 void Worker::newValue(DeviceItem *item)
 {

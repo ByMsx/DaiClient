@@ -5,15 +5,18 @@
 
 #include <botan/parsing.h>
 
-#include "worker.h"
-#include "Database/db_manager.h"
-#include "Dai/project.h"
-#include "n_client.h"
-
 #include <Helpz/dtls_version.h>
 #include <Helpz/net_version.h>
 #include <Helpz/db_version.h>
 #include <Helpz/srv_version.h>
+
+#include <Dai/project.h>
+#include <Dai/commands.h>
+
+#include "worker.h"
+#include "Database/db_manager.h"
+#include "n_client.h"
+
 #include "lib.h"
 //#include "version.h"
 
@@ -25,7 +28,7 @@ namespace Network {
 
 void Client::sendVersion()
 {
-    send(Cmd::Version)
+    send(cmdVersion)
         << Helpz::DTLS::ver_major() << Helpz::DTLS::ver_minor() << Helpz::DTLS::ver_build()
         << Helpz::Network::ver_major() << Helpz::Network::ver_minor() << Helpz::Network::ver_build()
         << Helpz::Database::ver_major() << Helpz::Database::ver_minor() << Helpz::Database::ver_build()
@@ -49,7 +52,6 @@ Client::Client(Worker *worker, const QString &hostname, quint16 port, const QStr
     qRegisterMetaType<std::vector<uint>>("std::vector<uint>");
 
     connect(this, &Client::restart, worker, &Worker::serviceRestart, Qt::QueuedConnection);
-    connect(this, &Client::setSettings, worker, &Worker::setSettings, Qt::BlockingQueuedConnection);
     connect(this, &Client::structModify, worker, &Worker::applyStructModify, Qt::BlockingQueuedConnection);
     connect(this, &Client::setControlState, worker, &Worker::setControlState, Qt::QueuedConnection);
     connect(this, &Client::writeToItem, worker, &Worker::writeToItem, Qt::QueuedConnection);
@@ -115,31 +117,31 @@ void Client::eventLog(const EventPackItem& item)
         return;
     event_pack_.push_back(item);
     packTimer.start(1000);
-//    auto helper = send(Cmd::EventMessage);
+//    auto helper = send(cmdEventMessage);
 //    helper << type << category << text << time << db_id;
 //    events_data += helper.pop_message();
 }
 
 void Client::modeChanged(uint mode_id, quint32 group_id) {
     qDebug(NetClientLog) << "modeChanged" << mode_id << group_id;
-    send(Cmd::ChangedMode) << mode_id << group_id;
+    send(cmdChangedMode) << mode_id << group_id;
 }
 
 void Client::groupStatusChanged(quint32 group_id, quint32 status)
 {
-    send(Cmd::ChangedStatus) << group_id << status;
+    send(cmdChangedStatus) << group_id << status;
 }
 
 //void Client::sendLostValues(const QVector<ValuePackItem> &valuesPack) {
-//    send(Cmd::GetLostValues) << valuesPack;
+//    send(cmdGetLostValues) << valuesPack;
 //}
 //void Client::sendNotFoundIds(const QVector<quint32> &ids) {
-//    send(Cmd::IdsNotFound) << ids;
+//    send(cmdIdsNotFound) << ids;
 //}
 
 void Client::sendParamValues(const ParamValuesPack &pack)
 {
-    send(Cmd::SetParamValues) << pack;
+    send(cmdSetParamValues) << pack;
 }
 
 void Client::setDevice(const QUuid &devive_uuid)
@@ -188,10 +190,10 @@ void Client::importDevice(const QUuid &devive_uuid)
      *   3. Импортировать полученные данные
      **/
 
-    Helpz::Network::Waiter w(Cmd::GetServerInfo, wait_map);
+    Helpz::Network::Waiter w(cmdGetServerInfo, wait_map);
     if (!w) return;
 
-    send(Cmd::GetServerInfo) << m_login << m_password << devive_uuid;
+    send(cmdGetServerInfo) << m_login << m_password << devive_uuid;
     w.helper->wait();
 }
 
@@ -200,10 +202,10 @@ QUuid Client::createDevice(const QString &name, const QString &latin, const QStr
     if (name.isEmpty() || latin.isEmpty())
         return {};
 
-    Helpz::Network::Waiter w(Cmd::CreateDevice, wait_map);
+    Helpz::Network::Waiter w(cmdCreateDevice, wait_map);
     if (w)
     {
-        send(Cmd::CreateDevice) << m_login << m_password << name << latin << description;
+        send(cmdCreateDevice) << m_login << m_password << name << latin << description;
         if (w.helper->wait())
             return w.helper->result().toUuid();
     }
@@ -213,11 +215,11 @@ QUuid Client::createDevice(const QString &name, const QString &latin, const QStr
 
 QVector<QPair<QUuid, QString>> Client::getUserDevices()
 {
-    Helpz::Network::Waiter w(Cmd::Auth, wait_map);
+    Helpz::Network::Waiter w(cmdAuth, wait_map);
     if (!w)
         return lastUserDevices;
 
-    send(Cmd::Auth) << m_login << m_password << QUuid();
+    send(cmdAuth) << m_login << m_password << QUuid();
     bool res = w.helper->wait();
     if (res)
     {
@@ -235,12 +237,12 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
 {
     switch(cmd)
     {
-    case Cmd::NoAuth:
+    case cmdNoAuth:
 //        qDebug() << "NoAuth";
-        // send(Cmd::Auth) << m_login << m_password << m_device;
+        // send(cmdAuth) << m_login << m_password << m_device;
         sendAuthInfo();
         break;
-    case Cmd::Auth:
+    case cmdAuth:
     {
         bool authorized = Helpz::parse<bool>(msg);
         qDebug(NetClientLog) << "Auth" << authorized;
@@ -248,7 +250,7 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
         if (!authorized)
         {
             lastUserDevices = Helpz::parse<QVector<QPair<QUuid, QString>>>(msg);
-            auto wait_it = wait_map.find(Cmd::Auth);
+            auto wait_it = wait_map.find(cmdAuth);
             if (wait_it != wait_map.cend())
                 wait_it->second->finish(authorized);
 
@@ -258,45 +260,45 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
         }
 
         if (m_import_config)
-            send(Cmd::GetServerInfo);
+            send(cmdGetServerInfo);
         break;
     }
-    case Cmd::CreateDevice:
+    case cmdCreateDevice:
     {
-        auto wait_it = wait_map.find(Cmd::CreateDevice);
+        auto wait_it = wait_map.find(cmdCreateDevice);
         if (wait_it != wait_map.cend())
             wait_it->second->finish(Helpz::parse<QUuid>(msg));
         break;
     }
-    case Cmd::ServerInfo:
+    case cmdServerInfo:
     {
         close_connection();
         QVector<ParamTypeItem> param_values;
         emit setServerInfo(&msg, &param_values);
         emit saveServerInfo(param_values, worker->prj->ptr());
 
-        auto wait_it = wait_map.find(Cmd::GetServerInfo);
+        auto wait_it = wait_map.find(cmdGetServerInfo);
         if (wait_it != wait_map.cend())
             wait_it->second->finish();
         break;
     }
-    case Cmd::GetServerInfo:
+    case cmdGetServerInfo:
     {
         auto dt = QDateTime::currentDateTime();
         sendVersion();
-        send(Cmd::DateTime) << dt << dt.timeZone();
+        send(cmdDateTime) << dt << dt.timeZone();
 
-        send(Cmd::ItemTypeList) << prj->ItemTypeMng;
-        send(Cmd::GroupTypeList) << prj->GroupTypeMng;
-        send(Cmd::ModeTypeLIst) << prj->ModeTypeMng;
-        send(Cmd::SignList) << prj->SignMng;
-        send(Cmd::StatusTypeList) << prj->StatusTypeMng;
-        send(Cmd::StatusList) << prj->StatusMng;
-        send(Cmd::ParamList) << prj->ParamMng;
+        send(cmdItemTypeList) << prj->ItemTypeMng;
+        send(cmdGroupTypeList) << prj->GroupTypeMng;
+        send(cmdModeTypeLIst) << prj->ModeTypeMng;
+        send(cmdSignList) << prj->SignMng;
+        send(cmdStatusTypeList) << prj->StatusTypeMng;
+        send(cmdStatusList) << prj->StatusMng;
+        send(cmdParamList) << prj->ParamMng;
 
-        send(Cmd::CodesChecksum) << prj->get_codes_checksum();
+        send(cmdCodesChecksum) << prj->get_codes_checksum();
 
-        send(Cmd::ServerStructureInfo) << prj->sections() << prj->devices();
+        send(cmdServerStructureInfo) << prj->sections() << prj->devices();
         break;
 
 //        QByteArray dateData;
@@ -306,71 +308,49 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
 //        }
 
 //        info->set_datedata(dateData.constData(), dateData.size());
-//        sendMessage(this, Cmd::ServerInfo, info.get());
+//        sendMessage(this, cmdServerInfo, info.get());
 
-//        auto&& helper = send(Cmd::ServerInfo);
+//        auto&& helper = send(cmdServerInfo);
 //        auto dt = QDateTime::currentDateTime();
 //        helper << dt << dt.timeZone();
 //        emit getServerInfo(&helper.dataStream());
 //        break;
     }
-    case Cmd::SetControlState:
+    case cmdSetControlState:
         applyParse(&Client::setControlState, msg);
         break;
-    case Cmd::WriteToItem:
+    case cmdWriteToItem:
         applyParse(&Client::writeToItem, msg);
         break;
-    case Cmd::SetMode:
+    case cmdSetMode:
         applyParse(&Client::setMode, msg);
         break;
-//    case Cmd::GetLostValues:
+//    case cmdGetLostValues:
 //        applyParse(&Client::lostValues, msg);
 //        break;
-    case Cmd::SetParamValues:
+    case cmdSetParamValues:
         applyParse(&Client::setParamValues, msg);
         break;
 
-    case Cmd::SetSignTypes:
-    case Cmd::SetItemTypes:
-    case Cmd::SetGroupTypes:
-    case Cmd::SetGroups:
-    case Cmd::SetSections:
-    case Cmd::SetDeviceItems:
-    case Cmd::SetDevices:
-    case Cmd::SetStatus:
-    case Cmd::SetStatusTypes:
-    case Cmd::SetParamTypes:
-    case Cmd::SetParamValues2:
-    case Cmd::SetCodes:
-    {
-        quint32 event_id = Helpz::parse<quint32>(msg);
-
-        qCDebug(NetClientLog) << "Received settings" << (Cmd::Commands)cmd
-                              << "Event" << event_id << "size" << msg.device()->size();
-
-        send(cmd) << event_id << setSettings(cmd, &msg);
-        break;
-    }
-
-    case Cmd::SetCode:
+    case cmdSetCode:
         send(cmd) << applyParse(&Client::setCode, msg);
         break;
 
-    case Cmd::GetCode:
+    case cmdGetCode:
         send(cmd) << Helpz::applyParse(&CodeManager::type, &prj->CodeMng, msg);
         break;
 
-    case Cmd::Restart:
+    case cmdRestart:
         qCDebug(NetClientLog) << "Restart command received";
         restart();
         break;
 
-    case Cmd::ExecScript:
+    case cmdExecScript:
         execScript(Helpz::parse<QString>(msg));
         break;
 
 // -----> Sync database
-    case Cmd::LogRange: {
+    case cmdLogRange: {
         uint8_t log_type; qint64 date_ms;
         while(!msg.atEnd()) {
             Helpz::parse_out(msg, log_type, date_ms);
@@ -382,7 +362,7 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
         break;
     }
 
-    case Cmd::LogData: {
+    case cmdLogData: {
         uint8_t log_type; QPair<quint32, quint32> range;
         Helpz::parse_out(msg, log_type, range);
         if (log_type != Dai::ValueLog && log_type != Dai::EventLog)
@@ -402,25 +382,16 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
 // <--------------------
 
 // -----> Struct modify
-    case Cmd::structModifyDevices:
-    case Cmd::structModifyDeviceItems:
-    case Cmd::structModifyDeviceItemTypes:
-    case Cmd::structModifySections:
-    case Cmd::structModifyGroups:
-    case Cmd::structModifyGroupParams:
-    case Cmd::structModifyGroupTypes:
-    case Cmd::structModifyGroupParamTypes:
-    case Cmd::structModifyGroupStatuses:
-    case Cmd::structModifyGroupStatusTypes:
-    case Cmd::structModifySigns:
-    case Cmd::structModifyScripts: {
-        qCDebug(NetClientLog) << "Received strucrure modify" << (Cmd::Commands)cmd << "size" << msg.device()->size();
-        send(cmd) << structModify(cmd, &msg);
+    case cmdStructModify: {
+        quint8 modifyType;
+        Helpz::parse_out(msg, modifyType);
+        qCDebug(NetClientLog) << "Received strucrure modify" << (StructureType)modifyType << "size" << msg.device()->size();
+        send(cmd) << structModify(modifyType, &msg);
         break;
     }
 // <--------------------
 
-    case Cmd::FilePart:
+    case cmdFilePart:
     {
         if (!fileInfo)
         {
@@ -450,7 +421,7 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
         fileInfo->timer.start();
         break;
     }
-    case Cmd::FileHash:
+    case cmdFileHash:
     {
         QByteArray fileHash;
         QString fileName;
@@ -460,7 +431,7 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
     }
 
     default:
-        if (cmd >= Helpz::Network::Cmd::UserCommand)
+        if (cmd >= cmdAuth)
             qCCritical(NetClientLog) << "UNKNOWN MESSAGE" << cmd;
         break;
     }
@@ -471,14 +442,14 @@ void Client::sendPack()
     if (value_pack_.size())
     {
 //        qCDebug(NetClientLog) << "Send changes count" << pack.item_size();
-        send(Cmd::ChangedValues) << value_pack_;
+        send(cmdChangedValues) << value_pack_;
         value_pack_.clear();
     }
 
     if (event_pack_.size())
     {
 //        std::cout << "Send events size" << event_pack_.size() << std::endl;
-        send(Cmd::EventMessage) << event_pack_;
+        send(cmdEventMessage) << event_pack_;
         event_pack_.clear();
     }
 }
@@ -493,7 +464,7 @@ void Client::filePartTimeout()
 
 void Client::sendAuthInfo()
 {
-    send(Cmd::Auth) << m_login << m_password << m_device;
+    send(cmdAuth) << m_login << m_password << m_device;
 }
 
 void Client::sendLogData(uint8_t log_type, const QPair<quint32, quint32> &range)
