@@ -70,7 +70,7 @@ QScriptValue ParamGroupClass::getValue(Param *param)
 
 /*static*/ QScriptValue ParamGroupClass::getValue(ParamGroupClass *pgClass, Param *param)
 {
-    switch (param->type().type) {
+    switch (param->type()->type()) {
     case ParamType::IntType:       return param->value().toInt();
     case ParamType::BoolType:      return param->value().toInt() ? true : false;
     case ParamType::FloatType:     return param->value().toReal();
@@ -138,7 +138,7 @@ void ParamGroupClass::setProperty(QScriptValue &object, const QScriptString &nam
     if (!param)
         return;
 
-    qInfo() << "setProperty" << name << param->type().title() << id << value.toVariant();
+    qInfo() << "setProperty" << name << param->type()->title() << id << value.toVariant();
 
     bool isArrayIndex;
     name.toArrayIndex(&isArrayIndex);
@@ -265,7 +265,7 @@ QScriptString ParamGroupClassPropertyIterator::name() const
     if (param) {
         Param* p = param->get(m_last);
         if (p) {
-            return object().engine()->toStringHandle(p->type().name());
+            return object().engine()->toStringHandle(p->type()->name());
         }
     }
     return QScriptString();

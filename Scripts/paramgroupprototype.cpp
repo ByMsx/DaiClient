@@ -18,17 +18,17 @@ ParamGroupPrototype::ParamGroupPrototype(ParamGroupClass *parent) :
 
 QString ParamGroupPrototype::title() const
 {
-    return thisParam()->type().title();
+    return thisParam()->type()->title();
 }
 
 quint32 ParamGroupPrototype::type() const
 {
-    return thisParam()->type().id();
+    return thisParam()->type()->id();
 }
 
 QString ParamGroupPrototype::name() const
 {
-    return thisParam()->type().name();
+    return thisParam()->type()->name();
 }
 
 int ParamGroupPrototype::length() const
