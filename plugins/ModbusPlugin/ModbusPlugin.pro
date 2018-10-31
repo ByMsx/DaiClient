@@ -11,7 +11,7 @@ TEMPLATE = lib
 
 DEFINES += MODBUSPLUGIN_LIBRARY
 
-INCLUDEPATH += ../../../lib/
+DESTDIR = $${OUT_PWD}/../../..
 
 #Target version
 VER_MAJ = 1
@@ -25,7 +25,6 @@ HEADERS += modbusplugin.h\
 
 OTHER_FILES = checkerinfo.json
 
-LIBS += -L$${DESTDIR}/../../
 LIBS += -lDai
 
 unix {

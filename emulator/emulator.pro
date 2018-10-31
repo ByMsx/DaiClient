@@ -5,17 +5,15 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = DaiEmulator
 TEMPLATE = app
 
-INCLUDEPATH += $${PWD}/../ $${PWD}/../../lib/
+DESTDIR = $${OUT_PWD}/../..
 
 #Target version
 VER_MAJ = 1
 VER_MIN = 1
 include(../../common.pri)
 
-DESTDIR=$${DESTDIR}../
-
-LIBS += -L$${DESTDIR} -L$${DESTDIR}/helpz
-LIBS += -lDai -lDaiPlus -lHelpzService -lHelpzDB -lHelpzNetwork -lbotan-2
+INCLUDEPATH += $${PWD}/..
+LIBS += -lDai -lDaiPlus -lHelpzBase -lHelpzService -lHelpzDB -lHelpzNetwork -lbotan-2
 
 SOURCES += main.cpp \
     ../Database/db_manager.cpp \

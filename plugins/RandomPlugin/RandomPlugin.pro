@@ -6,7 +6,7 @@ TEMPLATE = lib
 
 DEFINES += RANDOMPLUGIN_LIBRARY
 
-INCLUDEPATH += ../../../lib/
+DESTDIR = $${OUT_PWD}/../../..
 
 #Target version
 VER_MAJ = 1
@@ -20,7 +20,6 @@ HEADERS += randomplugin.h\
 
 OTHER_FILES = checkerinfo.json
 
-LIBS += -L$${DESTDIR}/../../
 LIBS += -lDai
 
 unix {

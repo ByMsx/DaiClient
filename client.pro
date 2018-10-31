@@ -15,8 +15,6 @@ CONFIG (debug, debug|release) {
 
 TEMPLATE = app
 
-INCLUDEPATH += ../lib/
-
 SOURCES += main.cpp \
     worker.cpp \
     checker.cpp \
@@ -60,12 +58,10 @@ unix {
 }
 
 linux-rasp-pi2-g++|linux-opi-zero-g++|linux-rasp-pi3-g++ {
-    LIBS += -L$${OUT_PWD}/../helpz/
     INCLUDEPATH += $$[QT_INSTALL_HEADERS]/botan-2
 }
 
-LIBS += -L$${DESTDIR}
-LIBS += -lDai -lDaiPlus -lHelpzService -lHelpzNetwork -lHelpzDB -lHelpzDTLS -lbotan-2 -lboost_system -ldl
+LIBS += -lDai -lDaiPlus -lHelpzBase -lHelpzService -lHelpzNetwork -lHelpzDB -lHelpzDTLS -lbotan-2 -lboost_system -ldl
 
 RESOURCES += \
     main.qrc
