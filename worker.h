@@ -26,14 +26,6 @@ public:
     WebSockItem(Dai::Worker* obj);
     ~WebSockItem();
 
-    // base interface
-public:
-    void send_value(quint32 item_id, const QVariant &raw_data) override;
-    void send_mode(quint32 mode_id, quint32 group_id) override;
-    void send_param_values(const QByteArray &msg_buff) override;
-    void send_code(quint32 code_id, const QString &text) override;
-    void send_script(const QString &script) override;
-    void send_restart() override;
 signals:
     void send(const ProjInfo &proj, const QByteArray& data) const;
 public slots:

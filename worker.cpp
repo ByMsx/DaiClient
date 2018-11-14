@@ -31,19 +31,6 @@ WebSockItem::~WebSockItem() {
     disconnect(this);
 }
 
-void WebSockItem::send_value(quint32 item_id, const QVariant &raw_data) {
-    w->writeToItem(item_id, raw_data);
-}
-
-void WebSockItem::send_mode(quint32 mode_id, quint32 group_id) {
-    w->setMode(mode_id, group_id);
-}
-
-void WebSockItem::send_param_values(const QByteArray &msg_buff) { }
-void WebSockItem::send_code(quint32 code_id, const QString &text) { }
-void WebSockItem::send_script(const QString &script) { }
-void WebSockItem::send_restart() {}
-
 void WebSockItem::modeChanged(uint mode_id, uint group_id) {
 
     QMetaObject::invokeMethod(w->webSock_th->ptr(), "sendModeChanged", Qt::QueuedConnection,
@@ -60,9 +47,6 @@ void WebSockItem::procCommand(quint32 user_team_id, quint32 proj_id, quint8 cmd,
             send(this, w->webSock_th->ptr()->getConnectState(id(), "127.0.0.1", QDateTime::currentDateTime().timeZone(), 0));
             break;
 
-    //    case Dai::wsWriteToDevItem: Helpz::applyParse(&WebSockItem::send_value, this, ds); break;
-    //    case Dai::wsChangeGroupMode: Helpz::applyParse(&WebSockItem::send_mode, this, ds); break;
-    //    case Dai::wsChangeParamValues: Helpz::applyParse(&WebSockItem::send_param_values, this, ds); break;
         case Dai::wsWriteToDevItem: Helpz::applyParse(&Dai::Worker::writeToItem, w, ds); break;
         case Dai::wsChangeGroupMode: Helpz::applyParse(&Dai::Worker::setMode, w, ds); break;
         case Dai::wsChangeParamValues: Helpz::applyParse(&Dai::Worker::setParamValues, w, ds); break;
