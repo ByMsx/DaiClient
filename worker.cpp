@@ -24,6 +24,7 @@ WebSockItem::WebSockItem(Dai::Worker *obj) :
     set_title("localhost");
     set_teams({1});
     connect(w, &Dai::Worker::modeChanged, this, &WebSockItem::modeChanged, Qt::QueuedConnection);
+
 }
 
 WebSockItem::~WebSockItem() {
@@ -38,26 +39,49 @@ void WebSockItem::send_mode(quint32 mode_id, quint32 group_id) {
     w->setMode(mode_id, group_id);
 }
 
-void WebSockItem::send_param_values(const QByteArray &msg_buff)
-{
-    QDataStream msg(msg_buff);
-    Helpz::applyParse(&Dai::Worker::setParamValues, w, msg);
-}
-
-void WebSockItem::send_code(quint32 code_id, const QString &text) {
-    qCritical() << "Attempt to set code from local:" << code_id << text.left(32);
-}
-
-void WebSockItem::send_script(const QString &script) {
-    qCritical() << "Attempt to exec script from local:" << script.left(32);
-}
-
-void WebSockItem::send_restart() { w->serviceRestart(); }
+void WebSockItem::send_param_values(const QByteArray &msg_buff) { }
+void WebSockItem::send_code(quint32 code_id, const QString &text) { }
+void WebSockItem::send_script(const QString &script) { }
+void WebSockItem::send_restart() {}
 
 void WebSockItem::modeChanged(uint mode_id, uint group_id) {
 
     QMetaObject::invokeMethod(w->webSock_th->ptr(), "sendModeChanged", Qt::QueuedConnection,
                               Q_ARG(ProjInfo, this), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id));
+}
+
+void WebSockItem::procCommand(quint32 user_team_id, quint32 proj_id, quint8 cmd, const QByteArray &data)
+{
+    QDataStream ds(data);
+
+    try {
+        switch (cmd) {
+        case Dai::wsConnectInfo:
+            send(this, w->webSock_th->ptr()->getConnectState(id(), "127.0.0.1", QDateTime::currentDateTime().timeZone(), 0));
+            break;
+
+    //    case Dai::wsWriteToDevItem: Helpz::applyParse(&WebSockItem::send_value, this, ds); break;
+    //    case Dai::wsChangeGroupMode: Helpz::applyParse(&WebSockItem::send_mode, this, ds); break;
+    //    case Dai::wsChangeParamValues: Helpz::applyParse(&WebSockItem::send_param_values, this, ds); break;
+        case Dai::wsWriteToDevItem: Helpz::applyParse(&Dai::Worker::writeToItem, w, ds); break;
+        case Dai::wsChangeGroupMode: Helpz::applyParse(&Dai::Worker::setMode, w, ds); break;
+        case Dai::wsChangeParamValues: Helpz::applyParse(&Dai::Worker::setParamValues, w, ds); break;
+        case Dai::wsRestart: w->serviceRestart(); break;
+        case Dai::wsChangeCode:
+        case Dai::wsExecScript:
+            qCritical() << "Attempt to do something bad from local";
+            break;
+
+        default:
+            qWarning() << "Unknown WebSocket Message:" << (Dai::WebSockCmd)cmd;
+    //        pClient->sendBinaryMessage(message);
+            break;
+        }
+    } catch(const std::exception& e) {
+        qCritical() << "WebSock:" << e.what();
+    } catch(...) {
+        qCritical() << "WebSock unknown exception";
+    }
 }
 
 } // namespace dai
@@ -303,10 +327,13 @@ void Worker::initWebSocketManager(QSettings *s)
     webSock_th->start();
 
     while (!webSock_th->ptr() && !webSock_th->wait(5));
-    QObject::connect(webSock_th->ptr(), &dai::Network::WebSocket::checkAuth,
+    connect(webSock_th->ptr(), &dai::Network::WebSocket::checkAuth,
                      django_th->ptr(), &dai::DjangoHelper::checkToken, Qt::BlockingQueuedConnection);
 
     websock_item.reset(new dai::WebSockItem(this));
+    connect(webSock_th->ptr(), &dai::Network::WebSocket::throughCommand,
+            websock_item.get(), &dai::WebSockItem::procCommand, Qt::BlockingQueuedConnection);
+    connect(websock_item.get(), &dai::WebSockItem::send, webSock_th->ptr(), &dai::Network::WebSocket::send, Qt::QueuedConnection);
 //    webSock_th->ptr()->get_proj_in_team_by_id.connect(
 //                std::bind(&Worker::proj_in_team_by_id, this, std::placeholders::_1, std::placeholders::_2));
 }

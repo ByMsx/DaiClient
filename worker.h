@@ -34,8 +34,11 @@ public:
     void send_code(quint32 code_id, const QString &text) override;
     void send_script(const QString &script) override;
     void send_restart() override;
+signals:
+    void send(const ProjInfo &proj, const QByteArray& data) const;
 public slots:
     void modeChanged(uint mode_id, uint group_id);
+    void procCommand(quint32 user_team_id, quint32 proj_id, quint8 cmd, const QByteArray& data);
 private:
     Dai::Worker* w;
 };
