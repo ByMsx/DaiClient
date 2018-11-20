@@ -14,16 +14,16 @@
 
 #include "worker.h"
 
-namespace dai {
+namespace Dai {
 
-WebSockItem::WebSockItem(Dai::Worker *obj) :
-    QObject(), dai::project::base(),
+WebSockItem::WebSockItem(Worker *obj) :
+    QObject(), project::base(),
     w(obj)
 {
     set_id(1);
     set_title("localhost");
     set_teams({1});
-    connect(w, &Dai::Worker::modeChanged, this, &WebSockItem::modeChanged, Qt::QueuedConnection);
+    connect(w, &Worker::modeChanged, this, &WebSockItem::modeChanged, Qt::QueuedConnection);
 
 }
 
@@ -43,21 +43,21 @@ void WebSockItem::procCommand(quint32 user_team_id, quint32 proj_id, quint8 cmd,
 
     try {
         switch (cmd) {
-        case Dai::wsConnectInfo:
+        case wsConnectInfo:
             send(this, w->webSock_th->ptr()->getConnectState(id(), "127.0.0.1", QDateTime::currentDateTime().timeZone(), 0));
             break;
 
-        case Dai::wsWriteToDevItem: Helpz::applyParse(&Dai::Worker::writeToItem, w, ds); break;
-        case Dai::wsChangeGroupMode: Helpz::applyParse(&Dai::Worker::setMode, w, ds); break;
-        case Dai::wsChangeParamValues: Helpz::applyParse(&Dai::Worker::setParamValues, w, ds); break;
-        case Dai::wsRestart: w->serviceRestart(); break;
-        case Dai::wsChangeCode:
-        case Dai::wsExecScript:
+        case wsWriteToDevItem: Helpz::applyParse(&Worker::writeToItem, w, ds); break;
+        case wsChangeGroupMode: Helpz::applyParse(&Worker::setMode, w, ds); break;
+        case wsChangeParamValues: Helpz::applyParse(&Worker::setParamValues, w, ds); break;
+        case wsRestart: w->serviceRestart(); break;
+        case wsChangeCode:
+        case wsExecScript:
             qCritical() << "Attempt to do something bad from local";
             break;
 
         default:
-            qWarning() << "Unknown WebSocket Message:" << (Dai::WebSockCmd)cmd;
+            qWarning() << "Unknown WebSocket Message:" << (WebSockCmd)cmd;
     //        pClient->sendBinaryMessage(message);
             break;
         }
@@ -67,10 +67,6 @@ void WebSockItem::procCommand(quint32 user_team_id, quint32 proj_id, quint8 cmd,
         qCritical() << "WebSock unknown exception";
     }
 }
-
-} // namespace dai
-
-namespace Dai {
 
 namespace Z = Helpz;
 using namespace std::placeholders;
@@ -311,13 +307,13 @@ void Worker::initWebSocketManager(QSettings *s)
     webSock_th->start();
 
     while (!webSock_th->ptr() && !webSock_th->wait(5));
-    connect(webSock_th->ptr(), &dai::Network::WebSocket::checkAuth,
-                     django_th->ptr(), &dai::DjangoHelper::checkToken, Qt::BlockingQueuedConnection);
+    connect(webSock_th->ptr(), &Network::WebSocket::checkAuth,
+                     django_th->ptr(), &DjangoHelper::checkToken, Qt::BlockingQueuedConnection);
 
-    websock_item.reset(new dai::WebSockItem(this));
-    connect(webSock_th->ptr(), &dai::Network::WebSocket::throughCommand,
-            websock_item.get(), &dai::WebSockItem::procCommand, Qt::BlockingQueuedConnection);
-    connect(websock_item.get(), &dai::WebSockItem::send, webSock_th->ptr(), &dai::Network::WebSocket::send, Qt::QueuedConnection);
+    websock_item.reset(new WebSockItem(this));
+    connect(webSock_th->ptr(), &Network::WebSocket::throughCommand,
+            websock_item.get(), &WebSockItem::procCommand, Qt::BlockingQueuedConnection);
+    connect(websock_item.get(), &WebSockItem::send, webSock_th->ptr(), &Network::WebSocket::send, Qt::QueuedConnection);
 //    webSock_th->ptr()->get_proj_in_team_by_id.connect(
 //                std::bind(&Worker::proj_in_team_by_id, this, std::placeholders::_1, std::placeholders::_2));
 }
@@ -340,7 +336,7 @@ void Worker::logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QStr
         QMetaObject::invokeMethod(g_mng_th->ptr(), "eventLog", Qt::QueuedConnection, Q_ARG(EventPackItem, item));
         if (webSock_th)
             QMetaObject::invokeMethod(webSock_th->ptr(), "sendEventMessage", Qt::QueuedConnection,
-                                      QArgument<dai::project::info>("ProjInfo", websock_item.get()), Q_ARG(quint32, db_id.toUInt()), Q_ARG(quint32, item.type_id),
+                                      QArgument<project::info>("ProjInfo", websock_item.get()), Q_ARG(quint32, db_id.toUInt()), Q_ARG(quint32, item.type_id),
                                       Q_ARG(QString, item.category), Q_ARG(QString, item.text), Q_ARG(QDateTime, cur_date));
     }
 }
@@ -628,7 +624,7 @@ void Worker::newValue(DeviceItem *item)
     if (webSock_th) {
         QVector<Dai::ValuePackItem> pack{pack_item};
         QMetaObject::invokeMethod(webSock_th->ptr(), "sendDeviceItemValues", Qt::QueuedConnection,
-                                  QArgument<dai::project::info>("ProjInfo", websock_item.get()), Q_ARG(QVector<Dai::ValuePackItem>, pack));
+                                  QArgument<project::info>("ProjInfo", websock_item.get()), Q_ARG(QVector<Dai::ValuePackItem>, pack));
     }
 }
 
