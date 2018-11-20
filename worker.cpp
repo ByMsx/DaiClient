@@ -556,28 +556,10 @@ bool Worker::setCode(const CodeItem& item)
 void Worker::setParamValues(const ParamValuesPack &pack)
 {
     qCDebug(Service::Log) << "setParamValues" << pack.size() << pack;
+    QMetaObject::invokeMethod(prj->ptr(), "setParamValues", Qt::QueuedConnection, Q_ARG(ParamValuesPack, pack));
 
-    ParamValuesPack params = pack;
-    Param* p;
-
-    for(Section* sct: prj->ptr()->sections())
-        for (ItemGroup* group: sct->groups())
-        {
-            params.erase(std::remove_if(params.begin(), params.end(), [&](const ParamValueItem& param)
-            {
-                if (p = group->params()->getById(param.first), p)
-                {
-                    p->setValueFromString(param.second);
-                    db_mng->saveParamValue(param.first, p->valueToString());
-                    return true;
-                }
-                return false;
-            }), params.end());
-        }
-
-    if (params.size() != 0)
-        qCWarning(Service::Log) << "Failed to set param values" << params;
-
+    for (const ParamValueItem& item: pack)
+        db_mng->saveParamValue(item.first, item.second);
     emit paramValuesChanged(pack);
 }
 
