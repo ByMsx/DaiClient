@@ -76,6 +76,9 @@ public slots:
     void eventLog(const EventPackItem &item);
 
     void modeChanged(uint mode_id, quint32 group_id);
+
+    void statusAdded(quint32 group_id, quint32 info_id, const QStringList& args);
+    void statusRemoved(quint32 group_id, quint32 info_id);
     void groupStatusChanged(quint32 group_id, quint32 status);
 
 //    void sendLostValues(const QVector<Dai::ValuePackItem>& valuesPack);

@@ -103,6 +103,8 @@ ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleRe
 
     using T = ScriptedProject;
     connect(this, &T::modeChanged, worker, &Worker::modeChanged, Qt::QueuedConnection);
+    connect(this, &T::statusAdded, worker, &Worker::statusAdded, Qt::QueuedConnection);
+    connect(this, &T::statusRemoved, worker, &Worker::statusRemoved, Qt::QueuedConnection);
     connect(this, &T::sctItemChanged, worker, &Worker::newValue);
     connect(this, &T::groupStatusChanged, worker, &Worker::groupStatusChanged, Qt::QueuedConnection);
 //    connect(worker, &Worker::dumpSectionsInfo, this, &T::dumpInfo, Qt::BlockingQueuedConnection);
@@ -174,6 +176,8 @@ void ScriptedProject::reinitialization(const Helpz::Database::ConnectionInfo& db
             connect(group, &ItemGroup::itemChanged, this, &ScriptedProject::itemChanged);
             connect(group, &ItemGroup::itemChanged, this, &ScriptedProject::sctItemChanged);
             connect(group, &ItemGroup::modeChanged, this, &ScriptedProject::groupModeChanged);
+            connect(group, &ItemGroup::statusAdded, this, &ScriptedProject::statusAdded);
+            connect(group, &ItemGroup::statusRemoved, this, &ScriptedProject::statusRemoved);
 
             if (m_func.at(fControlChangeCheck).isFunction())
                 connect(group, &ItemGroup::controlChangeCheck, this, &ScriptedProject::controlChangeCheck);

@@ -71,6 +71,8 @@ Client::Client(Worker *worker, const QString &hostname, quint16 port, const QStr
     connect(worker, &Worker::change, this, &Client::change, Qt::QueuedConnection);
     connect(worker, &Worker::modeChanged, this, &Client::modeChanged, Qt::QueuedConnection);
     connect(worker, &Worker::groupStatusChanged, this, &Client::groupStatusChanged, Qt::QueuedConnection);
+    connect(worker, &Worker::statusAdded, this, &Client::statusAdded, Qt::QueuedConnection);
+    connect(worker, &Worker::statusRemoved, this, &Client::statusRemoved, Qt::QueuedConnection);
 
     while (!worker->prj->ptr() && !worker->prj->wait(5));
     prj = worker->prj->ptr();
@@ -125,6 +127,14 @@ void Client::eventLog(const EventPackItem& item)
 void Client::modeChanged(uint mode_id, quint32 group_id) {
     qDebug(NetClientLog) << "modeChanged" << mode_id << group_id;
     send(cmdChangedMode) << mode_id << group_id;
+}
+
+void Client::statusAdded(quint32 group_id, quint32 info_id, const QStringList &args) {
+    send(cmdGroupStatusAdded) << group_id << info_id << args;
+}
+
+void Client::statusRemoved(quint32 group_id, quint32 info_id) {
+    send(cmdGroupStatusRemoved) << group_id << info_id;
 }
 
 void Client::groupStatusChanged(quint32 group_id, quint32 status)

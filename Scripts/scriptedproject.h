@@ -64,6 +64,9 @@ signals:
     void sctItemChanged(DeviceItem*);
     void groupStatusChanged(quint32 group_id, quint32 status);
 
+    void statusAdded(quint32 group_id, quint32 info_id, const QStringList& args);
+    void statusRemoved(quint32 group_id, quint32 info_id);
+
     void modbusStop();
     void modbusStart();
 //    QVariantList modbusRead(int serverAddress, uchar registerType = QModbusDataUnit::InputRegisters,

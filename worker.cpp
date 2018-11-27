@@ -168,6 +168,8 @@ void Worker::init_Database(QSettings* s)
         throw std::runtime_error("Failed get database config");
 
     db_mng = new DBManager(*db_info_, "Worker_" + QString::number((quintptr)this));
+    connect(this, &Worker::statusAdded, db_mng, &DBManager::addStatus, Qt::QueuedConnection);
+    connect(this, &Worker::statusRemoved, db_mng, &DBManager::removeStatus, Qt::QueuedConnection);
 }
 
 void Worker::init_Project(QSettings* s)
