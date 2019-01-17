@@ -38,7 +38,7 @@ void Client::sendVersion()
 }
 
 Client::Client(Worker *worker, const QString &hostname, quint16 port, const QString &login, const QString &password, const QUuid &device, int checkServerInterval) :
-    Helpz::DTLS::Client(Botan::split_on("dai/1.0,dai/0.9", ','), worker->database_info(),
+    Helpz::DTLS::Client(Botan::split_on("dai/1.1,dai/1.0", ','), Helpz::Database::ConnectionInfo()/*worker->database_info()*/,
                            qApp->applicationDirPath() + "/tls_policy.conf", hostname, port, checkServerInterval),
     m_login(login), m_password(password), m_device(device), m_import_config(false),
     worker(worker)
@@ -379,6 +379,7 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
             break;
 
         auto res = getLogData(log_type, range);
+#if (__cplusplus > 201402L) && (!defined(__GNUC__) || (__GNUC__ >= 7))
         try {
             switch (log_type) {
             case ValueLog: send(cmd) << log_type << res.not_found << std::get<0>(res.data); break;
@@ -387,6 +388,13 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
             }
         }
         catch (const std::bad_variant_access&) {}
+#else
+        switch (log_type) {
+            case ValueLog: send(cmd) << log_type << res.not_found << res.data_value; break;
+            case EventLog: send(cmd) << log_type << res.not_found << res.data_event; break;
+        default: break;
+        }
+#endif
         break;
     }
 // <--------------------

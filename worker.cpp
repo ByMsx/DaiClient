@@ -137,32 +137,40 @@ std::unique_ptr<QSettings> Worker::settings()
 
 int Worker::init_logging(QSettings *s)
 {
-    auto [log_debug, log_syslog, log_period] = Helpz::SettingsHelper(
+    std::tuple<bool, bool, int> t = Helpz::SettingsHelper
+        #if (__cplusplus < 201402L) || (defined(__GNUC__) && (__GNUC__ < 7))
+            <Z::Param<bool>,Z::Param<bool>,Z::Param<int>>
+        #endif
+            (
             s, "Log",
-            Z::Param{"Debug", false},
-        Z::Param{"Syslog", true},
-        Z::Param{"Period", 60 * 30} // 30 минут
+            Z::Param<bool>{"Debug", false},
+            Z::Param<bool>{"Syslog", true},
+            Z::Param<int>{"Period", 60 * 30} // 30 минут
     )();
 
-    logg().debug = log_debug;
+    logg().set_debug(std::get<0>(t));
 #ifdef Q_OS_UNIX
-    logg().syslog = log_syslog;
+    logg().set_syslog(std::get<1>(t));
 #endif
     QMetaObject::invokeMethod(&logg(), "init", Qt::QueuedConnection);
-    return log_period;
+    return std::get<2>(t);
 }
 
 void Worker::init_Database(QSettings* s)
 {
-    db_info_ = Helpz::SettingsHelper(
+    db_info_ = Helpz::SettingsHelper
+        #if (__cplusplus < 201402L) || (defined(__GNUC__) && (__GNUC__ < 7))
+            <Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<int>,Z::Param<QString>,Z::Param<QString>>
+        #endif
+            (
                 s, "Database",
-                Z::Param{"Name", "deviceaccess_local"},
-                Z::Param{"User", "DaiUser"},
-                Z::Param{"Password", ""},
-                Z::Param{"Host", "localhost"},
-                Z::Param{"Port", -1},
-                Z::Param{"Driver", "QMYSQL"},
-                Z::Param{"ConnectOptions", QString()}
+                Z::Param<QString>{"Name", "deviceaccess_local"},
+                Z::Param<QString>{"User", "DaiUser"},
+                Z::Param<QString>{"Password", ""},
+                Z::Param<QString>{"Host", "localhost"},
+                Z::Param<int>{"Port", -1},
+                Z::Param<QString>{"Driver", "QMYSQL"},
+                Z::Param<QString>{"ConnectOptions", QString()}
     ).unique_ptr<Helpz::Database::ConnectionInfo>();
     if (!db_info_)
         throw std::runtime_error("Failed get database config");
@@ -182,8 +190,8 @@ void Worker::init_Project(QSettings* s)
 
     prj = ScriptsThread()(s, "Server", this,
                           cr,
-                          Z::Param{"SSHHost", "80.89.129.98"},
-                          Z::Param{"AllowShell", false}
+                          Z::Param<QString>{"SSHHost", "80.89.129.98"},
+                          Z::Param<bool>{"AllowShell", false}
                           );
     prj->start(QThread::HighPriority);
 //    while (!prj->ptr() && !prj->wait(5));
@@ -193,7 +201,7 @@ void Worker::init_Checker(QSettings* s)
 {
     qRegisterMetaType<Device*>("Device*");
 
-    checker_th = CheckerThread()(s, "Checker", this, Z::Param{"Interval", 1500}, Z::Param<QStringList>{"Plugins", {"ModbusPlugin"}} );
+    checker_th = CheckerThread()(s, "Checker", this, Z::Param<int>{"Interval", 1500}, Z::Param<QString>{"Plugins", "ModbusPlugin,WiringPiPlugin"} );
     checker_th->start();
 }
 
@@ -207,12 +215,12 @@ void Worker::init_GlobalClient(QSettings* s)
     g_mng_th = NetworkClientThread()(
               s, "RemoteServer",
               this,
-              Z::Param{"Host",                 "deviceaccess.ru"},
-              Z::Param{"Port",                 (quint16)25588},
-              Z::Param{"Login",                QString()},
-              Z::Param{"Password",             QString()},
-              Z::Param{"Device",               QUuid()},
-              Z::Param{"CheckServerInterval",  15000}
+              Z::Param<QString>{"Host",                 "deviceaccess.ru"},
+              Z::Param<quint16>{"Port",                 (quint16)25588},
+              Z::Param<QString>{"Login",                QString()},
+              Z::Param<QString>{"Password",             QString()},
+              Z::Param<QUuid>{"Device",               QUuid()},
+              Z::Param<int>{"CheckServerInterval",  15000}
             );
 
     g_mng_th->start();
@@ -290,21 +298,21 @@ void Worker::init_LogTimer(int period)
 void Worker::initDjango(QSettings *s)
 {
     django_th = DjangoThread()(s, "Django",
-                             Helpz::Param{"manage", "/var/www/dai/manage.py"});
+                             Helpz::Param<QString>{"manage", "/var/www/dai/manage.py"});
     django_th->start();
     while (!django_th->ptr() && !django_th->wait(5));
 }
 
 void Worker::initWebSocketManager(QSettings *s)
 {
-    std::tuple<bool> en_t = Helpz::SettingsHelper(s, "WebSocket", Helpz::Param{"Enabled", true})();
+    std::tuple<bool> en_t = Helpz::SettingsHelper<Helpz::Param<bool>>(s, "WebSocket", Helpz::Param<bool>{"Enabled", true})();
     if (!std::get<0>(en_t))
         return;
 
     webSock_th = WebSocketThread()(
                 s, "WebSocket",
-                Helpz::Param{"CertPath", QString()},
-                Helpz::Param{"KeyPath", QString()},
+                Helpz::Param<QString>{"CertPath", QString()},
+                Helpz::Param<QString>{"KeyPath", QString()},
                 Helpz::Param<quint16>{"Port", 25589});
     webSock_th->start();
 

@@ -89,7 +89,11 @@ DBManager::LogDataT DBManager::getLogData(quint8 log_type, const QPair<quint32, 
             pack.push_back(ValuePackItem{ q.value(0).toUInt(), q.value(1).toUInt(),
                                      q.value(2).toDateTime().toMSecsSinceEpoch(), q.value(3), q.value(4)});
         });
+#if (__cplusplus > 201402L) && (!defined(__GNUC__) || (__GNUC__ >= 7))
         res.data = std::move(pack);
+#else
+        res.data_value = std::move(pack);
+#endif
         break;
     }
     case EventLog: {
@@ -98,7 +102,11 @@ DBManager::LogDataT DBManager::getLogData(quint8 log_type, const QPair<quint32, 
             pack.push_back(EventPackItem{ q.value(0).toUInt(), q.value(1).toUInt(),
                                      q.value(2).toDateTime().toMSecsSinceEpoch(), q.value(3).toString(), q.value(4).toString()});
         });
+#if (__cplusplus > 201402L) && (!defined(__GNUC__) || (__GNUC__ >= 7))
         res.data = std::move(pack);
+#else
+        res.data_event = std::move(pack);
+#endif
         break;
     }
     default:

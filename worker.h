@@ -116,7 +116,7 @@ private:
     ScriptsThread::Type* prj;
 
     friend class Checker;
-    using CheckerThread = Helpz::SettingsThreadHelper<Checker, Worker*, int, QStringList>;
+    using CheckerThread = Helpz::SettingsThreadHelper<Checker, Worker*, int, QString>;
     CheckerThread::Type* checker_th;
 
     using DjangoThread = Helpz::SettingsThreadHelper<DjangoHelper, QString>;

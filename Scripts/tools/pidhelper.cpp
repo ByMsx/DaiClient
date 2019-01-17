@@ -88,18 +88,20 @@ void PIDHelper::onPWM()
         m_pwm_timer->setInterval(interval * 1000);
     }
 
-    std::optional<bool> new_state;
+    bool change_flag, new_state;
     if ( (m_pwm_on > m_pid->min() && m_pwm_on < m_pid->period()) ||
-         ((m_pwm_on == m_pid->min()) == state) )
+         ((m_pwm_on == m_pid->min()) == state) ) {
+        change_flag = true;
         new_state = !state;
+    }
 
 //    qDebug() << "onPWM new_state" << (new_state? *new_state ? "TRUE" : "FALSE" : "UNINIT")
 //             << "interval" << m_pwm_timer->interval() << "now state" << state;
 
-    if (new_state)
+    if (change_flag)
     {
         m_wait_changes_start = current_time;
-        setControlState(*new_state);
+        setControlState(new_state);
     }
     else
         startPWM();

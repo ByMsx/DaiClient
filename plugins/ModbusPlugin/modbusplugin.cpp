@@ -43,17 +43,23 @@ ModbusPlugin::~ModbusPlugin()
 void ModbusPlugin::configure(QSettings *settings, Project *)
 {
     using Helpz::Param;
-    conf = Helpz::SettingsHelper(
+
+    conf = Helpz::SettingsHelper
+        #if (__cplusplus < 201402L) || (defined(__GNUC__) && (__GNUC__ < 7))
+            <Param<QString>,Param<QSerialPort::BaudRate>,Param<QSerialPort::DataBits>,
+                            Param<QSerialPort::Parity>,Param<QSerialPort::StopBits>,Param<QSerialPort::FlowControl>,Param<int>,Param<int>,Param<int>>
+        #endif
+            (
                 settings, "Modbus",
-                Param{"Port", "ttyUSB0"},
-                Param{"BaudRate", QSerialPort::Baud9600},
-                Param{"DataBits", QSerialPort::Data8},
-                Param{"Parity", QSerialPort::NoParity},
-                Param{"StopBits", QSerialPort::OneStop},
-                Param{"FlowControl", QSerialPort::NoFlowControl},
-                Param{"ModbusTimeout", 200},
-                Param{"ModbusNumberOfRetries", 5},
-                Param{"InterFrameDelay", 0}
+                Param<QString>{"Port", "ttyUSB0"},
+                Param<QSerialPort::BaudRate>{"BaudRate", QSerialPort::Baud9600},
+                Param<QSerialPort::DataBits>{"DataBits", QSerialPort::Data8},
+                Param<QSerialPort::Parity>{"Parity", QSerialPort::NoParity},
+                Param<QSerialPort::StopBits>{"StopBits", QSerialPort::OneStop},
+                Param<QSerialPort::FlowControl>{"FlowControl", QSerialPort::NoFlowControl},
+                Param<int>{"ModbusTimeout", 200},
+                Param<int>{"ModbusNumberOfRetries", 5},
+                Param<int>{"InterFrameDelay", 0}
     ).unique_ptr<Conf>();
 
 //    conf = std::unique_ptr<Conf>{
@@ -121,7 +127,6 @@ void ModbusPlugin::configure(QSettings *settings, Project *)
         setInterFrameDelay(conf->frameDelayMicroseconds);
 }
 
-
 bool ModbusPlugin::check(Device* dev)
 {
     if (!checkConnect())
@@ -175,10 +180,10 @@ bool ModbusPlugin::check(Device* dev)
         if (    rgsType > QModbusDataUnit::Invalid &&
                 rgsType <= QModbusDataUnit::HoldingRegisters)
         {
-            if (item->unit() == -1)
+            if (item->unit().toInt() == -1)
                 info_item = item;
             else
-                modbusInfoMap[rgsType][item->unit()] = item;
+                modbusInfoMap[rgsType][item->unit().toInt()] = item;
         }
     }
 
@@ -257,7 +262,7 @@ void ModbusPlugin::write(DeviceItem *item, const QVariant &raw_data)
     qCDebug(ModbusLog) << "WRITE" << write_data << "TO" << item->toString() << "ADR" << item->device()->address() << "UNIT" << item->unit()
                        << (regType == QModbusDataUnit::Coils ? "Coils" : "HoldingRegisters");
 
-    QModbusDataUnit writeUnit(regType, item->unit(), 1);
+    QModbusDataUnit writeUnit(regType, item->unit().toInt(), 1);
     writeUnit.setValue(0, write_data);
 
     QEventLoop wait;
@@ -279,7 +284,7 @@ void ModbusPlugin::write(DeviceItem *item, const QVariant &raw_data)
                           .arg(reply->error() == ProtocolError ?
                                    tr("Mobus exception: 0x%1").arg(reply->rawResult().exceptionCode(), -1, 16) :
                                    tr("code: 0x%1").arg(reply->error(), -1, 16))
-                          .arg(regType).arg(item->unit()) << raw_data;
+                          .arg(regType).arg(item->unit().toString()) << raw_data;
 
         reply->deleteLater();
     } else

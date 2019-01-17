@@ -2,7 +2,10 @@
 #define DATABASE_MANAGER_H
 
 #include <functional>
+
+#if (__cplusplus > 201402L) && (!defined(__GNUC__) || (__GNUC__ >= 7))
 #include <variant>
+#endif
 
 #include <QVector>
 
@@ -25,7 +28,12 @@ public:
 // -----> Sync database
     struct LogDataT {
         QVector<quint32> not_found;
+#if (__cplusplus > 201402L) && (!defined(__GNUC__) || (__GNUC__ >= 7))
         std::variant<QVector<ValuePackItem>, QVector<EventPackItem>> data;
+#else
+        QVector<ValuePackItem> data_value;
+        QVector<EventPackItem> data_event;
+#endif
     };
 
     Dai::DBManager::LogDataT getLogData(quint8 log_type, const QPair<quint32, quint32> &range);

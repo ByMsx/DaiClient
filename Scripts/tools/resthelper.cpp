@@ -91,7 +91,7 @@ void RestHelper::controlChanged(DeviceItem *dev_item)
 
 void RestHelper::onTimer()
 {
-    std::optional<bool> newState = m_resting;
+    bool flag = true, newState = m_resting;
     m_resting = !m_resting;
 
     if (m_resting)
@@ -106,11 +106,11 @@ void RestHelper::onTimer()
     else
     {
         if (!m_alwaysWork)
-            newState.reset();
+            flag = false;
     }
 
-    if (newState)
-        setControlState(*newState);
+    if (flag)
+        setControlState(newState);
 }
 
 } // namespace Dai

@@ -16,7 +16,7 @@ Q_LOGGING_CATEGORY(CheckerLog, "checker")
 
 #define MINIMAL_WRITE_INTERVAL    50
 
-Checker::Checker(Worker *worker, int interval, const QStringList &plugins, QObject *parent) :
+Checker::Checker(Worker *worker, int interval, const QString &pluginstr, QObject *parent) :
     QObject(parent),
     b_break(false)
 {
@@ -24,7 +24,7 @@ Checker::Checker(Worker *worker, int interval, const QStringList &plugins, QObje
     prj = worker->prj->ptr();
 
     PluginTypeMng = prj->PluginTypeMng;
-    loadPlugins(plugins);
+    loadPlugins(pluginstr.split(','));
 
 
 
@@ -79,7 +79,7 @@ void Checker::loadPlugins(const QStringList &allowed_plugins)
     {
         finded = false;
         for (const QString& plugin_name: allowed_plugins)
-            if (fileName.startsWith("lib" + plugin_name)) {
+            if (fileName.startsWith("lib" + plugin_name.trimmed())) {
                 finded = true;
                 break;
             }
@@ -193,7 +193,8 @@ void Checker::writeCache()
 
     while (m_writeCache.size()) {
         auto iterator = m_writeCache.begin();
-        auto [dev_item, raw_data] = *iterator;
+        DeviceItem *dev_item = iterator->first;
+        QVariant raw_data = iterator->second;
         m_writeCache.erase(iterator);
 
         writeItem(dev_item, raw_data);
