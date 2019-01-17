@@ -9,7 +9,8 @@
 
 #include <QVector>
 
-#include "plus/dai/database.h"
+#include <Dai/logpack.h>
+#include <plus/dai/database.h>
 
 namespace Dai {
 
