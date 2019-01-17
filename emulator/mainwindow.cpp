@@ -159,7 +159,7 @@ void MainWindow::init()
 
         for (auto it = hasZeroUnit.cbegin(); it != hasZeroUnit.cend(); ++it)
             if (!it->second)
-                dev->createItem(0, 0, 0, "0");
+                dev->createItem(0, 0, {}, "0");
     }
 
 //    int column = -1;
