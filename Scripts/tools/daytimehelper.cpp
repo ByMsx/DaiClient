@@ -29,10 +29,10 @@ void DayTimeHelper::init()
     qint64 current_secs, zero_secs, day_secs, night_secs, min_secs;
 
     QDateTime current = QDateTime::currentDateTime();
-    current_secs = (current.toMSecsSinceEpoch() * 1000) + 1;
+    current_secs = (current.toMSecsSinceEpoch() / 1000) + 1;
 
     current.setTime({0, 0});
-    zero_secs = current.toMSecsSinceEpoch() * 1000;
+    zero_secs = current.toMSecsSinceEpoch() / 1000;
 
     bool next_secs_flag = false;
     qint64 next_secs = 0;
