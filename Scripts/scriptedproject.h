@@ -124,7 +124,7 @@ private:
 //    void evaluateFile(const QString &fileName);
     QScriptValue callFunction(uint func_idx, const QScriptValueList& args = QScriptValueList()) const;
 
-    QScriptEngine *eng;
+    QScriptEngine *m_script_engine;
 
     std::vector<QScriptValue> m_func;
 

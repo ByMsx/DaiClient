@@ -59,19 +59,19 @@ struct ArgumentGetter {
 template<typename T, template<typename> class P, typename... Args>
 void ScriptedProject::addType()
 {
-    auto ctor = [](QScriptContext* ctx, QScriptEngine* eng) -> QScriptValue {
+    auto ctor = [](QScriptContext* ctx, QScriptEngine* m_script_engine) -> QScriptValue {
         if ((unsigned)ctx->argumentCount() >= sizeof...(Args))
         {
             ArgumentGetter get_arg(ctx);
 
             auto obj = new T(qscriptvalue_cast<Args>(get_arg())...);
-            return eng->newQObject(obj, QScriptEngine::ScriptOwnership);
+            return m_script_engine->newQObject(obj, QScriptEngine::ScriptOwnership);
         }
-        return P<T>()(ctx, eng);
+        return P<T>()(ctx, m_script_engine);
     };
 
-    auto value = eng->newQMetaObject(&T::staticMetaObject,
-                                     eng->newFunction(ctor));
+    auto value = m_script_engine->newQMetaObject(&T::staticMetaObject,
+                                     m_script_engine->newFunction(ctor));
 
     QString name = T::staticMetaObject.className();
 
@@ -79,7 +79,7 @@ void ScriptedProject::addType()
     if (four_dots >= 0)
         name.remove(0, four_dots + 2);
 
-    eng->globalObject().setProperty(name, value);
+    m_script_engine->globalObject().setProperty(name, value);
 
 //    qCDebug(ProjectLog) << "Register for script:" << name;
 }
@@ -96,7 +96,7 @@ ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleRe
 //    db()->setTypeManager(this);
     registerTypes();
 
-    eng->pushContext();
+    m_script_engine->pushContext();
     reinitialization(worker->database_info());
 
     setSSHHost(sshHost);
@@ -126,8 +126,8 @@ qint64 ScriptedProject::uptime() const { return m_uptime; }
 
 void ScriptedProject::reinitialization(const Helpz::Database::ConnectionInfo& db_info)
 {
-    eng->popContext();
-    QScriptContext* ctx = eng->pushContext();
+    m_script_engine->popContext();
+    QScriptContext* ctx = m_script_engine->pushContext();
     QScriptValue obj = ctx->activationObject();
 
     m_func.resize(fAutomation);
@@ -196,8 +196,8 @@ void ScriptedProject::registerTypes()
 
     qRegisterMetaType<AutomationHelper*>("AutomationHelper*");
 
-    eng = new QScriptEngine(this);
-    connect(eng, &QScriptEngine::signalHandlerException,
+    m_script_engine = new QScriptEngine(this);
+    connect(m_script_engine, &QScriptEngine::signalHandlerException,
             this, &ScriptedProject::handlerException);
 
     addType<QTimer>();
@@ -215,23 +215,23 @@ void ScriptedProject::registerTypes()
     addTypeN<ItemGroup, uint, uint, Section*>();
 
     qRegisterMetaType<Sections>("Sections");
-    qScriptRegisterSequenceMetaType<Sections>(eng);
+    qScriptRegisterSequenceMetaType<Sections>(m_script_engine);
 
     qRegisterMetaType<Devices>("Devices");
-    qScriptRegisterSequenceMetaType<Devices>(eng);
+    qScriptRegisterSequenceMetaType<Devices>(m_script_engine);
 
     qRegisterMetaType<DeviceItem*>("DeviceItem*");
     qRegisterMetaType<DeviceItems>("DeviceItems");
-    qScriptRegisterSequenceMetaType<DeviceItems>(eng);
+    qScriptRegisterSequenceMetaType<DeviceItems>(m_script_engine);
 
-    qRegisterMetaType<QVector<DeviceItem*>>("QVector<DeviceItem*>");
-    qScriptRegisterSequenceMetaType<QVector<DeviceItem*>>(eng);
+    qRegisterMetaType<QVector<DeviceItem*>>("QVector<DeviceItem*>"); // REVIEW а разве не тоже самое, что и  qRegisterMetaType<DeviceItems>("DeviceItems");
+    qScriptRegisterSequenceMetaType<QVector<DeviceItem*>>(m_script_engine);
 
     qRegisterMetaType<AutomationHelperItem*>("AutomationHelperItem*");
 
-    qScriptRegisterMetaType<ItemGroup::ValueType>(eng, sharedPtrToScriptValue<ItemGroup::ValueType>, emptyFromScriptValue<ItemGroup::ValueType>);
+    qScriptRegisterMetaType<ItemGroup::ValueType>(m_script_engine, sharedPtrToScriptValue<ItemGroup::ValueType>, emptyFromScriptValue<ItemGroup::ValueType>);
 //    qScriptRegisterMetaType<SectionPtr>(eng, sharedPtrToScriptValue<SectionPtr>, emptyFromScriptValue<SectionPtr>);
-    qScriptRegisterMetaType<std::string>(eng, stdstringToScriptValue, emptyFromScriptValue<std::string>);
+    qScriptRegisterMetaType<std::string>(m_script_engine, stdstringToScriptValue, emptyFromScriptValue<std::string>);
 //    qScriptRegisterMetaType<DeviceItem*>(eng, )
 
 //    qScriptRegisterMetaType<DeviceItem::ValueType>(eng, itemValueToScriptValue, itemValueFromScriptValue);
@@ -239,8 +239,8 @@ void ScriptedProject::registerTypes()
 
     //    qScriptRegisterSequenceMetaType<DeviceItem::ValueList>(eng);
 
-    auto paramClass = new ParamGroupClass(eng);
-    eng->globalObject().setProperty("Params", paramClass->constructor());
+    auto paramClass = new ParamGroupClass(m_script_engine);
+    m_script_engine->globalObject().setProperty("Params", paramClass->constructor());
 //    eng->globalObject().setProperty("ParamElem", paramClass->constructor());
 }
 
@@ -284,8 +284,8 @@ void ScriptedProject::scriptsInitialization()
 
     check_error( "API", readScriptFile("api") );
 
-    QScriptValue api = eng->currentContext()->activationObject().property("api");
-    api.setProperty("mng", eng->newQObject(this));
+    QScriptValue api = m_script_engine->currentContext()->activationObject().property("api");
+    api.setProperty("mng", m_script_engine->newQObject(this));
 
     QScriptValue statuses = api.property("status");
 
@@ -297,7 +297,7 @@ void ScriptedProject::scriptsInitialization()
     for (auto it: statusMap)
     {
         status_name = GroupTypeMng.name(it.first);
-        statuses.setProperty(status_name, eng->newObject());
+        statuses.setProperty(status_name, m_script_engine->newObject());
         auto statusGroup = statuses.property(status_name);
         quint32 multiVal = ItemGroup::valUser;
         for (GroupStatus* type: it.second)
@@ -344,10 +344,10 @@ void ScriptedProject::scriptsInitialization()
         if (!type.name().isEmpty())
         {
             func_name = type.name() + "Changed";
-            QScriptValue js_func = eng->currentContext()->activationObject().property(func_name);
+            QScriptValue js_func = m_script_engine->currentContext()->activationObject().property(func_name);
 
             if (!js_func.isFunction())
-                js_func = eng->currentContext()->activationObject().property(type.name() + "Automation");
+                js_func = m_script_engine->currentContext()->activationObject().property(type.name() + "Automation");
 
             if (js_func.isFunction())
             {
@@ -388,7 +388,7 @@ Section *ScriptedProject::addSection(quint32 id, const QString &name, const Time
 //    connect(sct, SIGNAL(itemChanged(DeviceItem*)), SIGNAL(sctItemChanged(DeviceItem*)));
 //    connect(sct, &Section::autoChanged, [this](uint type, bool isAuto) { });
 
-    callFunction(fInitSection, { eng->newQObject(sct) });
+    callFunction(fInitSection, { m_script_engine->newQObject(sct) });
     return sct;
 }
 
@@ -404,11 +404,11 @@ QScriptValue ScriptedProject::valueFromVariant(const QVariant &data) const
     case QVariant::Double:              return data.toDouble();
     case QVariant::Date:
     case QVariant::Time:
-    case QVariant::DateTime:            return eng->newDate(data.toDateTime());
+    case QVariant::DateTime:            return m_script_engine->newDate(data.toDateTime());
     case QVariant::RegExp:
-    case QVariant::RegularExpression:   return eng->newRegExp(data.toRegExp());
+    case QVariant::RegularExpression:   return m_script_engine->newRegExp(data.toRegExp());
     default:
-        return  eng->newVariant(data);
+        return  m_script_engine->newVariant(data);
     }
 }
 
@@ -428,23 +428,23 @@ void ScriptedProject::log(const QString &msg, uint type)
 void ScriptedProject::console(const QString &cmd)
 {
     QString script = cmd.trimmed();
-    if (script.isEmpty() || !eng->canEvaluate(script))
+    if (script.isEmpty() || !m_script_engine->canEvaluate(script))
         return;
 
-    auto res = eng->evaluate(script, "CONSOLE");
+    auto res = m_script_engine->evaluate(script, "CONSOLE");
     bool is_error = res.isError();
 
     if (!res.isUndefined())
     {
         if (!res.isError() && (res.isObject() || res.isArray()))
         {
-            QScriptValue check_func = eng->evaluate("(function(key, value) {"
+            QScriptValue check_func = m_script_engine->evaluate("(function(key, value) {"
                                                       "if ((typeof value === 'object' || typeof value === 'function') && value !== null && !Array.isArray(value) && value.toString() !== '[object Object]') {"
                                                         "return value.toString();"
                                                       "}"
                                                       "return value;"
                                                     "})");
-            res = eng->evaluate("JSON.stringify").call(QScriptValue(), {res, check_func, ' '});
+            res = m_script_engine->evaluate("JSON.stringify").call(QScriptValue(), {res, check_func, ' '});
         }
 
         if (res.isError())
@@ -487,7 +487,7 @@ void ScriptedProject::run_automation(ItemGroup* group, const QScriptValue& group
 {
     auto automation = m_automation.find(group->type());
     if (automation != m_automation.cend())
-        callFunction(automation->second, { (groupObj.isValid() ? groupObj : eng->newQObject(group)), itemObj });
+        callFunction(automation->second, { (groupObj.isValid() ? groupObj : m_script_engine->newQObject(group)), itemObj });
 }
 
 void ScriptedProject::groupModeChanged(uint mode, quint32 /*group_id*/)
@@ -495,7 +495,7 @@ void ScriptedProject::groupModeChanged(uint mode, quint32 /*group_id*/)
     auto group = static_cast<ItemGroup*>(sender());
     if (!group)
         return;
-    QScriptValue groupObj = eng->newQObject(group);
+    QScriptValue groupObj = m_script_engine->newQObject(group);
 
     callFunction(fModeChanged, { groupObj, mode });
     run_automation(group, groupObj);
@@ -508,8 +508,8 @@ void ScriptedProject::itemChanged(DeviceItem *item)
 
     auto group = static_cast<ItemGroup*>(sender());
 
-    QScriptValue groupObj = eng->newQObject(group);
-    QScriptValue itemObj = eng->newQObject(item);
+    QScriptValue groupObj = m_script_engine->newQObject(group);
+    QScriptValue itemObj = m_script_engine->newQObject(item);
 
     callFunction(fItemChanged, { groupObj, itemObj });
 
@@ -577,10 +577,10 @@ QVariantMap ScriptedProject::run_command(const QString &programm, const QVariant
 void ScriptedProject::groupInitialized(ItemGroup* group)
 {
     QString func_name = GroupTypeMng.name(group->type()) + "Initialized";
-    auto func = eng->currentContext()->activationObject().property(func_name);
+    auto func = m_script_engine->currentContext()->activationObject().property(func_name);
     if (func.isFunction())
     {
-        auto ret = func.call(QScriptValue(), QScriptValueList{ eng->newQObject(group) });
+        auto ret = func.call(QScriptValue(), QScriptValueList{ m_script_engine->newQObject(group) });
         check_error( func.property("name").toString(), ret);
     }
     else
@@ -589,33 +589,33 @@ void ScriptedProject::groupInitialized(ItemGroup* group)
 
 QVariant ScriptedProject::normalize(const QVariant &val)
 {
-    return callFunction(fNormalize, { eng->newQObject(sender()), valueFromVariant(val) }).toVariant();
+    return callFunction(fNormalize, { m_script_engine->newQObject(sender()), valueFromVariant(val) }).toVariant();
 }
 
 bool ScriptedProject::controlChangeCheck(DeviceItem *item, const QVariant &raw_data)
 {
-    auto ret = callFunction(fControlChangeCheck, { eng->newQObject(sender()), eng->newQObject(item), valueFromVariant(raw_data) });
+    auto ret = callFunction(fControlChangeCheck, { m_script_engine->newQObject(sender()), m_script_engine->newQObject(item), valueFromVariant(raw_data) });
     return ret.isBool() && ret.toBool();
 }
 
 bool ScriptedProject::checkValue(DeviceItem* item) const
 {
-    auto ret = callFunction(fCheckValue, { eng->newQObject(sender()),
+    auto ret = callFunction(fCheckValue, { m_script_engine->newQObject(sender()),
                                            valueFromVariant(item->getValue()),
-                                           eng->newQObject(item) });
+                                           m_script_engine->newQObject(item) });
     return ret.isBool() && ret.toBool();
 }
 
 quint32 ScriptedProject::groupStatus(ItemGroup::ValueType val) const
 {
-    auto ret = callFunction(fGroupStatus, { eng->newQObject(sender()), eng->toScriptValue(val) });
+    auto ret = callFunction(fGroupStatus, { m_script_engine->newQObject(sender()), m_script_engine->toScriptValue(val) });
     return ret.isNumber() ? ret.toUInt32() : val->status();
 }
 
 void ScriptedProject::handlerException(const QScriptValue &exception)
 {
-    if (eng->hasUncaughtException())
-        qCCritical(ProjectLog) << exception.toString() << eng->uncaughtExceptionBacktrace();
+    if (m_script_engine->hasUncaughtException())
+        qCCritical(ProjectLog) << exception.toString() << m_script_engine->uncaughtExceptionBacktrace();
 }
 
 void ScriptedProject::check_error(const QString& str, const QScriptValue& result) const
@@ -631,7 +631,7 @@ void ScriptedProject::check_error(const QString& str, const QScriptValue& result
 
 void ScriptedProject::check_error(const QString &name, const QString &code) const
 {
-    check_error(name, eng->evaluate(code, name));
+    check_error(name, m_script_engine->evaluate(code, name));
 }
 
 } // namespace Dai

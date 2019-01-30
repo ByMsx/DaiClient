@@ -68,6 +68,7 @@ private slots:
     void socketDataReady();
     void on_openBtn_toggled(bool open);
     void on_socatReset_clicked();
+
 private:
     void init_Database(QSettings *s);
     void init();
@@ -91,11 +92,11 @@ private:
 
     std::map<uint, std::map<uchar, QByteArray>> tmp;
 
-    QTimer timer;
+    QTimer m_temp_timer;
     QSerialPort* m_serialPort;
 
     QProcess* m_socat;
-    DBusTTY* dbus = nullptr;
+    DBusTTY* m_dbus = nullptr;
 
     struct ModbusDeviceItem : SocatInfo {
         QModbusRtuSerialSlave* device;
