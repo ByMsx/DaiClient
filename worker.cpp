@@ -78,11 +78,12 @@ Worker::Worker(QObject *parent) :
 
     int log_period = init_logging(s.get());
     init_Database(s.get());
-    init_Project(s.get());
-    init_Checker(s.get());
-    init_GlobalClient(s.get());
-    init_LogTimer(log_period);
+    init_Project(s.get()); // инициализация структуры проекта
+    init_Checker(s.get()); // запуск потока опроса устройств
+    init_GlobalClient(s.get()); // подключение к серверу
+    init_LogTimer(log_period); // сохранение статуса устройства по таймеру
 
+    // используется для подключения к Orange на прямую
     initDjango(s.get());
     initWebSocketManager(s.get());
 

@@ -39,9 +39,7 @@ void term_handler(int)
     std::cerr << "Termination.\n";
 }
 
-MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent),
-    ui(new Ui::MainWindow),
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow),
     db_mng(), prj(&db_mng),
     m_socat(nullptr)
 {
@@ -65,9 +63,10 @@ MainWindow::MainWindow(QWidget *parent) :
 //    QLoggingCategory::setFilterRules(QStringLiteral("qt.modbus*=true;qt.modbus.lowlevel*=true;"));
     m_serialPort = new QSerialPort(this);
     connect(m_serialPort, &QSerialPort::readyRead, this, &MainWindow::proccessData);
-    connect(&timer, &QTimer::timeout, this, &MainWindow::changeTemperature);
-    timer.setInterval(3000);
-    timer.start();
+
+    connect(&m_temp_timer, &QTimer::timeout, this, &MainWindow::changeTemperature);
+    m_temp_timer.setInterval(3000);
+    m_temp_timer.start();
 
     QSettings s;
     ui->portName->setText(s.value("portName", "/dev/pts/").toString());
@@ -81,8 +80,8 @@ MainWindow::MainWindow(QWidget *parent) :
     {
         if (QDBusConnection::sessionBus().registerService("ru.deviceaccess.Dai.Emulator"))
         {
-            dbus = new DBusTTY;
-            QDBusConnection::sessionBus().registerObject("/", dbus, QDBusConnection::ExportAllInvokables);
+            m_dbus = new DBusTTY;
+            QDBusConnection::sessionBus().registerObject("/", m_dbus, QDBusConnection::ExportAllInvokables);
         }
         else
             qCritical() << "Уже зарегистрирован";
@@ -140,7 +139,7 @@ void MainWindow::init()
 
 //    db_mng.fillTypes();
 //    devs = db_mng.fillDevices();
-
+/*
     std::map<quint32, bool> hasZeroUnit;
     std::map<quint32, bool>::iterator hasZeroUnitIt;
     for (GH::Device* dev: prj.devices())
@@ -160,7 +159,7 @@ void MainWindow::init()
         for (auto it = hasZeroUnit.cbegin(); it != hasZeroUnit.cend(); ++it)
             if (!it->second)
                 dev->createItem(0, 0, {}, "0");
-    }
+    }*/
 
 //    int column = -1;
     for (GH::Device* dev: prj.devices())
@@ -181,8 +180,7 @@ void MainWindow::init()
 
 //        connect(modbusDevice, &QModbusServer::stateChanged,
 //                this, &MainWindow::onStateChanged);
-        connect(item.device, &QModbusServer::errorOccurred,
-                this, &MainWindow::handleDeviceError);
+        connect(item.device, &QModbusServer::errorOccurred, this, &MainWindow::handleDeviceError);
 
         item.serialPort = new QSerialPort(this);
         item.serialPort->setPortName(item.portToName);
@@ -243,7 +241,7 @@ MainWindow::SocatInfo MainWindow::createSocat()
     info.socat->setProcessChannelMode(QProcess::MergedChannels);
     info.socat->setReadChannel(QProcess::StandardOutput);
     info.socat->setProgram("/usr/bin/socat");
-    info.socat->setArguments(QStringList() << "-d" << "-d" << "pty,raw,echo=0,user=kirill" << "pty,raw,echo=0,user=kirill");
+    info.socat->setArguments(QStringList() << "-d" << "-d" << "pty,raw,echo=0,user=andrey" << "pty,raw,echo=0,user=andrey");
 
     auto dbg = qDebug() << info.socat->program() << info.socat->arguments();
     info.socat->start(QIODevice::ReadOnly);
@@ -283,7 +281,7 @@ void MainWindow::changeTemperature()
             }
         }
 
-    timer.stop();
+    m_temp_timer.stop();
 }
 
 QElapsedTimer t;
@@ -453,9 +451,9 @@ void MainWindow::on_socatReset_clicked()
     auto [new_socat, pathFrom, pathTo] = createSocat();
     m_socat = new_socat;
 
-    if (!pathFrom.isEmpty() && dbus)
+    if (!pathFrom.isEmpty() && m_dbus)
     {
-        dbus->setPath(pathTo);
+        m_dbus->setPath(pathTo);
         ui->portName->setText(pathFrom);
         ui->openBtn->setChecked(true);
 

@@ -28,15 +28,12 @@ MainBox::MainBox(Dai::ItemTypeManager *mng, Dai::Device* dev, QModbusServer *mod
     if (!item_size)
         return;
 
-    connect(modbus, &QModbusServer::dataWritten,
-            this, &MainBox::updateWidgets);
+    connect(modbus, &QModbusServer::dataWritten, this, &MainBox::updateWidgets);
 
     for (Dai::DeviceItem* item: dev->items())
         item->setData(0, 0);
 
     checkBox = new QCheckBox(QString::number(dev->address()), this);
-    connect(checkBox, &QCheckBox::toggled, [&](bool state) {
-            this->dev->items().first()->set_name(state ? "1" : "0"); });
     checkBox->setChecked(true);
 
     box = new QHBoxLayout;
@@ -45,8 +42,7 @@ MainBox::MainBox(Dai::ItemTypeManager *mng, Dai::Device* dev, QModbusServer *mod
 
     setLayout(box);
 
-    int item_i = 0,
-        threshold = item_size / 2;
+    int item_i = 0, threshold = item_size / 2;
     QHBoxLayout *aditHBox1 = nullptr, *aditHBox2 = nullptr;
     if (item_size > 4)
     {
@@ -63,7 +59,7 @@ MainBox::MainBox(Dai::ItemTypeManager *mng, Dai::Device* dev, QModbusServer *mod
 
     auto get_name = [&mng](Dai::DeviceItem* item)
     {
-        QString name("%1 ");
+        QString name("%1 (%2)");
         name += item->displayName();
         if (name.length() > 7)
         {
@@ -73,7 +69,7 @@ MainBox::MainBox(Dai::ItemTypeManager *mng, Dai::Device* dev, QModbusServer *mod
                     str.resize(4);
             name = parts.join(' ');
         }
-        return name.arg(item->id());
+        return name.arg(item->id()).arg(item->unit().toUInt());
     };
 
     auto addWidget = [&](Dai::DeviceItem* item, QWidget* w)
@@ -118,11 +114,6 @@ MainBox::MainBox(Dai::ItemTypeManager *mng, Dai::Device* dev, QModbusServer *mod
 //        connect(item0(), SIGNAL(valueChanged()), SLOT(valueChanged()));
     }
 
-    m_items[QModbusDataUnit::DiscreteInputs].push_back(nullptr);
-    m_items[QModbusDataUnit::Coils].push_back(nullptr);
-    m_items[QModbusDataUnit::InputRegisters].push_back(nullptr);
-    m_items[QModbusDataUnit::HoldingRegisters].push_back(nullptr);
-
     std::map<Dai::DeviceItem*,int> val_idx;
 
     int coils_count = 0, registers_count = 0;
@@ -165,10 +156,40 @@ MainBox::MainBox(Dai::ItemTypeManager *mng, Dai::Device* dev, QModbusServer *mod
         addWidget(item, w);
     }
 
+//    std::sort(m_items unit
+
+//    for (int i = 0; i < max_unit; ++i) {
+
+//    }    
+
     QModbusDataUnitMap reg;
-    for (auto it: m_items)
+    for (auto &it: m_items)
     {
-        QModbusDataUnit unit(it.first, 0, it.second.size());
+        auto sort_units = [](const DevItemPtr& a, const DevItemPtr& b) -> bool
+        {
+            return a->unit().toInt() < b->unit().toInt();
+        };
+        std::sort(it.second.begin(), it.second.end(), sort_units);
+
+        int max_unit = it.second.back()->unit().toInt();
+        auto it_t = it.second.begin();
+        for (int i = 0; i <= max_unit; ++i)
+        {
+            if (it_t == it.second.end() || (*it_t)->unit() != i)
+                it_t = it.second.insert(it_t, nullptr);
+            ++it_t;
+        }
+//            if (it.second.end() == std::find_if(it.second.begin(), it.second.end(), [i] (const DevItemPtr& item) -> bool
+//            {
+//                return item != nullptr && item->unit().toInt() == i;
+//            }))
+//            {
+//                it.second.push_back(nullptr);
+//            }
+
+//        }
+
+        QModbusDataUnit unit(it.first, 0, it.second.size()); // max_unit
 
         if (it.first > 2)
         {
