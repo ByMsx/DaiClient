@@ -24,11 +24,13 @@ void Device_Item_View::init() noexcept
     device_group_box_->setTitle(device_->name());
     device_group_box_->setCheckable(true);
     device_group_box_->setChecked(true);
+
     center_layout->addWidget(device_group_box_);
 
     units_tree_view_ = new QTreeView(this);
     QVBoxLayout* table_layout = new QVBoxLayout(); // ?? будет ли table_layout удален?
     table_layout->addWidget(units_tree_view_);
+    table_layout->setMargin(0);
     device_group_box_->setLayout(table_layout);
 
     if (device_)

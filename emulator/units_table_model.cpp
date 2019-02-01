@@ -157,12 +157,13 @@ QVariant Units_Table_Model::data(const QModelIndex &index, int role) const
                     {
                         if (role == Qt::CheckStateRole)
                         {
-                            bool result = false;
-                            if (!device_item->getRawValue().isNull())
-                            {
-                                result = (device_item->getRawValue() >0);//== 1);
-                            }
-                            return static_cast<int>(result ? Qt::Checked : Qt::Unchecked);
+                            return device_item->getRawValue();
+//                            bool result = false;
+//                            if (!device_item->getRawValue().isNull())
+//                            {
+//                                result = (device_item->getRawValue() == 1);
+//                            }
+//                            return static_cast<int>(result ? Qt::Checked : Qt::Unchecked);
                         }
                     }
                     else
