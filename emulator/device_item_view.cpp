@@ -2,6 +2,7 @@
 
 #include <Dai/deviceitem.h>
 #include "units_table_model.h"
+#include "units_table_delegate.h"
 
 #include <QGroupBox>
 #include <QTreeView>
@@ -19,7 +20,7 @@ void Device_Item_View::init() noexcept
     QVBoxLayout* center_layout = new QVBoxLayout(this);
     setLayout(center_layout);
 
-    device_group_box_ = new QGroupBox(this);
+    device_group_box_ = new QGroupBox(QString::number(device_->address()), this);
     device_group_box_->setTitle(device_->name());
     device_group_box_->setCheckable(true);
     device_group_box_->setChecked(true);
@@ -34,11 +35,16 @@ void Device_Item_View::init() noexcept
     {
         units_table_model_ = new Units_Table_Model(item_type_manager_, &device_->items(), this);
         units_tree_view_->setModel(units_table_model_);
+
+        units_table_delegate_ = new Units_Table_Delegate(this);
+//        units_tree_view_->setItemDelegateForColumn(2, units_table_delegate_);
+
         units_tree_view_->expandAll();
         for (int column = 0; column < units_table_model_->columnCount(); ++column)
         {
             units_tree_view_->resizeColumnToContents(column);
         }
+
     }
 
     QObject::connect(device_group_box_, &QGroupBox::clicked, [&](bool value)

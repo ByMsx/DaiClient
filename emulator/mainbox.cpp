@@ -30,6 +30,8 @@ MainBox::MainBox(Dai::ItemTypeManager *mng, Dai::Device* dev, QModbusServer *mod
 
     connect(modbus, &QModbusServer::dataWritten, this, &MainBox::updateWidgets);
 
+
+    // REVIEW ??
     for (Dai::DeviceItem* item: dev->items())
         item->setData(0, 0);
 
@@ -139,6 +141,7 @@ MainBox::MainBox(Dai::ItemTypeManager *mng, Dai::Device* dev, QModbusServer *mod
             spin->setRange(std::numeric_limits<qint16>::min(),
                            std::numeric_limits<qint16>::max());
 
+            // REVIEW ??????
             if (item->type() == Dai::Prt::itWindowState)
                 spin->setValue(Dai::Prt::wCalibrated | Dai::Prt::wExecuted | Dai::Prt::wClosed);
             else

@@ -14,12 +14,12 @@ struct ItemTypeManager;
 
 class Units_Table_Model : public QAbstractItemModel
 {
-    enum Header
+    enum Column
     {
         UNIT_TYPE = 0,
         UNIT_NAME,
         UNIT_VALUE
-    };
+    };    
 
     Q_OBJECT
 private:
@@ -38,6 +38,8 @@ public:
     bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole);
     QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const override;
     QModelIndex parent(const QModelIndex &child = QModelIndex()) const override;
+
+    const static int UNIT_TYPE_ROLE = Qt::DisplayRole + 1;
 
 private:
 

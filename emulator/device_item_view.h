@@ -8,6 +8,7 @@
 class QGroupBox;
 class QTreeView;
 class Units_Table_Model;
+class Units_Table_Delegate;
 
 namespace Dai {
 class Device;
@@ -19,12 +20,13 @@ class Device_Item_View : public QWidget
 {
     Q_OBJECT
 private:
-    QGroupBox* device_group_box_;
-    QTreeView* units_tree_view_;
-    Units_Table_Model* units_table_model_;
+    QGroupBox *device_group_box_;
+    QTreeView *units_tree_view_;
+    Units_Table_Model *units_table_model_;
+    Units_Table_Delegate *units_table_delegate_;
 
-    Dai::Device* device_;
-    Dai::ItemTypeManager* item_type_manager_;
+    Dai::Device *device_;
+    Dai::ItemTypeManager *item_type_manager_;
 
 public:
     explicit Device_Item_View(Dai::ItemTypeManager* mng, Dai::Device* dev, QWidget *parent = nullptr);
