@@ -66,7 +66,7 @@ void Main_Window::init() noexcept
     init_database();
     db_manager_.initProject(&dai_project_);
 
-//    fill_data();
+    fill_data();
 
     init_client_connection();
 
@@ -76,7 +76,7 @@ void Main_Window::init() noexcept
 
 
 
-//    return; // -----------------------------------------
+    return; // -----------------------------------------
 
     auto box = static_cast<QGridLayout*>(ui_->content->layout());
     for (GH::Device* dev: dai_project_.devices())

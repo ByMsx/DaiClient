@@ -1,6 +1,7 @@
 #include "units_table_model.h"
 #include <Dai/deviceitem.h>
 #include "Dai/typemanager/typemanager.h"
+#include "Dai/section.h"
 
 #include <algorithm>
 
@@ -9,6 +10,11 @@ Units_Table_Model::Units_Table_Model(Dai::ItemTypeManager *mng, const QVector<Da
 {    
     for (auto *item_unit : *units_vector)
     {
+        if (item_unit->type() == Dai::Prt::itWindowState)
+            item_unit->setRawValue(Dai::Prt::wCalibrated | Dai::Prt::wExecuted | Dai::Prt::wClosed);
+        else
+            item_unit->setRawValue(mng->needNormalize(item_unit->type()) ? (qrand() % 100) + 240 : (qrand() % 3000) + 50);
+
         modbus_units_map_[static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->registerType(item_unit->type()))].push_back(item_unit);
     }
 
@@ -136,10 +142,6 @@ QVariant Units_Table_Model::data(const QModelIndex &index, int role) const
             case Column::UNIT_VALUE:
                 {
                     auto reg_type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->registerType(device_item->type()));
-                    if (role == UNIT_TYPE_ROLE)
-                    {
-                        return reg_type;
-                    }
                     if (reg_type > QModbusDataUnit::Coils)
                     {
                         if (role == Qt::EditRole || role == Qt::DisplayRole)
@@ -161,7 +163,6 @@ QVariant Units_Table_Model::data(const QModelIndex &index, int role) const
                                 result = (device_item->getRawValue() >0);//== 1);
                             }
                             return static_cast<int>(result ? Qt::Checked : Qt::Unchecked);
-//                            return result;
                         }
                     }
                     else
