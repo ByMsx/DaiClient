@@ -65,37 +65,12 @@ int Units_Table_Model::rowCount(const QModelIndex &parent) const
     {
         return 4;
     }
-//    int full_count = 0;
-//    for (const auto &item : modbus_units_map_)
-//    {
-//        full_count += item.second.size();
-//    }
-
-//    return full_count;
-}
-
-Units_Table_Model::Device_Items_Vector *Units_Table_Model::get_item(const QModelIndex &index) const
-{
-    if (index.isValid())
-    {
-        auto *item = static_cast<Device_Items_Vector*>(index.internalPointer());
-        if (item)
-        {
-            return item;
-        }
-    }
-    return {};//rootItem;
 }
 
 
 int Units_Table_Model::columnCount(const QModelIndex &parent) const
 {
-//    if (parent.isValid())
-//    {
-//        return 5;
-//    }
-//    return 1;
-    return 5;
+    return 3;
 }
 
 QVariant Units_Table_Model::headerData(int section, Qt::Orientation orientation, int role) const
@@ -108,8 +83,6 @@ QVariant Units_Table_Model::headerData(int section, Qt::Orientation orientation,
             {
                 case Header::UNIT_TYPE:
                     return "Type";
-                case Header::UNIT_IS_ACTIVE:
-                    return "V";
                 case Header::UNIT_NAME:
                     return "Name";
                 case Header::UNIT_VALUE:
@@ -132,107 +105,100 @@ QVariant Units_Table_Model::data(const QModelIndex &index, int role) const
         return QVariant();
     }
 
-    if (role != Qt::DisplayRole && role != Qt::EditRole)
-    {
-        return QVariant();
-    }
-
-
-//    qobject_cast<Dai::DeviceItem*>((QObject*)index.internalPointer());
     if (index.parent().isValid())
     {
         auto device_items = dynamic_cast<Dai::DeviceItem*>((QObject*)index.internalPointer());
-        if (device_items)
-        {
-            switch (index.column())
-            {
-                case Header::UNIT_IS_ACTIVE:
-                    return "V";
-                case Header::UNIT_TYPE:
-                    return device_items->unit();
-                case Header::UNIT_NAME:
-                {
-                    QString name("%1 %2");
-                    return name.arg(device_items->id()).arg(device_items->displayName());
-                }
-                case Header::UNIT_VALUE:
-                    return device_items->getRawValue();
-    //                if (units_vector_->at(index.row())->type() < 3)
-    //                {
-    //                    return units_vector_->at(index.row())->getValue();
-    //                }
-    //                else
-    //                {
 
-    //                }
-            }
-//            return device_items->unit();
+        if (!device_items)
+        {
+            return QVariant();
         }
 
+        switch (index.column())
+        {
+            case Header::UNIT_TYPE:
+                if (role == Qt::CheckStateRole)
+                {
+                    return static_cast<int>(Qt::Unchecked);
+                }
+                else if (role == Qt::DisplayRole)
+                {
+                    return device_items->unit();
+                }
+                break;
+            case Header::UNIT_NAME:
+                if (role == Qt::DisplayRole)
+                {
+                    QString name("%1  %2");
+                    return name.arg(device_items->id()).arg(device_items->displayName());
+                }
+                break;
+            case Header::UNIT_VALUE:
+                {
+                    auto reg_type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->registerType(device_items->type()));
+                    if (reg_type > QModbusDataUnit::Coils)
+                    {
+                        if (role == Qt::DisplayRole)
+                        {
+                            return device_items->getRawValue(); // for a while
+                        }
+                    }
+                    else if (reg_type > QModbusDataUnit::Invalid && reg_type)
+                    {
+                        if (role == Qt::CheckStateRole)
+                        {
+                            bool result = false;
+                            if (!device_items->getRawValue().isNull())
+                            {
+                                result = (device_items->getRawValue() == 1);
+                            }
+                            return static_cast<int>(result ? Qt::Checked : Qt::Unchecked);
+                        }
+                    }
+                    else
+                    {
+                        if (role == Qt::DisplayRole)
+                        {
+                            return device_items->getRawValue();
+                        }
+                    }
+                }
+        }
     }
     else
     {
-//        QModbusDataUnit::RegisterType reg_type = static_cast<QModbusDataUnit::RegisterType>();
-        switch (index.row()) {
-        case 0: return "DiscreteInputs";
-        case 1: return "Coils";
-        case 2: return "InputRegisters";
-        case 3: return "HoldingRegisters";
-        default:
-            break;
+        if (role == Qt::DisplayRole)
+        {
+            switch (index.row())
+            {
+                case 0: return "DiscreteInputs";
+                case 1: return "Coils";
+                case 2: return "InputRegisters";
+                case 3: return "HoldingRegisters";
+                default:
+                    break;
+            }
         }
     }
 
     return QVariant();
+}
 
+Qt::ItemFlags Units_Table_Model::flags(const QModelIndex &index) const // not works
+{
+    if (!index.isValid())
+    {
+        return Qt::NoItemFlags;
+    }
 
+    Qt::ItemFlags flags = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
 
-//    if (!modbus_units_map_)
-//    {
-//        return QVariant();
-//    }
+    if (index.column() == 0)
+    {
+        flags |= Qt::ItemIsUserCheckable;
+    }
 
-//    if (role == Qt::DisplayRole)
-//    {
-
-//        if (index.column() == 0)
-//            return modbus_units_map_->
-//        if (index.column() == 1)
-//            return modbus_units_map_->values().at(index.row());
-//        QModbusDataUnit::RegisterType
-
-//        switch (index.column())
-//        {
-//            case Header::UNIT_TYPE:
-//            if (item_type_manager_)
-//            {
-//                modbus_units_map_->at()
-//                return item_type_manager_->registerType(units_vector_->at(index.row())->type());
-//            }
-//            case Header::UNIT_IS_ACTIVE:
-//                return "V";
-//            case Header::UNIT_ID:
-//                return units_vector_->at(index.row())->unit();
-//            case Header::UNIT_NAME:
-//            {
-//                QString name("%1 %2");
-//                return name.arg(units_vector_->at(index.row())->id()).arg(units_vector_->at(index.row())->displayName());
-//            }
-//            case Header::UNIT_VALUE:
-//                return units_vector_->at(index.row())->getValue();
-////                if (units_vector_->at(index.row())->type() < 3)
-////                {
-////                    return units_vector_->at(index.row())->getValue();
-////                }
-////                else
-////                {
-
-////                }
-//        }
-
-
-//    }
-    return QVariant();
+    return flags;
 }
 
 bool Units_Table_Model::setData(const QModelIndex &index, const QVariant &value, int role)
@@ -243,18 +209,6 @@ bool Units_Table_Model::setData(const QModelIndex &index, const QVariant &value,
 
 QModelIndex Units_Table_Model::index(int row, int column, const QModelIndex &parent) const
 {
-//    Device_Items_Vector *item = static_cast<Device_Items_Vector*>(parent.internalPointer());
-
-//    if (!item)
-//        return QModelIndex();
-
-
-//    TreeItem *childItem = item->at(row);
-//    if (childItem)
-//        return createIndex(row, column, childItem);
-//    else
-//        return QModelIndex();
-
     if (parent.isValid())
     {
         auto ip = parent.internalId();
