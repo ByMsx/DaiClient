@@ -61,58 +61,5 @@ private:
     QCheckBox* cb;
 };
 
-/*
-class WindowBox : public MainBox
-{
-    Q_OBJECT
-public:
-    WindowBox(Dai::Device *dev, QWidget *parent = 0);
-private slots:
-    void setDeviceValue(bool b);
-    void valueChanged();
-private:
-    QCheckBox* cb(int column);
-    QTableWidget* tbl;
-};
-
-class TemperatureBox : public MainBox
-{
-    Q_OBJECT
-public:
-    TemperatureBox(Dai::Device *dev, QWidget *parent = 0);
-private slots:
-    void setDeviceValue();
-    void valueChanged();
-private:
-    struct Item {
-        QCheckBox* cb;
-        QDoubleSpinBox* spin;
-    };
-
-    std::map<const Dai::Prt::DeviceItem*, Item> items;
-};
-
-class LightBox : public MainBox
-{
-    Q_OBJECT
-public:
-    LightBox(Dai::Device *dev, QWidget *parent = 0);
-private slots:
-    void valueChanged();
-private:
-    QSpinBox* spin;
-};
-
-class OnOffBox : public MainBox
-{
-    Q_OBJECT
-public:
-    OnOffBox(Dai::Device *dev, QWidget *parent = 0);
-private slots:
-    void setDeviceValue(bool b);
-    void valueChanged();
-private:
-    QCheckBox* cb;
-};*/
 
 #endif // MAINBOX_H
