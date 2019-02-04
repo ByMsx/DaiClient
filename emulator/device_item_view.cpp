@@ -2,7 +2,7 @@
 
 #include <Dai/deviceitem.h>
 #include "units_table_model.h"
-#include "units_table_delegate.h"
+//#include "units_table_delegate.h"
 
 #include <QGroupBox>
 #include <QTreeView>
@@ -10,7 +10,7 @@
 #include <QtWidgets/QHeaderView>
 #include "Dai/typemanager/typemanager.h"
 
-Device_Item_View::Device_Item_View(Dai::ItemTypeManager *mng, Dai::Device *dev, QWidget *parent) : QWidget(parent), item_type_manager_(mng), device_(dev)
+Device_Item_View::Device_Item_View(Dai::ItemTypeManager *mng, Dai::Device *dev, QModbusServer *modbus_server, QWidget *parent) : QWidget(parent), item_type_manager_(mng), device_(dev), modbus_server_(modbus_server)
 {
     init();
 }
@@ -35,10 +35,10 @@ void Device_Item_View::init() noexcept
 
     if (device_)
     {
-        units_table_model_ = new Units_Table_Model(item_type_manager_, &device_->items(), this);
+        units_table_model_ = new Units_Table_Model(item_type_manager_, &device_->items(), modbus_server_, this);
         units_tree_view_->setModel(units_table_model_);
 
-        units_table_delegate_ = new Units_Table_Delegate(this);
+//        units_table_delegate_ = new Units_Table_Delegate(this);
 //        units_tree_view_->setItemDelegateForColumn(2, units_table_delegate_);
 
         units_tree_view_->expandAll();

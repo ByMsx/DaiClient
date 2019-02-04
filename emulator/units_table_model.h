@@ -11,6 +11,7 @@ class DeviceItem;
 struct ItemTypeManager;
 }
 
+class QModbusServer;
 
 class Units_Table_Model : public QAbstractItemModel
 {
@@ -26,9 +27,10 @@ private:
     typedef std::vector<Dai::DeviceItem*> Device_Items_Vector;
     std::map<QModbusDataUnit::RegisterType, Device_Items_Vector> modbus_units_map_;
     Dai::ItemTypeManager* item_type_manager_;
+    QModbusServer *modbus_server_;
 
 public:
-    explicit Units_Table_Model(Dai::ItemTypeManager* mng, const QVector<Dai::DeviceItem *> *units_vector, QObject *parent = 0);
+    explicit Units_Table_Model(Dai::ItemTypeManager* mng, const QVector<Dai::DeviceItem *> *units_vector, QModbusServer *modbus_server, QObject *parent = 0);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
     int columnCount(const QModelIndex &parent = QModelIndex()) const;
@@ -41,7 +43,8 @@ public:
 
     const static int UNIT_TYPE_ROLE = Qt::DisplayRole + 1;
 
-private:
+private slots:
+    void update_table_values(QModbusDataUnit::RegisterType type, int address, int size) noexcept;
 
 };
 

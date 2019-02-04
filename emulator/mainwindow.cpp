@@ -66,7 +66,7 @@ void Main_Window::init() noexcept
     init_database();
     db_manager_.initProject(&dai_project_);
 
-    fill_data();
+//    fill_data();
 
     init_client_connection();
 
@@ -76,7 +76,7 @@ void Main_Window::init() noexcept
 
 
 
-    return; // -----------------------------------------
+//    return; // -----------------------------------------
 
     auto box = static_cast<QGridLayout*>(ui_->content->layout());
     for (GH::Device* dev: dai_project_.devices())
@@ -166,7 +166,7 @@ void Main_Window::fill_data() noexcept
 
             connect(modbus_device_item.serial_port_, &QSerialPort::readyRead, this, &Main_Window::socketDataReady);
 
-            modbus_device_item.device_item_view_ = new Device_Item_View(&dai_project_.ItemTypeMng, dev, ui_->content);
+            modbus_device_item.device_item_view_ = new Device_Item_View(&dai_project_.ItemTypeMng, dev, modbus_device_item.modbus_device_, ui_->content);
             box->addWidget(modbus_device_item.device_item_view_);
 
             modbus_list_.emplace(dev->address(), modbus_device_item);
@@ -283,12 +283,12 @@ void Main_Window::proccessData()
     auto it = modbus_list_.find( (uchar)buff.at(0) );
     if (it != modbus_list_.cend())
     {
-        if (it->second.device_item_view_->is_use())
-        {
-            it->second.serial_port_->write(buff);
-        }
-//        if (it->second.box_->isUsed())
+//        if (it->second.device_item_view_->is_use())
+//        {
 //            it->second.serial_port_->write(buff);
+//        }
+        if (it->second.box_->isUsed())
+            it->second.serial_port_->write(buff);
     }
     else
         qDebug() << "Device not found";

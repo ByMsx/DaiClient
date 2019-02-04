@@ -22,7 +22,7 @@ using namespace std::placeholders;
 MainBox::MainBox(Dai::ItemTypeManager *mng, Dai::Device* dev, QModbusServer *modbus, QWidget *parent) :
     QFrame(parent),
     dev(dev),
-    modbus(modbus), mng(mng)
+    _modbus_(modbus), mng(mng)
 {
     int item_size = dev->items().size();
     if (!item_size)
@@ -221,7 +221,7 @@ void MainBox::updateWidgets(QModbusDataUnit::RegisterType table, int address, in
         switch (table) {
         case QModbusDataUnit::Coils:
         {
-            modbus->data(QModbusDataUnit::Coils, address + i, &value);
+            _modbus_->data(QModbusDataUnit::Coils, address + i, &value);
 
             if (auto dev_item = m_items.at(table).at(address + i))
             {
@@ -249,7 +249,7 @@ void MainBox::updateWidgets(QModbusDataUnit::RegisterType table, int address, in
         }
         case QModbusDataUnit::HoldingRegisters:
         {
-            modbus->data(QModbusDataUnit::HoldingRegisters, address + i, &value);
+            _modbus_->data(QModbusDataUnit::HoldingRegisters, address + i, &value);
 
             auto dev_item = m_items.at(table).at(address + i);
             auto it = widgets.find(dev_item);
@@ -283,6 +283,7 @@ void MainBox::setRegisterValue(int value)
         setDeviceValue(QModbusDataUnit::InputRegisters, value);
 }
 
+// TODO latter
 void MainBox::itemToggled(bool state)
 {
     auto obj = sender()->children().at(1);
@@ -307,7 +308,7 @@ void MainBox::setDeviceValue(QModbusDataUnit::RegisterType table, quint16 value,
         if (dev_item_in_items != items.cend())
         {
             std::size_t index = std::distance(items.cbegin(), dev_item_in_items);
-            modbus->setData(table, index, value);
+            _modbus_->setData(table, index, value);
         }
     }
 }

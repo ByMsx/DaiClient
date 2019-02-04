@@ -21,7 +21,8 @@ SOURCES += main.cpp \
     mainbox.cpp \
     device_item_view.cpp \
     units_table_model.cpp \
-    units_table_delegate.cpp
+    units_table_delegate.cpp \
+    units_table_controller.cpp
 
 HEADERS  += \ 
     ../Database/db_manager.h \
@@ -29,7 +30,8 @@ HEADERS  += \
     mainbox.h \
     device_item_view.h \
     units_table_model.h \
-    units_table_delegate.h
+    units_table_delegate.h \
+    units_table_controller.h
 
 FORMS += \
     mainwindow.ui

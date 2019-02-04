@@ -3,10 +3,13 @@
 #include "Dai/typemanager/typemanager.h"
 #include "Dai/section.h"
 
+#include <QModbusServer>
+#include <QDebug>
+
 #include <algorithm>
 
-Units_Table_Model::Units_Table_Model(Dai::ItemTypeManager *mng, const QVector<Dai::DeviceItem *> *units_vector, QObject *parent)
-    : QAbstractItemModel(parent), item_type_manager_(mng)
+Units_Table_Model::Units_Table_Model(Dai::ItemTypeManager *mng, const QVector<Dai::DeviceItem *> *units_vector, QModbusServer *modbus_server, QObject *parent)
+    : QAbstractItemModel(parent), item_type_manager_(mng), modbus_server_(modbus_server)
 {    
     for (auto *item_unit : *units_vector)
     {
@@ -18,6 +21,7 @@ Units_Table_Model::Units_Table_Model(Dai::ItemTypeManager *mng, const QVector<Da
         modbus_units_map_[static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->registerType(item_unit->type()))].push_back(item_unit);
     }
 
+    QModbusDataUnitMap modbus_data_unit_map;
     for (auto &it: modbus_units_map_)
     {
         auto sort_units = [](const Dai::DeviceItem *a, const Dai::DeviceItem *b) -> bool
@@ -36,7 +40,26 @@ Units_Table_Model::Units_Table_Model(Dai::ItemTypeManager *mng, const QVector<Da
             }
             ++it_t;
         }
+
+        QModbusDataUnit modbus_unit(it.first, 0, it.second.size()); // max_unit
+
+        // For what?
+//        if (it.first > 2)
+//        {
+//            for (uint i = 0; i < modbus_unit.valueCount(); ++i)
+//            {
+//                auto w_it = widgets.find(it.second.at(i));
+//                if (w_it != widgets.cend())
+//                    modbus_unit.setValue(i, static_cast<QSpinBox*>(w_it->second)->value());
+//            }
+
+//        }
+
+        modbus_data_unit_map.insert(it.first, modbus_unit);
     }
+    modbus_server_->setMap(modbus_data_unit_map);
+
+    QObject::connect(modbus_server_, &QModbusServer::dataWritten, this, &Units_Table_Model::update_table_values);
 }
 
 QModbusDataUnit::RegisterType row_to_register_type(int row)
@@ -157,13 +180,13 @@ QVariant Units_Table_Model::data(const QModelIndex &index, int role) const
                     {
                         if (role == Qt::CheckStateRole)
                         {
-                            return device_item->getRawValue();
-//                            bool result = false;
-//                            if (!device_item->getRawValue().isNull())
-//                            {
-//                                result = (device_item->getRawValue() == 1);
-//                            }
-//                            return static_cast<int>(result ? Qt::Checked : Qt::Unchecked);
+//                            return device_item->getRawValue();
+                            bool result = false;
+                            if (!device_item->getRawValue().isNull())
+                            {
+                                result = (device_item->getRawValue() > 0 && device_item->getRawValue() <= 2);
+                            }
+                            return static_cast<int>(result ? Qt::Checked : Qt::Unchecked);
                         }
                     }
                     else
@@ -209,7 +232,7 @@ Qt::ItemFlags Units_Table_Model::flags(const QModelIndex &index) const // not wo
         return Qt::NoItemFlags;
     }
 
-    Qt::ItemFlags flags = Qt::ItemIsEnabled;// | Qt::ItemIsSelectable;
+    Qt::ItemFlags flags = Qt::ItemIsEnabled;
 
     auto reg_type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->registerType(device_item->type()));
 
@@ -251,6 +274,7 @@ bool Units_Table_Model::setData(const QModelIndex &index, const QVariant &value,
                 {
                     device_item->setRawValue(value);
                     emit dataChanged(index, index);
+                    modbus_server_->setData(reg_type, device_item->unit().toInt(), value.toBool());
                     return true;
                 }
 
@@ -261,6 +285,7 @@ bool Units_Table_Model::setData(const QModelIndex &index, const QVariant &value,
                 {
                     device_item->setRawValue(value);
                     emit dataChanged(index, index);
+                    modbus_server_->setData(reg_type, device_item->unit().toInt(), value.toInt());
                     return true;
                 }
             }
@@ -288,7 +313,7 @@ QModelIndex Units_Table_Model::index(int row, int column, const QModelIndex &par
         auto reg_type = row_to_register_type(parent.row());
 
         auto it = modbus_units_map_.find(reg_type);
-        if (it == modbus_units_map_.cend() || row > it->second.size())
+        if (it == modbus_units_map_.cend() || row > it->second.size() || it->second.at(row) == nullptr)
         {
             return QModelIndex();
         }
@@ -331,3 +356,100 @@ QModelIndex Units_Table_Model::parent(const QModelIndex &child) const
     }
     return QModelIndex();
 }
+
+void Units_Table_Model::update_table_values(QModbusDataUnit::RegisterType type, int address, int size) noexcept
+{
+//    qDebug() << "Update data" << type << address << size;
+    for (int i = 0; i < size; ++i)
+    {
+        if (type == QModbusDataUnit::Coils || type == QModbusDataUnit::HoldingRegisters)
+        {
+            quint16 value;
+            modbus_server_->data(type, address + i, &value);
+
+            if (auto dev_item = modbus_units_map_.at(type).at(address + i))
+            {
+                dev_item->setRawValue(value);
+            }
+        }
+
+
+//        switch (type)
+//        {
+//            case QModbusDataUnit::Coils:
+//            {
+//                modbus_server_->data(QModbusDataUnit::Coils, address + i, &value);
+
+//                if (auto dev_item = modbus_units_map_.at(type).at(address + i))
+//                {
+//                    dev_item->setRawValue(value);
+////                    auto it = widgets.find(dev_item);
+////                    if (it != widgets.cend())
+////                        if (auto box = qobject_cast<QCheckBox*>(it->second))
+////                        {
+////                            box->setChecked(value);
+////                            break;
+////                        }
+//                }
+//                break;
+//            }
+//            case QModbusDataUnit::HoldingRegisters:
+//            {
+//                modbus_server_->data(QModbusDataUnit::HoldingRegisters, address + i, &value);
+
+//                auto dev_item = modbus_server_.at(type).at(address + i);
+//                if (auto dev_item = modbus_units_map_.at(type).at(address + i))
+//                {
+//                    dev_item->setRawValue(value);
+////                    auto it = widgets.find(dev_item);
+////                    if (it != widgets.cend())
+////                    {
+////                        if (auto spin = qobject_cast<QSpinBox*>(it->second))
+////                        {
+////                            spin->setValue(value);
+////                            break;
+////                        }
+////                    }
+//                }
+//                break;
+//            }
+//            default: break;
+//        }
+    }
+
+    emit dataChanged(index(0, 0), index(rowCount() - 1, columnCount() - 1));
+}
+
+//void Units_Table_Model::set_coil_value(bool value)
+//{
+//    set_device_value(QModbusDataUnit::Coils, value);
+//}
+
+//void Units_Table_Model::set_register_value(int value)
+//{
+//    if (static_cast<QSpinBox*>(sender())->property("IsHolding").toBool())
+//        setDeviceValue(QModbusDataUnit::HoldingRegisters, value);
+//    else
+//        setDeviceValue(QModbusDataUnit::InputRegisters, value);
+//}
+
+//void Units_Table_Model::set_device_value(QModbusDataUnit::RegisterType table, quint16 value, QWidget *w)
+//{
+//    if (!w)
+//        w = static_cast<QWidget*>(sender());
+
+//    auto dev_item_it = std::find_if(widgets.cbegin(), widgets.cend(), [w](auto it) {
+//        return it.second == w;
+//    });
+
+//    if (dev_item_it != widgets.cend())
+//    {
+//        auto& items = m_items.at(table);
+//        auto dev_item_in_items = std::find(items.cbegin(), items.cend(), dev_item_it->first);
+//        if (dev_item_in_items != items.cend())
+//        {
+//            std::size_t index = std::distance(items.cbegin(), dev_item_in_items);
+//            _modbus_->setData(table, index, value);
+//        }
+//    }
+//}

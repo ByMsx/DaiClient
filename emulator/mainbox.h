@@ -17,9 +17,9 @@ class MainBox : public QFrame
 {
     Q_OBJECT
 public:
-    explicit MainBox(Dai::ItemTypeManager* mng, Dai::Device* dev, QModbusServer* modbus, QWidget *parent = 0);
+    explicit MainBox(Dai::ItemTypeManager* mng, Dai::Device* dev, QModbusServer* _modbus_, QWidget *parent = 0);
     Dai::Device* dev;
-    QModbusServer* modbus;
+    QModbusServer* _modbus_;
 
     bool isUsed() const;
 private slots:
