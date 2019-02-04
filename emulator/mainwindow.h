@@ -111,13 +111,11 @@ private:
 
     Config config_;
 
-    QString user_;
-
     void init() noexcept;
     void init_database() noexcept;
     void fill_data() noexcept;
 
-    bool check_user() noexcept;
+    QString get_user() noexcept;
 
     Socat_Info create_socat();
     void init_client_connection();
