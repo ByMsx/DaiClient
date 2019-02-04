@@ -9,7 +9,6 @@
 #include <csignal>
 #include <iostream>
 
-#include "mainbox.h"
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QGroupBox>
@@ -66,58 +65,13 @@ void Main_Window::init() noexcept
     init_database();
     db_manager_.initProject(&dai_project_);
 
-//    fill_data();
+    fill_data();
 
     init_client_connection();
 
     connect(&temp_timer_, &QTimer::timeout, this, &Main_Window::changeTemperature);
     temp_timer_.setInterval(3000);
     temp_timer_.start();
-
-
-
-//    return; // -----------------------------------------
-
-    auto box = static_cast<QGridLayout*>(ui_->content->layout());
-    for (GH::Device* dev: dai_project_.devices())
-    {
-        if (dev->items().size() == 0 ||
-                dev->items().first()->type() == GH::Prt::itProcessor)
-            continue;
-
-        Modbus_Device_Item item;
-        item = create_socat();
-        item.modbus_device_ = new QModbusRtuSerialSlave(this);
-        item.modbus_device_->setConnectionParameter(QModbusDevice::SerialPortNameParameter, item.port_from_name_ );
-        item.modbus_device_->setConnectionParameter(QModbusDevice::SerialParityParameter,   config_.parity_);
-        item.modbus_device_->setConnectionParameter(QModbusDevice::SerialBaudRateParameter, config_.baud_rate_);
-        item.modbus_device_->setConnectionParameter(QModbusDevice::SerialDataBitsParameter, config_.data_bits_);
-        item.modbus_device_->setConnectionParameter(QModbusDevice::SerialStopBitsParameter, config_.stop_bits_);
-        item.modbus_device_->setServerAddress(dev->address());
-
-//        connect(modbusDevice, &QModbusServer::stateChanged,
-//                this, &MainWindow::onStateChanged);
-        connect(item.modbus_device_, &QModbusServer::errorOccurred, this, &Main_Window::handleDeviceError);
-
-        item.serial_port_ = new QSerialPort(this);
-        item.serial_port_->setPortName(item.port_to_name_);
-        item.serial_port_->setBaudRate(   config_.baud_rate_);
-        item.serial_port_->setDataBits(   config_.data_bits_);
-        item.serial_port_->setParity(     config_.parity_);
-        item.serial_port_->setStopBits(   config_.stop_bits_);
-        item.serial_port_->setFlowControl(config_.flow_control_);
-
-        if (!item.serial_port_->open(QIODevice::ReadWrite))
-            qCritical() << item.serial_port_->errorString();
-
-        connect(item.serial_port_, &QSerialPort::readyRead, this, &Main_Window::socketDataReady);
-
-        item.box_ = new MainBox(&dai_project_.ItemTypeMng, dev, item.modbus_device_, ui_->content);
-        modbus_list_.emplace(dev->address(), item);
-
-        box->addWidget( item.box_, box->rowCount(), 0, 1, 2 );
-    }
-    box->addItem(new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding), box->rowCount(), 0);
 }
 
 void Main_Window::init_database() noexcept
@@ -283,104 +237,15 @@ void Main_Window::proccessData()
     auto it = modbus_list_.find( (uchar)buff.at(0) );
     if (it != modbus_list_.cend())
     {
-//        if (it->second.device_item_view_->is_use())
-//        {
-//            it->second.serial_port_->write(buff);
-//        }
-        if (it->second.box_->isUsed())
+        if (it->second.device_item_view_->is_use())
+        {
             it->second.serial_port_->write(buff);
+        }
     }
     else
         qDebug() << "Device not found";
 
     t.restart();
-//    qDebug() << buff.toHex().toUpper();
-
-    return;
-/*
-    if (buff.size() == 32)
-    {
-        uint type = buff.at(0);
-        uchar adr = buff.at(1);
-
-        for (GH::DevicePtr& dev: prj.devices())
-            if (dev->type() == type && dev->address() == adr)
-            {
-                if (!dev->item(0).isauto())
-                    break;
-
-                if (GH::DeviceItem::isControl(type))
-                {
-                    uchar value = dev->item(0).value().int32v();
-// TODO: Fix it
-#pragma GCC warning "Отправляет на включение два раза подряд"
-                    if (type != GH::Prt::itWindow || value & GH::Prt::wExecuted)
-                    {
-                        if (buff.at(2) == 1)
-                        {
-                            value |= GH::Prt::wOpened;
-                            value &= ~GH::Prt::wClosed;
-                        }
-                        else if (buff.at(2) == 2)
-                        {
-                            value |= GH::Prt::wClosed;
-                            value &= ~GH::Prt::wOpened;
-                        }
-
-                        if (dev->item(0).value().int32v() != value)
-                        {
-                            if (dev->type() == GH::Prt::itWindow)
-                            {
-                                qDebug() << "WND" << bool((value & GH::Prt::wExecuted) != 0) << value << dev->item(0).value().int32v() << dev->id() << adr;
-                                QTimer::singleShot(3000, std::bind(&GH::DeviceItem::setValue, unconstPtr<GH::DeviceItem>(dev->item(0)), value));
-                                value = GH::Prt::wCalibrated;
-                            }
-                            qDebug() << "toggle" << dev->item(0).value().int32v() << value;
-                            unconstPtr<GH::DeviceItem>(dev->item(0))->setValue(value);
-                        }
-                    }
-
-                    buff[ 3 ] = value & 0xFF;
-                }
-                else
-                {
-                    for (uchar i = 0; i < dev->item_size(); i++)
-                    {
-                        qint16 val;
-
-                        if (GH::DeviceItem::isConnected(dev->item(i).value()))
-                            val = dev->item(i).value().int32v();
-                        else
-                            val = qint16(0xFFFF);
-
-                        buff[ 3 + (i * 2) ] = val >> 8;
-                        buff[ 4 + (i * 2) ] = val & 0xFF;
-                    }
-                }
-
-                auto data = buff.right(buff.size() - 3);
-                if (tmp[type][adr] != data)
-                {
-                    auto shorter = [](const QByteArray& buff) {
-                        auto hex = buff;
-                        int i = hex.size();
-                        for (; i; --i)
-                            if (hex.at(i - 1) != 0)
-                                break;
-                        hex.remove(i, hex.size() - i);
-                        return hex.toHex().toUpper();
-                    };
-
-                    qDebug() << type << adr << shorter(tmp[type][adr]) << shorter(data);
-                    tmp[type][adr] = data;
-                }
-                m_serialPort->write(buff);
-                break;
-            }
-    }
-    else
-        qDebug("READ SIZE NOT 32 bytes");
-        */
 }
 
 void Main_Window::socketDataReady()
@@ -391,7 +256,6 @@ void Main_Window::socketDataReady()
 
 void Main_Window::on_openBtn_toggled(bool open)
 {
-    return;
     if (serial_port_->isOpen())
     {
         for (auto&& item: modbus_list_)

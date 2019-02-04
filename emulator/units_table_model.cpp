@@ -42,25 +42,25 @@ Units_Table_Model::Units_Table_Model(Dai::ItemTypeManager *mng, const QVector<Da
         }
 
         QModbusDataUnit modbus_unit(it.first, 0, it.second.size()); // max_unit
-
         // For what?
-//        if (it.first > 2)
-//        {
-//            for (uint i = 0; i < modbus_unit.valueCount(); ++i)
-//            {
-//                auto w_it = widgets.find(it.second.at(i));
-//                if (w_it != widgets.cend())
-//                    modbus_unit.setValue(i, static_cast<QSpinBox*>(w_it->second)->value());
-//            }
+        if (it.first > QModbusDataUnit::Coils)
+        {
+            for (uint i = 0; i < modbus_unit.valueCount(); ++i)
+            {
+                if (it.second.at(i))
+                {
+                    modbus_unit.setValue(i, it.second.at(i)->getRawValue().toInt());
+                }
+            }
 
-//        }
+        }
 
         modbus_data_unit_map.insert(it.first, modbus_unit);
     }
     modbus_server_->setMap(modbus_data_unit_map);
-
     QObject::connect(modbus_server_, &QModbusServer::dataWritten, this, &Units_Table_Model::update_table_values);
 }
+
 
 QModbusDataUnit::RegisterType row_to_register_type(int row)
 {
@@ -146,11 +146,7 @@ QVariant Units_Table_Model::data(const QModelIndex &index, int role) const
         switch (index.column())
         {
             case Column::UNIT_TYPE:
-                if (role == Qt::CheckStateRole)
-                {
-                    return static_cast<int>(Qt::Checked);
-                }
-                else if (role == Qt::DisplayRole)
+                if (role == Qt::DisplayRole)
                 {
                     return device_item->unit();
                 }
@@ -180,7 +176,6 @@ QVariant Units_Table_Model::data(const QModelIndex &index, int role) const
                     {
                         if (role == Qt::CheckStateRole)
                         {
-//                            return device_item->getRawValue();
                             bool result = false;
                             if (!device_item->getRawValue().isNull())
                             {
@@ -236,11 +231,7 @@ Qt::ItemFlags Units_Table_Model::flags(const QModelIndex &index) const // not wo
 
     auto reg_type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->registerType(device_item->type()));
 
-    if (index.column() == 0)
-    {
-        flags |= Qt::ItemIsUserCheckable;
-    }
-    else if (index.column() == 2)
+    if (index.column() == 2)
     {
         if (reg_type > QModbusDataUnit::Coils)
         {
@@ -372,84 +363,8 @@ void Units_Table_Model::update_table_values(QModbusDataUnit::RegisterType type, 
                 dev_item->setRawValue(value);
             }
         }
-
-
-//        switch (type)
-//        {
-//            case QModbusDataUnit::Coils:
-//            {
-//                modbus_server_->data(QModbusDataUnit::Coils, address + i, &value);
-
-//                if (auto dev_item = modbus_units_map_.at(type).at(address + i))
-//                {
-//                    dev_item->setRawValue(value);
-////                    auto it = widgets.find(dev_item);
-////                    if (it != widgets.cend())
-////                        if (auto box = qobject_cast<QCheckBox*>(it->second))
-////                        {
-////                            box->setChecked(value);
-////                            break;
-////                        }
-//                }
-//                break;
-//            }
-//            case QModbusDataUnit::HoldingRegisters:
-//            {
-//                modbus_server_->data(QModbusDataUnit::HoldingRegisters, address + i, &value);
-
-//                auto dev_item = modbus_server_.at(type).at(address + i);
-//                if (auto dev_item = modbus_units_map_.at(type).at(address + i))
-//                {
-//                    dev_item->setRawValue(value);
-////                    auto it = widgets.find(dev_item);
-////                    if (it != widgets.cend())
-////                    {
-////                        if (auto spin = qobject_cast<QSpinBox*>(it->second))
-////                        {
-////                            spin->setValue(value);
-////                            break;
-////                        }
-////                    }
-//                }
-//                break;
-//            }
-//            default: break;
-//        }
     }
 
     emit dataChanged(index(0, 0), index(rowCount() - 1, columnCount() - 1));
 }
 
-//void Units_Table_Model::set_coil_value(bool value)
-//{
-//    set_device_value(QModbusDataUnit::Coils, value);
-//}
-
-//void Units_Table_Model::set_register_value(int value)
-//{
-//    if (static_cast<QSpinBox*>(sender())->property("IsHolding").toBool())
-//        setDeviceValue(QModbusDataUnit::HoldingRegisters, value);
-//    else
-//        setDeviceValue(QModbusDataUnit::InputRegisters, value);
-//}
-
-//void Units_Table_Model::set_device_value(QModbusDataUnit::RegisterType table, quint16 value, QWidget *w)
-//{
-//    if (!w)
-//        w = static_cast<QWidget*>(sender());
-
-//    auto dev_item_it = std::find_if(widgets.cbegin(), widgets.cend(), [w](auto it) {
-//        return it.second == w;
-//    });
-
-//    if (dev_item_it != widgets.cend())
-//    {
-//        auto& items = m_items.at(table);
-//        auto dev_item_in_items = std::find(items.cbegin(), items.cend(), dev_item_it->first);
-//        if (dev_item_in_items != items.cend())
-//        {
-//            std::size_t index = std::distance(items.cbegin(), dev_item_in_items);
-//            _modbus_->setData(table, index, value);
-//        }
-//    }
-//}

@@ -17,7 +17,6 @@
 
 class QProcess;
 class QSettings;
-class MainBox;
 class Device_Item_View;
 
 void term_handler(int);
@@ -87,7 +86,6 @@ private:
     {
         QModbusRtuSerialSlave* modbus_device_;
         QSerialPort* serial_port_;
-        MainBox* box_;
         Device_Item_View* device_item_view_;
 
         void operator =(const Socat_Info& info)

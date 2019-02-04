@@ -41,8 +41,6 @@ public:
     QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const override;
     QModelIndex parent(const QModelIndex &child = QModelIndex()) const override;
 
-    const static int UNIT_TYPE_ROLE = Qt::DisplayRole + 1;
-
 private slots:
     void update_table_values(QModbusDataUnit::RegisterType type, int address, int size) noexcept;
 

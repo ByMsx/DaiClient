@@ -38,9 +38,6 @@ void Device_Item_View::init() noexcept
         units_table_model_ = new Units_Table_Model(item_type_manager_, &device_->items(), modbus_server_, this);
         units_tree_view_->setModel(units_table_model_);
 
-//        units_table_delegate_ = new Units_Table_Delegate(this);
-//        units_tree_view_->setItemDelegateForColumn(2, units_table_delegate_);
-
         units_tree_view_->expandAll();
         for (int column = 0; column < units_table_model_->columnCount(); ++column)
         {
