@@ -66,11 +66,6 @@ void Main_Window::init() noexcept
     init_database();
     db_manager_.initProject(&dai_project_);
 
-    if (!check_user())
-    {
-       return;
-    }
-
     fill_data();
 
     init_client_connection();
@@ -89,27 +84,6 @@ void Main_Window::init_database() noexcept
                     dai_settings.value("User", "DaiUser").toString(),
                     dai_settings.value("Password", "?").toString() });
     dai_settings.endGroup();
-}
-
-bool Main_Window::check_user() noexcept
-{
-    QSettings dai_settings("DaiClient.conf", QSettings::NativeFormat);
-    dai_settings.beginGroup("Emulator");
-    user_ = dai_settings.value("User", "").toString();
-    if (user_.size() == 0)
-    {
-        bool ok;
-        user_ = QInputDialog::getText(this, tr("QInputDialog::getText()"),
-                                             tr("User name:"), QLineEdit::Normal,
-                                             QDir::home().dirName(), &ok);
-        if (ok && !user_.isEmpty())
-        {
-            dai_settings.setValue("User", user_);
-            return true;
-        }
-        return false;
-    }
-    return true;
 }
 
 void Main_Window::fill_data() noexcept
@@ -188,7 +162,7 @@ Main_Window::Socat_Info Main_Window::create_socat()
     info.socat_process_->setReadChannel(QProcess::StandardOutput);
     info.socat_process_->setProgram("/usr/bin/socat");
     // TODO need take the username from GUI
-    info.socat_process_->setArguments(QStringList() << "-d" << "-d" << ("pty,raw,echo=0,user=" + user_) << ("pty,raw,echo=0,user=" + user_));
+    info.socat_process_->setArguments(QStringList() << "-d" << "-d" << ("pty,raw,echo=0,user=" + get_user()) << ("pty,raw,echo=0,user=" + get_user()));
 
     auto dbg = qDebug() << info.socat_process_->program() << info.socat_process_->arguments();
     info.socat_process_->start(QIODevice::ReadOnly);
@@ -214,6 +188,16 @@ Main_Window::Socat_Info Main_Window::create_socat()
     else
         qCritical() << info.socat_process_->errorString();
     return info;
+}
+
+QString Main_Window::get_user() noexcept
+{
+    QString user = qgetenv("USER");
+    if (user.isEmpty())
+    {
+        user = qgetenv("USERNAME");
+    }
+    return user;
 }
 
 void Main_Window::handleDeviceError(QModbusDevice::Error newError)

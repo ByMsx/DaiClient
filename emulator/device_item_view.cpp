@@ -28,7 +28,7 @@ void Device_Item_View::init() noexcept
     center_layout->addWidget(device_group_box_);
 
     units_tree_view_ = new QTreeView(this);
-    QVBoxLayout* table_layout = new QVBoxLayout(); // ?? будет ли table_layout удален?
+    QVBoxLayout* table_layout = new QVBoxLayout;
     table_layout->addWidget(units_tree_view_);
     table_layout->setMargin(0);
     device_group_box_->setLayout(table_layout);

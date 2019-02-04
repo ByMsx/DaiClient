@@ -42,7 +42,7 @@ Units_Table_Model::Units_Table_Model(Dai::ItemTypeManager *mng, const QVector<Da
         }
 
         QModbusDataUnit modbus_unit(it.first, 0, it.second.size()); // max_unit
-        // For what?
+
         if (it.first > QModbusDataUnit::Coils)
         {
             for (uint i = 0; i < modbus_unit.valueCount(); ++i)
@@ -79,9 +79,10 @@ int Units_Table_Model::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid())
     {
-        auto ip = parent.internalId();
-        if (ip > 5)
+        if (parent.internalPointer() != nullptr)
+        {
             return 0;
+        }
 
         auto reg_type = row_to_register_type(parent.row());
         if (reg_type == QModbusDataUnit::Invalid)
@@ -293,11 +294,12 @@ QModelIndex Units_Table_Model::index(int row, int column, const QModelIndex &par
 {
     if (parent.isValid())
     {
-        auto ip = parent.internalId();
-        if (ip > 5)
+        if (parent.internalPointer() != nullptr)
+        {
             return QModelIndex();
+        }
 
-        if (column < 0 || column > 5 || row < 0)
+        if (column < 0 || column > 3 || row < 0)
         {
             return QModelIndex();
         }
@@ -313,21 +315,17 @@ QModelIndex Units_Table_Model::index(int row, int column, const QModelIndex &par
     }
     else if (row >= 0 && row < 4 && column == 0)
     {
-        return createIndex(row, column, row_to_register_type(row));
+        return createIndex(row, column);
     }
     return QModelIndex();
 }
 
 QModelIndex Units_Table_Model::parent(const QModelIndex &child) const
 {
-    if (!child.isValid())
+    if (!child.isValid() || child.internalPointer() == nullptr)
     {
         return QModelIndex();
     }
-
-    auto ip = child.internalId();
-    if (ip > 0 && ip < 5)
-        return QModelIndex();
 
     auto device_item = static_cast<Dai::DeviceItem*>(child.internalPointer());
     if (device_item)
