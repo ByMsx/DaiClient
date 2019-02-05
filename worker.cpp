@@ -570,39 +570,76 @@ void Worker::setParamValues(const ParamValuesPack &pack)
     emit paramValuesChanged(pack);
 }
 
+
+template<typename T>
+bool Worker::applyModify(bool(Database::*db_func)(const QVector<T> &, QVector<T> &, const QVector<quint32> &), QDataStream *msg, quint8 structType)
+{
+    QVector<T> updList, insrtList;
+    QVector<quint32> delList;
+
+//    *msg >> updList >> insrtList >> delList;
+    Helpz::parse_out(*msg, updList, insrtList, delList);
+
+    if ((db_mng->*db_func)(updList, insrtList, delList))
+    {
+//        g_mng_th->ptr()->send(cmdStructModify) << true << updList << insrtList << delList;
+        auto sender = g_mng_th->ptr()->send(cmdStructModify);
+        sender << true << structType << updList << insrtList << delList;
+        QByteArray buffer = sender.pop_message();
+
+        QMetaObject::invokeMethod(g_mng_th->ptr(), "send_structure_changed", Qt::QueuedConnection, Q_ARG(QByteArray, buffer));
+        return true;
+    }
+    return false;
+}
+
 bool Worker::applyStructModify(quint8 structType, QDataStream *msg)
 {
     using namespace Network;
     qCDebug(Service::Log) << "applyStructModify" << (StructureType)structType;
 
     try {
+
         switch ((StructureType)structType) {
         case stDevices:
-            return Helpz::applyParse(&Database::applyModifyDevices, db_mng, *msg);
+            return applyModify(&Database::applyModifyDevices, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyDevices, db_mng, *msg);
         case stCheckerType:
-            return Helpz::applyParse(&Database::applyModifyCheckerTypes, db_mng, *msg);
+            return applyModify(&Database::applyModifyCheckerTypes, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyCheckerTypes, db_mng, *msg);
         case stDeviceItems:
-            return Helpz::applyParse(&Database::applyModifyDeviceItems, db_mng, *msg);
+            return applyModify(&Database::applyModifyDeviceItems, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyDeviceItems, db_mng, *msg);
         case stDeviceItemTypes:
-            return Helpz::applyParse(&Database::applyModifyDeviceItemTypes, db_mng, *msg);
+            return applyModify(&Database::applyModifyDeviceItemTypes, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyDeviceItemTypes, db_mng, *msg);
         case stSections:
-            return Helpz::applyParse(&Database::applyModifySections, db_mng, *msg);
+            return applyModify(&Database::applyModifySections, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifySections, db_mng, *msg);
         case stGroups:
-            return Helpz::applyParse(&Database::applyModifyGroups, db_mng, *msg);
+            return applyModify(&Database::applyModifyGroups, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyGroups, db_mng, *msg);
         case stGroupTypes:
-            return Helpz::applyParse(&Database::applyModifyGroupTypes, db_mng, *msg);
+            return applyModify(&Database::applyModifyGroupTypes, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyGroupTypes, db_mng, *msg);
         case stGroupParams:
-            return Helpz::applyParse(&Database::applyModifyGroupParams, db_mng, *msg);
+            return applyModify(&Database::applyModifyGroupParams, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyGroupParams, db_mng, *msg);
         case stGroupParamTypes:
-            return Helpz::applyParse(&Database::applyModifyGroupParamTypes, db_mng, *msg);
+            return applyModify(&Database::applyModifyGroupParamTypes, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyGroupParamTypes, db_mng, *msg);
         case stGroupStatuses:
-            return Helpz::applyParse(&Database::applyModifyGroupStatuses, db_mng, *msg);
+            return applyModify(&Database::applyModifyGroupStatuses, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyGroupStatuses, db_mng, *msg);
         case stGroupStatusTypes:
-            return Helpz::applyParse(&Database::applyModifyGroupStatusTypes, db_mng, *msg);
+            return applyModify(&Database::applyModifyGroupStatusTypes, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyGroupStatusTypes, db_mng, *msg);
         case stSigns:
-            return Helpz::applyParse(&Database::applyModifySigns, db_mng, *msg);
+            return applyModify(&Database::applyModifySigns, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifySigns, db_mng, *msg);
         case stScripts:
-            return Helpz::applyParse(&Database::applyModifyScripts, db_mng, *msg);
+            return applyModify(&Database::applyModifyScripts, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyScripts, db_mng, *msg);
 
         default: return false;
         }

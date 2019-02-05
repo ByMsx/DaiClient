@@ -86,6 +86,8 @@ public slots:
 
     void sendParamValues(const ParamValuesPack& pack);
 
+    void send_structure_changed(const QByteArray &data);
+
     QVector<QPair<QUuid, QString>> getUserDevices();
 protected:
     void readyWrite() override;
