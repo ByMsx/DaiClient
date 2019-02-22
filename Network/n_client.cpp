@@ -38,7 +38,7 @@ void Client::sendVersion()
 }
 
 Client::Client(Worker *worker, const QString &hostname, quint16 port, const QString &login, const QString &password, const QUuid &device, int checkServerInterval) :
-    Helpz::DTLS::Client(Botan::split_on("dai/1.1,dai/1.0", ','), Helpz::Database::ConnectionInfo()/*worker->database_info()*/,
+    Helpz::DTLS::Protocol(Botan::split_on("dai/1.1,dai/1.0", ','),
                            qApp->applicationDirPath() + "/tls_policy.conf", hostname, port, checkServerInterval),
     m_login(login), m_password(password), m_device(device), m_import_config(false),
     worker(worker)
@@ -100,10 +100,7 @@ Client::Client(Worker *worker, const QString &hostname, quint16 port, const QStr
 const QUuid& Client::device() const { return m_device; }
 const QString &Client::username() const { return m_login; }
 
-bool Client::canConnect() const
-{
-    return !(/*m_device.isNull() || */m_login.isEmpty() || m_password.isEmpty());
-}
+
 
 //void Client::setId(int id) { m_id = id; }
 
@@ -243,7 +240,7 @@ QVector<QPair<QUuid, QString>> Client::getUserDevices()
     return lastUserDevices;
 }
 
-void Client::proccessMessage(quint16 cmd, QDataStream &msg)
+void Client::process_message(quint16 cmd, QByteArray&& data, QIODevice *data_dev)
 {
     switch(cmd)
     {
@@ -254,12 +251,13 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
         break;
     case cmdAuth:
     {
-        bool authorized = Helpz::parse<bool>(msg);
+        bool authorized;
+        parse_out(data, authorized);
         qDebug(NetClientLog) << "Auth" << authorized;
 
         if (!authorized)
         {
-            lastUserDevices = Helpz::parse<QVector<QPair<QUuid, QString>>>(msg);
+            parse_out(data, lastUserDevices);
             auto wait_it = wait_map.find(cmdAuth);
             if (wait_it != wait_map.cend())
                 wait_it->second->finish(authorized);
@@ -277,7 +275,11 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
     {
         auto wait_it = wait_map.find(cmdCreateDevice);
         if (wait_it != wait_map.cend())
-            wait_it->second->finish(Helpz::parse<QUuid>(msg));
+        {
+            QUuid uuid;
+            parse_out(data, uuid);
+            wait_it->second->finish(uuid);
+        }
         break;
     }
     case cmdServerInfo:
@@ -327,27 +329,27 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
 //        break;
     }
     case cmdSetControlState:
-        applyParse(&Client::setControlState, msg);
+        apply_parse(data, &Client::setControlState, 1);
         break;
     case cmdWriteToItem:
-        applyParse(&Client::writeToItem, msg);
+        apply_parse(data, &Client::writeToItem);
         break;
     case cmdSetMode:
-        applyParse(&Client::setMode, msg);
+        apply_parse(data, &Client::setMode);
         break;
 //    case cmdGetLostValues:
-//        applyParse(&Client::lostValues, msg);
+//        apply_parse(msg, &Client::lostValues);
 //        break;
     case cmdSetParamValues:
-        applyParse(&Client::setParamValues, msg);
+        apply_parse(data, &Client::setParamValues);
         break;
 
     case cmdSetCode:
-        send(cmd) << applyParse(&Client::setCode, msg);
+        send(cmd) << apply_parse(data, &Client::setCode);
         break;
 
     case cmdGetCode:
-        send(cmd) << Helpz::applyParse(&CodeManager::type, &prj->CodeMng, msg);
+        send(cmd) << Helpz::apply_parse(data, DATASTREAM_VERSION, &CodeManager::type, &prj->CodeMng);
         break;
 
     case cmdRestart:
@@ -356,11 +358,14 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
         break;
 
     case cmdExecScript:
-        execScript(Helpz::parse<QString>(msg));
+        QString script_text;
+        parse_out(data, script_text);
+        execScript(script_text);
         break;
 
 // -----> Sync database
-    case cmdLogRange: {
+    case cmdLogRange:
+    {
         uint8_t log_type; qint64 date_ms;
         while(!msg.atEnd()) {
             Helpz::parse_out(msg, log_type, date_ms);
@@ -374,7 +379,7 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
 
     case cmdLogData: {
         uint8_t log_type; QPair<quint32, quint32> range;
-        Helpz::parse_out(msg, log_type, range);
+        parse_out(data, log_type, range);
         if (log_type != Dai::ValueLog && log_type != Dai::EventLog)
             break;
 
@@ -402,8 +407,8 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
 // -----> Struct modify
     case cmdStructModify: {
         quint8 modifyType;
-        Helpz::parse_out(msg, modifyType);
-        qCDebug(NetClientLog) << "Received strucrure modify" << (StructureType)modifyType << "size" << msg.device()->size();
+        parse_out(data, modifyType);
+        qCDebug(NetClientLog) << "Received strucrure modify" << (StructureType)modifyType << "size" << data.size();
         send(cmd) << structModify(modifyType, &msg);
         break;
     }
@@ -425,7 +430,7 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
         }
 
         FilePart filePart;
-        msg >> filePart;
+        parse_out(data, filePart);
 
         if (fileInfo->file.pos() != filePart.pos)
         {
@@ -443,8 +448,7 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
     {
         QByteArray fileHash;
         QString fileName;
-
-        msg >> fileHash >> fileName;
+        parse_out(data, fileHash, fileName);
         break;
     }
 
@@ -490,7 +494,7 @@ void Client::sendLogData(uint8_t log_type, const QPair<quint32, quint32> &range)
 
 }
 
-void Client::readyWrite()
+void Client::ready_write()
 {
     qCDebug(NetClientLog) << "Connected. Server choose protocol:" << dtls->application_protocol().c_str();
     sendAuthInfo();

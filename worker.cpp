@@ -47,9 +47,9 @@ void WebSockItem::procCommand(quint32 user_team_id, quint32 proj_id, quint8 cmd,
             send(this, w->webSock_th->ptr()->getConnectState(id(), "127.0.0.1", QDateTime::currentDateTime().timeZone(), 0));
             break;
 
-        case wsWriteToDevItem: Helpz::applyParse(&Worker::writeToItem, w, ds); break;
-        case wsChangeGroupMode: Helpz::applyParse(&Worker::setMode, w, ds); break;
-        case wsChangeParamValues: Helpz::applyParse(&Worker::setParamValues, w, ds); break;
+        case wsWriteToDevItem: Helpz::apply_parse(ds, &Worker::writeToItem, w); break;
+        case wsChangeGroupMode: Helpz::apply_parse(ds, &Worker::setMode, w); break;
+        case wsChangeParamValues: Helpz::apply_parse(ds, &Worker::setParamValues, w); break;
         case wsRestart: w->serviceRestart(); break;
         case wsChangeCode:
         case wsExecScript:
@@ -312,9 +312,9 @@ void Worker::initWebSocketManager(QSettings *s)
 
     webSock_th = WebSocketThread()(
                 s, "WebSocket",
+                Helpz::Param<quint16>{"Port", 25589},
                 Helpz::Param<QString>{"CertPath", QString()},
-                Helpz::Param<QString>{"KeyPath", QString()},
-                Helpz::Param<quint16>{"Port", 25589});
+                Helpz::Param<QString>{"KeyPath", QString()});
     webSock_th->start();
 
     while (!webSock_th->ptr() && !webSock_th->wait(5));
@@ -578,31 +578,31 @@ bool Worker::applyStructModify(quint8 structType, QDataStream *msg)
     try {
         switch ((StructureType)structType) {
         case stDevices:
-            return Helpz::applyParse(&Database::applyModifyDevices, db_mng, *msg);
+            return Helpz::apply_parse(*msg, &Database::applyModifyDevices, db_mng);
         case stCheckerType:
-            return Helpz::applyParse(&Database::applyModifyCheckerTypes, db_mng, *msg);
+            return Helpz::apply_parse(*msg, &Database::applyModifyCheckerTypes, db_mng);
         case stDeviceItems:
-            return Helpz::applyParse(&Database::applyModifyDeviceItems, db_mng, *msg);
+            return Helpz::apply_parse(*msg, &Database::applyModifyDeviceItems, db_mng);
         case stDeviceItemTypes:
-            return Helpz::applyParse(&Database::applyModifyDeviceItemTypes, db_mng, *msg);
+            return Helpz::apply_parse(*msg, &Database::applyModifyDeviceItemTypes, db_mng);
         case stSections:
-            return Helpz::applyParse(&Database::applyModifySections, db_mng, *msg);
+            return Helpz::apply_parse(*msg, &Database::applyModifySections, db_mng);
         case stGroups:
-            return Helpz::applyParse(&Database::applyModifyGroups, db_mng, *msg);
+            return Helpz::apply_parse(*msg, &Database::applyModifyGroups, db_mng);
         case stGroupTypes:
-            return Helpz::applyParse(&Database::applyModifyGroupTypes, db_mng, *msg);
+            return Helpz::apply_parse(*msg, &Database::applyModifyGroupTypes, db_mng);
         case stGroupParams:
-            return Helpz::applyParse(&Database::applyModifyGroupParams, db_mng, *msg);
+            return Helpz::apply_parse(*msg, &Database::applyModifyGroupParams, db_mng);
         case stGroupParamTypes:
-            return Helpz::applyParse(&Database::applyModifyGroupParamTypes, db_mng, *msg);
+            return Helpz::apply_parse(*msg, &Database::applyModifyGroupParamTypes, db_mng);
         case stGroupStatuses:
-            return Helpz::applyParse(&Database::applyModifyGroupStatuses, db_mng, *msg);
+            return Helpz::apply_parse(*msg, &Database::applyModifyGroupStatuses, db_mng);
         case stGroupStatusTypes:
-            return Helpz::applyParse(&Database::applyModifyGroupStatusTypes, db_mng, *msg);
+            return Helpz::apply_parse(*msg, &Database::applyModifyGroupStatusTypes, db_mng);
         case stSigns:
-            return Helpz::applyParse(&Database::applyModifySigns, db_mng, *msg);
+            return Helpz::apply_parse(*msg, &Database::applyModifySigns, db_mng);
         case stScripts:
-            return Helpz::applyParse(&Database::applyModifyScripts, db_mng, *msg);
+            return Helpz::apply_parse(*msg, &Database::applyModifyScripts, db_mng);
 
         default: return false;
         }

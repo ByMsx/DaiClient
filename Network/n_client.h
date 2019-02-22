@@ -7,7 +7,7 @@
 #include <QUuid>
 
 #include <Helpz/simplethread.h>
-#include <Helpz/dtlsclient.h>
+#include <Helpz/dtls_client.h>
 #include <Helpz/waithelper.h>
 
 #include <Dai/typemanager/typemanager.h>
@@ -29,7 +29,7 @@ class Worker;
 
 namespace Network {
 
-class Client : public Helpz::DTLS::Client
+class Client : public QObject, public Helpz::Network::Protocol
 {
     Q_OBJECT
     void sendVersion();
@@ -40,7 +40,7 @@ public:
     const QUuid& device() const;
     const QString& username() const;
 
-    bool canConnect() const override;
+//    bool canConnect() const override { return !(/*m_device.isNull() || */m_login.isEmpty() || m_password.isEmpty()); }
 signals:
     void restart();
     void getServerInfo(QDataStream* ds) const;
@@ -88,8 +88,8 @@ public slots:
 
     QVector<QPair<QUuid, QString>> getUserDevices();
 protected:
-    void readyWrite() override;
-    void proccessMessage(quint16 cmd, QDataStream &msg) override;
+    void ready_write() override;
+    void process_message(quint16 cmd, QByteArray&& data, QIODevice* data_dev) override;
 private slots:
     void sendPack();
 
