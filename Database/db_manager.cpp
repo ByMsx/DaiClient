@@ -8,7 +8,6 @@
 
 #include <Dai/project.h>
 
-#include "Network/n_client.h"
 #include "db_manager.h"
 
 namespace Dai {
@@ -83,7 +82,7 @@ DBManager::LogDataT DBManager::getLogData(quint8 log_type, const QPair<quint32, 
     };
 
     switch (log_type) {
-    case ValueLog: {
+    case LOG_VALUE: {
         QVector<ValuePackItem> pack;
         getLogRangeValues({"house_logs", {"id", "item_id", "date", "raw_value", "value"}}, [&pack](const QSqlQuery& q) {
             pack.push_back(ValuePackItem{ q.value(0).toUInt(), q.value(1).toUInt(),
@@ -96,7 +95,7 @@ DBManager::LogDataT DBManager::getLogData(quint8 log_type, const QPair<quint32, 
 #endif
         break;
     }
-    case EventLog: {
+    case LOG_EVENT: {
         QVector<EventPackItem> pack;
         getLogRangeValues({"house_eventlog", {"id", "type", "date", "who", "msg"}}, [&pack](const QSqlQuery& q) {
             pack.push_back(EventPackItem{ q.value(0).toUInt(), q.value(1).toUInt(),

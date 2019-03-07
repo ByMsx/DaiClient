@@ -1,0 +1,517 @@
+#include <Helpz/dtls_client_controller.h>
+
+#include <Dai/commands.h>
+
+#include "client_protocol_2_0.h"
+
+namespace Dai {
+namespace Client {
+
+Protocol_2_0::Protocol_2_0(const Authentication_Info &auth_info, Worker *worker) :
+    Protocol{auth_info},
+    worker_(worker)
+{
+}
+
+void Protocol_2_0::connect_worker_signals()
+{
+
+}
+
+void Protocol_2_0::ready_write()
+{
+    auto ctrl = dynamic_cast<Helpz::DTLS::Client_Controller*>(writer());
+    qCDebug(NetClientLog) << "Connected. Server choose protocol:" << ctrl->application_protocol().c_str();
+
+    connect_worker_signals();
+    start_authentication();
+}
+
+void Protocol_2_0::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data_dev)
+{
+    switch (cmd) {
+
+    case Cmd::NO_AUTH:
+        start_authentication();
+        break;
+
+    default:
+        if (cmd >= Helpz::Network::Cmd::USER_COMMAND)
+            qCCritical(NetClientLog) << "UNKNOWN MESSAGE" << cmd;
+        break;
+    }
+}
+
+void Protocol_2_0::start_authentication()
+{
+    send(Cmd::AUTH).answer([this](QIODevice& data_dev)
+    {
+        bool authorized;
+        parse_out(data_dev, authorized);
+        qDebug(NetClientLog) << "Authentication status:" << authorized;
+    }).timeout([]() {
+        std::cout << "Authentication timeout" << std::endl;
+    }, std::chrono::seconds(15)) << auth_info();
+}
+
+// -----------------------
+
+#if 0
+#include <QDebug>
+#include <QCryptographicHash>
+#include <QDataStream>
+#include <QTimeZone>
+
+#include <botan/parsing.h>
+
+#include <Helpz/dtls_version.h>
+#include <Helpz/net_version.h>
+#include <Helpz/db_version.h>
+#include <Helpz/srv_version.h>
+
+#include <Dai/project.h>
+
+#include "worker.h"
+#include "Database/db_manager.h"
+
+#include <QDateTime>
+#include <QTimer>
+
+#include <Helpz/simplethread.h>
+#include <Helpz/dtls_client.h>
+#include <Helpz/waithelper.h>
+
+#include <Dai/typemanager/typemanager.h>
+#include <Dai/param/paramgroup.h>
+#include <Dai/deviceitem.h>
+#include <plus/dai/network.h>
+
+#include "Database/db_manager.h"
+
+QT_BEGIN_NAMESPACE
+class QSettings;
+QT_END_NAMESPACE
+
+
+#include "lib.h"
+//#include "version.h"
+
+class Client : public QObject, public Helpz::Network::Protocol
+{
+    Q_OBJECT
+    void sendVersion()
+    {
+        send(cmdVersion)
+                << Helpz::DTLS::ver_major() << Helpz::DTLS::ver_minor() << Helpz::DTLS::ver_build()
+                << Helpz::Network::ver_major() << Helpz::Network::ver_minor() << Helpz::Network::ver_build()
+                << Helpz::Database::ver_major() << Helpz::Database::ver_minor() << Helpz::Database::ver_build()
+                << Helpz::Service::ver_major() << Helpz::Service::ver_minor() << Helpz::Service::ver_build()
+                << Lib::ver_major() << Lib::ver_minor() << Lib::ver_build()
+                << (quint8)VER_MJ << (quint8)VER_MN << (int)VER_B;
+    }
+public:
+    Client(Worker *worker, const QString& hostname, quint16 port, const QString& login, const QString& password, const QUuid& device, int checkServerInterval) :
+        Helpz::DTLS::Protocol(Botan::split_on("dai/1.1,dai/1.0", ','),
+                              qApp->applicationDirPath() + "/tls_policy.conf", hostname, port, checkServerInterval),
+        m_login(login), m_password(password), m_device(device), m_import_config(false),
+        worker(worker)
+    {
+        connect(&packTimer, &QTimer::timeout, this, &Client::sendPack);
+        packTimer.setSingleShot(true);
+
+        qRegisterMetaType<CodeItem>("CodeItem");
+        qRegisterMetaType<ParamValuesPack>("ParamValuesPack");
+        qRegisterMetaType<EventPackItem>("EventPackItem");
+        qRegisterMetaType<std::vector<uint>>("std::vector<uint>");
+
+        connect(this, &Client::restart, worker, &Worker::serviceRestart, Qt::QueuedConnection);
+        connect(this, &Client::structModify, worker, &Worker::applyStructModify, Qt::BlockingQueuedConnection);
+        connect(this, &Client::setControlState, worker, &Worker::setControlState, Qt::QueuedConnection);
+        connect(this, &Client::writeToItem, worker, &Worker::writeToItem, Qt::QueuedConnection);
+
+        connect(this, &Client::setMode, worker, &Worker::setMode, Qt::QueuedConnection);
+        connect(this, &Client::setCode, worker, &Worker::setCode, Qt::BlockingQueuedConnection);
+
+        //    connect(this, &Client::lostValues, worker, &Worker::sendLostValues, Qt::QueuedConnection);
+        connect(this, &Client::setParamValues, worker, &Worker::setParamValues, Qt::QueuedConnection);
+
+        // -----> Sync database
+        connect(this, &Client::getLogRange, worker->database(), &DBManager::getLogRange, Qt::BlockingQueuedConnection);
+        connect(this, &Client::getLogData, worker->database(), &DBManager::getLogData, Qt::BlockingQueuedConnection);
+        // <--------------------
+
+        connect(worker, &Worker::paramValuesChanged, this, &Client::sendParamValues, Qt::QueuedConnection);
+        connect(worker, &Worker::change, this, &Client::change, Qt::QueuedConnection);
+        connect(worker, &Worker::modeChanged, this, &Client::modeChanged, Qt::QueuedConnection);
+        connect(worker, &Worker::groupStatusChanged, this, &Client::groupStatusChanged, Qt::QueuedConnection);
+        connect(worker, &Worker::statusAdded, this, &Client::statusAdded, Qt::QueuedConnection);
+        connect(worker, &Worker::statusRemoved, this, &Client::statusRemoved, Qt::QueuedConnection);
+
+        while (!worker->prj->ptr() && !worker->prj->wait(5));
+        prj = worker->prj->ptr();
+
+        connect(this, &Client::getServerInfo, worker->prj->ptr(), &Project::dumpInfoToStream, Qt::DirectConnection);
+        connect(this, &Client::setServerInfo, worker->prj->ptr(), &Project::initFromStream, Qt::BlockingQueuedConnection);
+        connect(this, &Client::saveServerInfo, worker->database(), &Database::saveProject, Qt::BlockingQueuedConnection);
+        connect(this, &Client::execScript, worker->prj->ptr(), &ScriptedProject::console, Qt::QueuedConnection);
+
+        if (canConnect())
+            init_client();
+    }
+
+    //static void packValue(Prt::ValuesPack *pack, uint item_id, const DeviceItem::ValueType &raw,
+    //                                  const DeviceItem::ValueType &val, uint time, uint db_id)
+    //{
+    //    auto p_item = pack->add_item();
+    //    p_item->set_id(item_id);
+    //    p_item->mutable_raw_value()->CopyFrom(raw);
+    //    p_item->mutable_value()->CopyFrom(val);
+    //    p_item->set_time(time);
+    //    p_item->set_dbid(db_id);
+    //}
+    const QUuid& device() const { return m_device; }
+    const QString& username() const { return m_login; }
+
+//    bool canConnect() const override { return !(/*m_device.isNull() || */m_login.isEmpty() || m_password.isEmpty()); }
+signals:
+    void restart();
+    void getServerInfo(QIODevice* dev) const;
+    void setServerInfo(QIODevice* dev, QVector<ParamTypeItem> *param_items_out, bool* = nullptr);
+    void saveServerInfo(const QVector<ParamTypeItem>& param_values, Project *proj);
+
+    void setControlState(quint32 section_id, quint32 device_type, const QVariant& raw_data);
+    void writeToItem(quint32 item_id, const QVariant& raw_data);
+    bool setMode(quint32 mode_id, quint32 group_id);
+    bool setCode(const CodeItem&);
+    void execScript(const QString& script);
+
+    bool structModify(quint8 cmd, QDataStream* msg);
+    void setParamValues(const ParamValuesPack& pack);
+
+// -----> Sync database
+    QPair<quint32, quint32> getLogRange(quint8 log_type, qint64 date);
+    Dai::DBManager::LogDataT getLogData(quint8 log_type, const QPair<quint32, quint32>& range);
+// <--------------------
+
+public slots:
+    void setImportFlag(bool import_config)
+    {
+        if (m_import_config != import_config)
+        {
+            m_import_config = import_config;
+            init_client();
+        }
+    }
+    void refreshAuth(const QUuid& devive_uuid, const QString& username, const QString& password)
+    {
+        close_connection();
+        setDevice(devive_uuid);
+        setLogin(username);
+        setPassword(password);
+        if (canConnect())
+            init_client();
+    }
+    void importDevice(const QUuid& devive_uuid)
+    {
+        /**
+     *   1. Установить, подключиться, получить все данные
+     *   2. Отключится
+     *   3. Импортировать полученные данные
+     **/
+
+        Helpz::Network::Waiter w(cmdGetServerInfo, wait_map);
+        if (!w) return;
+
+        send(cmdGetServerInfo) << m_login << m_password << devive_uuid;
+        w.helper->wait();
+    }
+    QUuid createDevice(const QString& name, const QString &latin, const QString& description)
+    {
+        if (name.isEmpty() || latin.isEmpty())
+            return {};
+
+        Helpz::Network::Waiter w(cmdCreateDevice, wait_map);
+        if (w)
+        {
+            send(cmdCreateDevice) << m_login << m_password << name << latin << description;
+            if (w.helper->wait())
+                return w.helper->result().toUuid();
+        }
+
+        return {};
+    }
+
+    //void setId(int id) { m_id = id; }
+    void change(const ValuePackItem &item, bool immediately = false)
+    {
+        value_pack_.push_back(item);
+        packTimer.start(immediately ? 10 : 250);
+    }
+
+    void eventLog(const EventPackItem &item)
+    {
+        if (item.type_id == QtDebugMsg && item.category.startsWith("net"))
+            return;
+        event_pack_.push_back(item);
+        packTimer.start(1000);
+        //    auto helper = send(cmdEventMessage);
+        //    helper << type << category << text << time << db_id;
+        //    events_data += helper.pop_message();
+    }
+
+    void modeChanged(uint mode_id, quint32 group_id) {
+        qDebug(NetClientLog) << "modeChanged" << mode_id << group_id;
+        send(cmdChangedMode) << mode_id << group_id;
+    }
+
+    void statusAdded(quint32 group_id, quint32 info_id, const QStringList& args) {
+        send(cmdGroupStatusAdded) << group_id << info_id << args;
+    }
+    void statusRemoved(quint32 group_id, quint32 info_id) {
+        send(cmdGroupStatusRemoved) << group_id << info_id;
+    }
+    void groupStatusChanged(quint32 group_id, quint32 status)
+    {
+        send(cmdChangedStatus) << group_id << status;
+    }
+
+    //void sendLostValues(const QVector<ValuePackItem> &valuesPack) {
+    //    send(cmdGetLostValues) << valuesPack;
+    //}
+    //void sendNotFoundIds(const QVector<quint32> &ids) {
+    //    send(cmdIdsNotFound) << ids;
+    //}
+
+    void sendParamValues(const ParamValuesPack& pack)
+    {
+        send(cmdSetParamValues) << pack;
+    }
+
+    QVector<QPair<QUuid, QString>> getUserDevices()
+    {
+        Helpz::Network::Waiter w(cmdAuth, wait_map);
+        if (!w)
+            return lastUserDevices;
+
+        send(cmdAuth) << m_login << m_password << QUuid();
+        bool res = w.helper->wait();
+        if (res)
+        {
+            res = w.helper->result().toBool();
+
+            if (res)
+            {
+                // TODO: What?
+            }
+        }
+        return lastUserDevices;
+    }
+protected:
+    void process_message(uint8_t msg_id, uint16_t cmd, QIODevice& data_dev) override
+    {
+        switch(cmd)
+        {
+        case cmdAuth:
+            if (!authorized)
+            {
+                parse_out(data_dev, lastUserDevices);
+                auto wait_it = wait_map.find(cmdAuth);
+                if (wait_it != wait_map.cend())
+                    wait_it->second->finish(authorized);
+
+                // TODO: Disconnect?
+                // close_connection();
+                break;
+            }
+
+            if (m_import_config)
+                send(cmdGetServerInfo);
+            break;
+
+        case cmdCreateDevice:
+        {
+            auto wait_it = wait_map.find(cmdCreateDevice);
+            if (wait_it != wait_map.cend())
+            {
+                QUuid uuid;
+                parse_out(data_dev, uuid);
+                wait_it->second->finish(uuid);
+            }
+            break;
+        }
+        case cmdServerInfo:
+        {
+            close_connection();
+            QVector<ParamTypeItem> param_values;
+            emit setServerInfo(&msg, &param_values);
+            emit saveServerInfo(param_values, worker->prj->ptr());
+
+            auto wait_it = wait_map.find(cmdGetServerInfo);
+            if (wait_it != wait_map.cend())
+                wait_it->second->finish();
+            break;
+        }
+        case cmdGetServerInfo:
+        {
+            auto dt = QDateTime::currentDateTime();
+            sendVersion();
+            send(cmdDateTime) << dt << dt.timeZone();
+
+            send(cmdItemTypeList) << prj->ItemTypeMng;
+            send(cmdGroupTypeList) << prj->GroupTypeMng;
+            send(cmdModeTypeLIst) << prj->ModeTypeMng;
+            send(cmdSignList) << prj->SignMng;
+            send(cmdStatusTypeList) << prj->StatusTypeMng;
+            send(cmdStatusList) << prj->StatusMng;
+            send(cmdParamList) << prj->ParamMng;
+
+            send(cmdCodesChecksum) << prj->get_codes_checksum();
+
+            send(cmdServerStructureInfo) << prj->sections() << prj->devices();
+            break;
+
+            //        QByteArray dateData;
+            //        {
+            //            QDataStream ds(&dateData, QIODevice::WriteOnly);
+            //            ds << QDateTime::currentDateTime();
+            //        }
+
+            //        info->set_datedata(dateData.constData(), dateData.size());
+            //        sendMessage(this, cmdServerInfo, info.get());
+
+            //        auto&& helper = send(cmdServerInfo);
+            //        auto dt = QDateTime::currentDateTime();
+            //        helper << dt << dt.timeZone();
+            //        emit getServerInfo(&helper.dataStream());
+            //        break;
+        }
+        case cmdSetControlState:
+            apply_parse(data_dev, &Client::setControlState, 1);
+            break;
+        case cmdWriteToItem:
+            apply_parse(data_dev, &Client::writeToItem);
+            break;
+        case cmdSetMode:
+            apply_parse(data_dev, &Client::setMode);
+            break;
+            //    case cmdGetLostValues:
+            //        apply_parse(msg, &Client::lostValues);
+            //        break;
+        case cmdSetParamValues:
+            apply_parse(data_dev, &Client::setParamValues);
+            break;
+
+        case cmdSetCode:
+            send(cmd) << apply_parse(data_dev, &Client::setCode);
+            break;
+
+        case cmdGetCode:
+            send(cmd) << Helpz::apply_parse(data_dev, static_cast<<QDataStream::Version>(DATASTREAM_VERSION), &CodeManager::type, &prj->CodeMng);
+            break;
+
+        case cmdRestart:
+            qCDebug(NetClientLog) << "Restart command received";
+            restart();
+            break;
+
+        case cmdExecScript:
+            QString script_text;
+            parse_out(data_dev, script_text);
+            execScript(script_text);
+            break;
+
+            // -----> Sync database
+        case cmdLogRange:
+        {
+            uint8_t log_type; qint64 date_ms;
+            while(!msg.atEnd()) {
+                Helpz::parse_out(msg, log_type, date_ms);
+                if (log_type != Dai::ValueLog && log_type != Dai::EventLog)
+                    break;
+
+                send(cmd) << log_type << getLogRange(log_type, date_ms);
+            }
+            break;
+        }
+
+        case cmdLogData: {
+            uint8_t log_type; QPair<quint32, quint32> range;
+            parse_out(data_dev, log_type, range);
+            if (log_type != Dai::ValueLog && log_type != Dai::EventLog)
+                break;
+
+            auto res = getLogData(log_type, range);
+#if (__cplusplus > 201402L) && (!defined(__GNUC__) || (__GNUC__ >= 7))
+            try {
+                switch (log_type) {
+                case ValueLog: send(cmd) << log_type << res.not_found << std::get<0>(res.data); break;
+                case EventLog: send(cmd) << log_type << res.not_found << std::get<1>(res.data); break;
+                default: break;
+                }
+            }
+            catch (const std::bad_variant_access&) {}
+#else
+            switch (log_type) {
+            case ValueLog: send(cmd) << log_type << res.not_found << res.data_value; break;
+            case EventLog: send(cmd) << log_type << res.not_found << res.data_event; break;
+            default: break;
+            }
+#endif
+            break;
+        }
+            // <--------------------
+
+            // -----> Struct modify
+        case cmdStructModify: {
+            quint8 modifyType;
+            parse_out(data_dev, modifyType);
+            qCDebug(NetClientLog) << "Received strucrure modify" << (StructureType)modifyType << "size" << data_dev->size();
+            send(cmd) << structModify(modifyType, &msg);
+            break;
+        }
+            // <--------------------
+        }
+    }
+private slots:
+    void sendPack()
+    {
+        if (value_pack_.size())
+        {
+            //        qCDebug(NetClientLog) << "Send changes count" << pack.item_size();
+            send(cmdChangedValues) << value_pack_;
+            value_pack_.clear();
+        }
+
+        if (event_pack_.size())
+        {
+            //        std::cout << "Send events size" << event_pack_.size() << std::endl;
+            send(cmdEventMessage) << event_pack_;
+            event_pack_.clear();
+        }
+    }
+
+private:
+    void sendLogData(uint8_t log_type, const QPair<quint32, quint32>& range)
+    {
+
+    }
+
+    QString m_login, m_password;
+    QUuid m_device;
+    bool m_import_config;
+
+    QTimer packTimer;
+    QVector<ValuePackItem> value_pack_;
+    QVector<EventPackItem> event_pack_;
+
+    Helpz::Network::WaiterMap wait_map;
+    QVector<QPair<QUuid, QString>> lastUserDevices;
+
+    Project* prj;
+
+    Worker *worker;
+};
+#endif
+
+} // namespace Client
+} // namespace Dai

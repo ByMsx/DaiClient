@@ -6,9 +6,11 @@
 #include <Helpz/service.h>
 #include <Helpz/settingshelper.h>
 
+#include <Helpz/dtls_client_thread.h>
+
 #include "Database/db_manager.h"
 #include "checker.h"
-#include "Network/n_client.h"
+#include "Network/client_protocol_2_0.h"
 #include "Scripts/scriptedproject.h"
 
 #include "plus/dai/djangohelper.h"
@@ -18,7 +20,7 @@
 namespace Dai {
 class Worker;
 
-class WebSockItem : public QObject, public project::base
+class WebSockItem : public QObject, public Project_Info
 {
     Q_OBJECT
 public:
@@ -26,7 +28,7 @@ public:
     ~WebSockItem();
 
 signals:
-    void send(const ProjInfo &proj, const QByteArray& data) const;
+    void send(const Project_Info &proj, const QByteArray& data) const;
 public slots:
     void modeChanged(uint mode_id, uint group_id);
     void procCommand(quint32 user_team_id, quint32 proj_id, quint8 cmd, const QByteArray& data);
@@ -44,12 +46,14 @@ public:
     const Helpz::Database::ConnectionInfo& database_info() const;
 
     static std::unique_ptr<QSettings> settings();
+
+    std::shared_ptr<Client::Protocol_2_0> net_protocol();
 private:
     int init_logging(QSettings* s);
     void init_Database(QSettings *s);
     void init_Project(QSettings* s);
     void init_Checker(QSettings* s);
-    void init_GlobalClient(QSettings* s);
+    void init_network_client(QSettings* s);
     void init_LogTimer(int period);
 
     void initDjango(QSettings *s);
@@ -108,9 +112,10 @@ private:
     std::unique_ptr<Helpz::Database::ConnectionInfo> db_info_;
     DBManager* db_mng;
 
-    friend class Network::Client;
-    using NetworkClientThread = Helpz::SettingsThreadHelper<Network::Client, Worker*, QString, quint16, QString, QString, QUuid, int>;
-    NetworkClientThread::Type* g_mng_th;
+//    friend class Network::Client;
+//    using NetworkClientThread = Helpz::SettingsThreadHelper<Network::Client, Worker*, QString, quint16, QString, QString, QUuid, int>;
+//    NetworkClientThread::Type* g_mng_th;
+    std::shared_ptr<Helpz::DTLS::Client_Thread> net_thread_;
 
     using ScriptsThread = Helpz::SettingsThreadHelper<ScriptedProject, Worker*, Helpz::ConsoleReader*, QString, bool>;
     ScriptsThread::Type* prj;

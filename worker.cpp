@@ -7,7 +7,10 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 
+#include <botan/parsing.h>
+
 #include <Helpz/consolereader.h>
+#include <Helpz/dtls_client.h>
 
 #include <Dai/commands.h>
 #include <Dai/checkerinterface.h>
@@ -17,11 +20,10 @@
 namespace Dai {
 
 WebSockItem::WebSockItem(Worker *obj) :
-    QObject(), project::base(),
+    QObject(), Project_Info(),
     w(obj)
 {
     set_id(1);
-    set_title("localhost");
     set_teams({1});
     connect(w, &Worker::modeChanged, this, &WebSockItem::modeChanged, Qt::QueuedConnection);
 
@@ -34,7 +36,7 @@ WebSockItem::~WebSockItem() {
 void WebSockItem::modeChanged(uint mode_id, uint group_id) {
 
     QMetaObject::invokeMethod(w->webSock_th->ptr(), "sendModeChanged", Qt::QueuedConnection,
-                              Q_ARG(ProjInfo, this), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id));
+                              Q_ARG(Project_Info, this), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id));
 }
 
 void WebSockItem::procCommand(quint32 user_team_id, quint32 proj_id, quint8 cmd, const QByteArray &data)
@@ -44,14 +46,13 @@ void WebSockItem::procCommand(quint32 user_team_id, quint32 proj_id, quint8 cmd,
     try {
         switch (cmd) {
         case wsConnectInfo:
-            send(this, w->webSock_th->ptr()->getConnectState(id(), "127.0.0.1", QDateTime::currentDateTime().timeZone(), 0));
+            send(this, w->webSock_th->ptr()->prepare_connect_state_message(id(), "127.0.0.1", QDateTime::currentDateTime().timeZone(), 0));
             break;
 
         case wsWriteToDevItem: Helpz::apply_parse(ds, &Worker::writeToItem, w); break;
         case wsChangeGroupMode: Helpz::apply_parse(ds, &Worker::setMode, w); break;
         case wsChangeParamValues: Helpz::apply_parse(ds, &Worker::setParamValues, w); break;
         case wsRestart: w->serviceRestart(); break;
-        case wsChangeCode:
         case wsExecScript:
             qCritical() << "Attempt to do something bad from local";
             break;
@@ -80,7 +81,7 @@ Worker::Worker(QObject *parent) :
     init_Database(s.get());
     init_Project(s.get()); // инициализация структуры проекта
     init_Checker(s.get()); // запуск потока опроса устройств
-    init_GlobalClient(s.get()); // подключение к серверу
+    init_network_client(s.get()); // подключение к серверу
     init_LogTimer(log_period); // сохранение статуса устройства по таймеру
 
     // используется для подключения к Orange на прямую
@@ -103,15 +104,12 @@ Worker::~Worker()
     checker_th->ptr()->breakChecking();
     checker_th->quit();
 
-    g_mng_th->quit();
     prj->quit();
 
     if (webSock_th && !webSock_th->wait(15000))
         webSock_th->terminate();
     if (!django_th->wait(15000))
         django_th->terminate();
-    if (!g_mng_th->wait(15000))
-        g_mng_th->terminate();
     if (!checker_th->wait(15000))
         checker_th->terminate();
     if (!prj->wait(15000))
@@ -120,7 +118,6 @@ Worker::~Worker()
     if (webSock_th)
         delete webSock_th;
     delete django_th;
-    delete g_mng_th;
     delete checker_th;
     delete prj;
 
@@ -134,6 +131,11 @@ std::unique_ptr<QSettings> Worker::settings()
 {
     QString configFileName = QCoreApplication::applicationDirPath() + QDir::separator() + QCoreApplication::applicationName() + ".conf";
     return std::unique_ptr<QSettings>(new QSettings(configFileName, QSettings::NativeFormat));
+}
+
+std::shared_ptr<Client::Protocol_2_0> Worker::net_protocol()
+{
+    return std::static_pointer_cast<Client::Protocol_2_0>(net_thread_->client()->protocol());
 }
 
 int Worker::init_logging(QSettings *s)
@@ -206,25 +208,46 @@ void Worker::init_Checker(QSettings* s)
     checker_th->start();
 }
 
-void Worker::init_GlobalClient(QSettings* s)
+void Worker::init_network_client(QSettings* s)
 {
     qRegisterMetaType<ValuePackItem>("ValuePackItem");
     qRegisterMetaType<QVector<ValuePackItem>>("QVector<Dai::ValuePackItem>");
     qRegisterMetaType<QVector<EventPackItem>>("QVector<Dai::EventPackItem>");
     qRegisterMetaType<QVector<quint32>>("QVector<quint32>");
 
-    g_mng_th = NetworkClientThread()(
-              s, "RemoteServer",
-              this,
-              Z::Param<QString>{"Host",                 "deviceaccess.ru"},
-              Z::Param<quint16>{"Port",                 (quint16)25588},
-              Z::Param<QString>{"Login",                QString()},
-              Z::Param<QString>{"Password",             QString()},
-              Z::Param<QUuid>{"Device",               QUuid()},
-              Z::Param<int>{"CheckServerInterval",  15000}
-            );
+    Authentication_Info auth_info = Helpz::SettingsHelper{
+                s, "RemoteServer",
+                Z::Param<QString>{"Login",                QString()},
+                Z::Param<QString>{"Password",             QString()},
+                Z::Param<QUuid>{"Device",               QUuid()},
+            }.obj<Authentication_Info>();
 
-    g_mng_th->start();
+    if (!auth_info)
+    {
+        return;
+    }
+
+    const QString default_dir = qApp->applicationDirPath() + '/';
+    auto [ tls_policy_file, host, port, protocols, recpnnect_interval_sec ]
+            = Helpz::SettingsHelper{
+                s, "RemoteServer",
+                Z::Param<QString>{"TlsPolicyFile", default_dir + "tls_policy.conf"},
+                Z::Param<QString>{"Host",               "deviceaccess.ru"},
+                Z::Param<QString>{"Port",               "25588"},
+                Z::Param<QString>{"Protocols",          "dai/2.0,dai/1.1"},
+                Z::Param<uint32_t>{"ReconnectInterval",       15000}
+            }();
+
+    Helpz::DTLS::Create_Client_Protocol_Func_T func = [this, auth_info](const std::string& app_protocol) -> std::shared_ptr<Helpz::Network::Protocol>
+    {
+        return std::shared_ptr<Helpz::Network::Protocol>(new Client::Protocol_2_0{auth_info, this});
+    };
+
+    Helpz::DTLS::Client_Thread_Config conf{ tls_policy_file.toStdString(), host.toStdString(), port.toStdString(),
+                Botan::split_on(protocols.toStdString(), ','), recpnnect_interval_sec };
+    conf.set_create_protocol_func(std::move(func));
+
+    net_thread_.reset(new Helpz::DTLS::Client_Thread{std::move(conf)});
 }
 
 void Worker::init_LogTimer(int period)
@@ -276,8 +299,12 @@ void Worker::init_LogTimer(int period)
                 {
                     ValuePackItem packItem{ db_id.toUInt(), dev_item->id(), cur_date.toMSecsSinceEpoch(),
                                     dev_item->getRawValue(), dev_item->getValue() };
-                    QMetaObject::invokeMethod(g_mng_th->ptr(), "change", Qt::QueuedConnection,
+                    auto proto = net_protocol();
+                    if (proto)
+                    {
+                        QMetaObject::invokeMethod(proto.get(), "change", Qt::QueuedConnection,
                                               Q_ARG(ValuePackItem, packItem), Q_ARG(bool, false));
+                    }
                 }
                 else
                 {
@@ -344,10 +371,15 @@ void Worker::logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QStr
     QVariant db_id;
     if (db_mng->eventLog(type, ctx->category, str, cur_date, &db_id)) {
         EventPackItem item{db_id.toUInt(), type, cur_date.toMSecsSinceEpoch(), ctx->category, str};
-        QMetaObject::invokeMethod(g_mng_th->ptr(), "eventLog", Qt::QueuedConnection, Q_ARG(EventPackItem, item));
+
+        auto proto = net_protocol();
+        if (proto)
+        {
+            QMetaObject::invokeMethod(proto.get(), "eventLog", Qt::QueuedConnection, Q_ARG(EventPackItem, item));
+        }
         if (webSock_th)
             QMetaObject::invokeMethod(webSock_th->ptr(), "sendEventMessage", Qt::QueuedConnection,
-                                      QArgument<project::info>("ProjInfo", websock_item.get()), Q_ARG(quint32, db_id.toUInt()), Q_ARG(quint32, item.type_id),
+                                      Q_ARG(Project_Info, websock_item.get()), Q_ARG(quint32, db_id.toUInt()), Q_ARG(quint32, item.type_id),
                                       Q_ARG(QString, item.category), Q_ARG(QString, item.text), Q_ARG(QDateTime, cur_date));
     }
 }
@@ -395,8 +427,13 @@ void Worker::processCommands(const QStringList &args)
 QString Worker::getUserDevices()
 {
     QVector<QPair<QUuid, QString>> devices;
-    QMetaObject::invokeMethod(g_mng_th->ptr(), "getUserDevices", Qt::BlockingQueuedConnection,
+
+    auto proto = net_protocol();
+    if (proto)
+    {
+        QMetaObject::invokeMethod(proto.get(), "getUserDevices", Qt::BlockingQueuedConnection,
                               QReturnArgument<QVector<QPair<QUuid, QString>>>("QVector<QPair<QUuid, QString>>", devices));
+    }
 
     QJsonArray json;
     QJsonObject obj;
@@ -413,8 +450,12 @@ QString Worker::getUserDevices()
 QString Worker::getUserStatus()
 {
     QJsonObject json;
-    json["user"] = g_mng_th->ptr()->username();
-    json["device"] = g_mng_th->ptr()->device().toString();
+    auto proto = net_protocol();
+    if (proto)
+    {
+        json["user"] = proto->auth_info().login();
+        json["device"] = proto->auth_info().device_id().toString();
+    }
     return QJsonDocument(json).toJson(QJsonDocument::Compact);
 }
 
@@ -436,13 +477,13 @@ void Worker::initDevice(const QString &device, const QString &device_name, const
      * 3. Перезагрузится
      **/
 
-    Network::Client* c = g_mng_th->ptr();
-    if (!devive_uuid.isNull())
-        QMetaObject::invokeMethod(c, "importDevice", Qt::BlockingQueuedConnection, Q_ARG(QUuid, devive_uuid));
+    auto proto = net_protocol();
+    if (!devive_uuid.isNull() && proto)
+        QMetaObject::invokeMethod(proto.get(), "importDevice", Qt::BlockingQueuedConnection, Q_ARG(QUuid, devive_uuid));
 
     QUuid new_uuid;
-    if (!device_name.isEmpty())
-        QMetaObject::invokeMethod(c, "createDevice", Qt::BlockingQueuedConnection, Q_RETURN_ARG(QUuid, new_uuid),
+    if (!device_name.isEmpty() && proto)
+        QMetaObject::invokeMethod(proto.get(), "createDevice", Qt::BlockingQueuedConnection, Q_RETURN_ARG(QUuid, new_uuid),
                                   Q_ARG(QString, device_name), Q_ARG(QString, device_latin), Q_ARG(QString, device_desc));
     else
         new_uuid = devive_uuid;
@@ -462,7 +503,11 @@ void Worker::clearServerConfig()
 
 void Worker::saveServerAuthData(const QString &login, const QString &password)
 {
-    saveServerData(g_mng_th->ptr()->device(), login, password);
+    auto proto = net_protocol();
+    if (proto)
+    {
+        saveServerData(proto->auth_info().device_id(), login, password);
+    }
 }
 
 void Worker::saveServerData(const QUuid &devive_uuid, const QString &login, const QString &password)
@@ -474,8 +519,12 @@ void Worker::saveServerData(const QUuid &devive_uuid, const QString &login, cons
     s->setValue("Password", password);
     s->endGroup();
 
-    QMetaObject::invokeMethod(g_mng_th->ptr(), "refreshAuth", Qt::QueuedConnection,
+    auto proto = net_protocol();
+    if (proto)
+    {
+        QMetaObject::invokeMethod(proto.get(), "refreshAuth", Qt::QueuedConnection,
                               Q_ARG(QUuid, devive_uuid), Q_ARG(QString, login), Q_ARG(QString, password));
+    }
 }
 
 QByteArray Worker::sections()
@@ -635,7 +684,7 @@ void Worker::newValue(DeviceItem *item)
     if (webSock_th) {
         QVector<Dai::ValuePackItem> pack{pack_item};
         QMetaObject::invokeMethod(webSock_th->ptr(), "sendDeviceItemValues", Qt::QueuedConnection,
-                                  QArgument<project::info>("ProjInfo", websock_item.get()), Q_ARG(QVector<Dai::ValuePackItem>, pack));
+                                  Q_ARG(Project_Info, websock_item.get()), Q_ARG(QVector<Dai::ValuePackItem>, pack));
     }
 }
 
