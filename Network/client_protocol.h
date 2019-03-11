@@ -8,6 +8,9 @@
 #include <plus/dai/authentication_info.h>
 
 namespace Dai {
+
+class Worker;
+
 namespace Client {
 
 Q_DECLARE_LOGGING_CATEGORY(NetClientLog)
@@ -16,10 +19,14 @@ class Protocol : public QObject, public Helpz::Network::Protocol
 {
     Q_OBJECT
 public:
-    Protocol(const Authentication_Info &auth_info);
+    Protocol(Worker* worker, const Authentication_Info &auth_info);
+
+    Worker* worker() const;
 
     const Authentication_Info& auth_info() const;
+
 private:
+    Worker *worker_;
     Authentication_Info auth_info_;
 };
 

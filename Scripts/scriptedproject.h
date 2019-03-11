@@ -6,7 +6,7 @@
 //#include <QQmlEngine>
 
 #include <Helpz/simplethread.h>
-#include <Helpz/db_connectioninfo.h>
+#include <Helpz/db_connection_info.h>
 
 #include <Dai/project.h>
 
@@ -77,7 +77,7 @@ signals:
 public slots:
     void log(const QString& msg, uint type);
     void console(const QString& cmd);
-    void reinitialization(const Helpz::Database::ConnectionInfo &db_info);
+    void reinitialization(const Helpz::Database::Connection_Info &db_info);
     void afterAllInitialization();
 
     void ssh(quint16 port = 22, quint32 remote_port = 25589);

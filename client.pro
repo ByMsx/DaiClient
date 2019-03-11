@@ -30,7 +30,8 @@ SOURCES += main.cpp \
     Scripts/paramgroupprototype.cpp \
     Scripts/scriptedproject.cpp \
     Network/client_protocol.cpp \
-    Network/client_protocol_2_0.cpp
+    Network/client_protocol_2_0.cpp \
+    Network/log_sender.cpp
 
 HEADERS  += \
     worker.h \
@@ -47,7 +48,8 @@ HEADERS  += \
     Scripts/paramgroupclass.h \
     Scripts/scriptedproject.h \
     Network/client_protocol.h \
-    Network/client_protocol_2_0.h
+    Network/client_protocol_2_0.h \
+    Network/log_sender.h
 
 #Target version
 VER_MAJ = 1

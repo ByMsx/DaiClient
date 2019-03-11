@@ -119,7 +119,7 @@ MainWindow::~MainWindow()
 void MainWindow::init_Database(QSettings* s)
 {
     s->beginGroup("Database");
-    qDebug() << "Open SQL is" << db_mng.createConnection({
+    qDebug() << "Open SQL is" << db_mng.create_connection({
                     s->value("Name", "dai_main").toString(),
                     s->value("User", "DaiUser").toString(),
                     s->value("Password", "?").toString() });

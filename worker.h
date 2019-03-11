@@ -30,6 +30,8 @@ public:
 signals:
     void send(const Project_Info &proj, const QByteArray& data) const;
 public slots:
+    void send_event_message(const EventPackItem& event);
+
     void modeChanged(uint mode_id, uint group_id);
     void procCommand(quint32 user_team_id, quint32 proj_id, quint8 cmd, const QByteArray& data);
 private:
@@ -43,11 +45,13 @@ public:
     explicit Worker(QObject *parent = 0);
     ~Worker();
 
-    const Helpz::Database::ConnectionInfo& database_info() const;
+    DBManager* database() const;
+    const Helpz::Database::Connection_Info& database_info() const;
 
     static std::unique_ptr<QSettings> settings();
 
     std::shared_ptr<Client::Protocol_2_0> net_protocol();
+
 private:
     int init_logging(QSettings* s);
     void init_Database(QSettings *s);
@@ -76,6 +80,7 @@ signals:
 
     void paramValuesChanged(const ParamValuesPack& pack);
 
+    void event_message(const EventPackItem&);
 //    std::shared_ptr<Dai::Prt::ServerInfo> dumpSectionsInfo() const;
 public slots:
     void logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QString &str);
@@ -98,7 +103,7 @@ public slots:
     bool setCode(const CodeItem &item);
 
     void setParamValues(const ParamValuesPack& pack);
-    bool applyStructModify(quint8 structType, QDataStream* msg);
+    bool applyStructModify(quint8 structType, QIODevice* data_dev);
 
 //    bool setSettings(uchar stType, google::protobuf::Message* msg);
 public slots:
@@ -108,11 +113,10 @@ public slots:
 
 //    void sendLostValues(const QVector<quint32> &ids);
 private:
-    DBManager* database() const;
-    std::unique_ptr<Helpz::Database::ConnectionInfo> db_info_;
+    std::unique_ptr<Helpz::Database::Connection_Info> db_info_;
     DBManager* db_mng;
 
-//    friend class Network::Client;
+    friend class Client::Protocol_2_0;
 //    using NetworkClientThread = Helpz::SettingsThreadHelper<Network::Client, Worker*, QString, quint16, QString, QString, QUuid, int>;
 //    NetworkClientThread::Type* g_mng_th;
     std::shared_ptr<Helpz::DTLS::Client_Thread> net_thread_;

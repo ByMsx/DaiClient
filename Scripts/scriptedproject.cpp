@@ -124,7 +124,7 @@ void ScriptedProject::setSSHHost(const QString &value) { if (ssh_host != value) 
 
 qint64 ScriptedProject::uptime() const { return m_uptime; }
 
-void ScriptedProject::reinitialization(const Helpz::Database::ConnectionInfo& db_info)
+void ScriptedProject::reinitialization(const Helpz::Database::Connection_Info& db_info)
 {
     m_script_engine->popContext();
     QScriptContext* ctx = m_script_engine->pushContext();

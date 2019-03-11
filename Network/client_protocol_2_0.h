@@ -1,19 +1,28 @@
 #ifndef DAI_PROTOCOL_2_0_H
 #define DAI_PROTOCOL_2_0_H
 
+#include <Dai/project.h>
+
+#include "log_sender.h"
 #include "client_protocol.h"
 
 namespace Dai {
-
-class Worker;
-
 namespace Client {
 
 class Protocol_2_0 : public Protocol
 {
     Q_OBJECT
 public:
-    Protocol_2_0(const Authentication_Info &auth_info, Worker* worker);
+    Protocol_2_0(Worker* worker, const Authentication_Info &auth_info);
+
+signals:
+    void restart();
+    void write_to_item(quint32 item_id, const QVariant& raw_data);
+    bool set_mode(quint32 mode_id, quint32 group_id);
+    void set_param_values(const ParamValuesPack& pack);
+    void exec_script_command(const QString& script);
+
+    bool modify_project(quint8 struct_type, QIODevice* data_dev);
 
 private:
     void connect_worker_signals();
@@ -22,8 +31,15 @@ private:
     void process_message(uint8_t msg_id, uint16_t cmd, QIODevice& data_dev) override;
 
     void start_authentication();
+    void send_project_structure(uint8_t struct_type, uint8_t msg_id);
+    void send_version(uint8_t msg_id);
+    void send_time_info(uint8_t msg_id);
 
-    Worker *worker_;
+    void sendParamValues(const ParamValuesPack& pack);
+
+    Project* prj_;
+
+    Log_Sender log_sender_;
 };
 
 } // namespace Client

@@ -33,6 +33,12 @@ WebSockItem::~WebSockItem() {
     disconnect(this);
 }
 
+void WebSockItem::send_event_message(const EventPackItem& event)
+{
+    QMetaObject::invokeMethod(w->webSock_th->ptr(), "sendEventMessage", Qt::QueuedConnection,
+                              Q_ARG(Project_Info, this), Q_ARG(EventPackItem, event));
+}
+
 void WebSockItem::modeChanged(uint mode_id, uint group_id) {
 
     QMetaObject::invokeMethod(w->webSock_th->ptr(), "sendModeChanged", Qt::QueuedConnection,
@@ -125,7 +131,7 @@ Worker::~Worker()
 }
 
 DBManager* Worker::database() const { return db_mng; }
-const Helpz::Database::ConnectionInfo &Worker::database_info() const { return *db_info_; }
+const Helpz::Database::Connection_Info& Worker::database_info() const { return *db_info_; }
 
 std::unique_ptr<QSettings> Worker::settings()
 {
@@ -174,7 +180,7 @@ void Worker::init_Database(QSettings* s)
                 Z::Param<int>{"Port", -1},
                 Z::Param<QString>{"Driver", "QMYSQL"},
                 Z::Param<QString>{"ConnectOptions", QString()}
-    ).unique_ptr<Helpz::Database::ConnectionInfo>();
+    ).unique_ptr<Helpz::Database::Connection_Info>();
     if (!db_info_)
         throw std::runtime_error("Failed get database config");
 
@@ -240,7 +246,7 @@ void Worker::init_network_client(QSettings* s)
 
     Helpz::DTLS::Create_Client_Protocol_Func_T func = [this, auth_info](const std::string& app_protocol) -> std::shared_ptr<Helpz::Network::Protocol>
     {
-        return std::shared_ptr<Helpz::Network::Protocol>(new Client::Protocol_2_0{auth_info, this});
+        return std::shared_ptr<Helpz::Network::Protocol>(new Client::Protocol_2_0{this, auth_info});
     };
 
     Helpz::DTLS::Client_Thread_Config conf{ tls_policy_file.toStdString(), host.toStdString(), port.toStdString(),
@@ -348,6 +354,8 @@ void Worker::initWebSocketManager(QSettings *s)
     connect(webSock_th->ptr(), &Network::WebSocket::checkAuth,
                      django_th->ptr(), &DjangoHelper::checkToken, Qt::BlockingQueuedConnection);
 
+    connect(this, &Worker::event_message, websock_item.get(), &WebSockItem::send_event_message, Qt::DirectConnection);
+
     websock_item.reset(new WebSockItem(this));
     connect(webSock_th->ptr(), &Network::WebSocket::throughCommand,
             websock_item.get(), &WebSockItem::procCommand, Qt::BlockingQueuedConnection);
@@ -365,22 +373,15 @@ void Worker::logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QStr
 {
     if (qstrcmp(ctx->category, Helpz::Network::DetailLog().categoryName()) == 0 ||
             qstrncmp(ctx->category, "net", 3) == 0)
+    {
         return;
+    }
 
     QDateTime cur_date = QDateTime::currentDateTime();
     QVariant db_id;
-    if (db_mng->eventLog(type, ctx->category, str, cur_date, &db_id)) {
-        EventPackItem item{db_id.toUInt(), type, cur_date.toMSecsSinceEpoch(), ctx->category, str};
-
-        auto proto = net_protocol();
-        if (proto)
-        {
-            QMetaObject::invokeMethod(proto.get(), "eventLog", Qt::QueuedConnection, Q_ARG(EventPackItem, item));
-        }
-        if (webSock_th)
-            QMetaObject::invokeMethod(webSock_th->ptr(), "sendEventMessage", Qt::QueuedConnection,
-                                      Q_ARG(Project_Info, websock_item.get()), Q_ARG(quint32, db_id.toUInt()), Q_ARG(quint32, item.type_id),
-                                      Q_ARG(QString, item.category), Q_ARG(QString, item.text), Q_ARG(QDateTime, cur_date));
+    if (db_mng->eventLog(type, ctx->category, str, cur_date, &db_id))
+    {
+        event_message(EventPackItem{db_id.toUInt(), type, cur_date.toMSecsSinceEpoch(), ctx->category, str});
     }
 }
 
@@ -619,39 +620,41 @@ void Worker::setParamValues(const ParamValuesPack &pack)
     emit paramValuesChanged(pack);
 }
 
-bool Worker::applyStructModify(quint8 structType, QDataStream *msg)
+bool Worker::applyStructModify(quint8 structType, QIODevice* data_dev)
 {
     using namespace Network;
-    qCDebug(Service::Log) << "applyStructModify" << (StructureType)structType;
+    qCDebug(Service::Log) << "applyStructModify" << (StructureType)structType << "size" << data_dev->size();
 
     try {
-        switch ((StructureType)structType) {
-        case stDevices:
-            return Helpz::apply_parse(*msg, &Database::applyModifyDevices, db_mng);
-        case stCheckerType:
-            return Helpz::apply_parse(*msg, &Database::applyModifyCheckerTypes, db_mng);
-        case stDeviceItems:
-            return Helpz::apply_parse(*msg, &Database::applyModifyDeviceItems, db_mng);
-        case stDeviceItemTypes:
-            return Helpz::apply_parse(*msg, &Database::applyModifyDeviceItemTypes, db_mng);
-        case stSections:
-            return Helpz::apply_parse(*msg, &Database::applyModifySections, db_mng);
-        case stGroups:
-            return Helpz::apply_parse(*msg, &Database::applyModifyGroups, db_mng);
-        case stGroupTypes:
-            return Helpz::apply_parse(*msg, &Database::applyModifyGroupTypes, db_mng);
-        case stGroupParams:
-            return Helpz::apply_parse(*msg, &Database::applyModifyGroupParams, db_mng);
-        case stGroupParamTypes:
-            return Helpz::apply_parse(*msg, &Database::applyModifyGroupParamTypes, db_mng);
-        case stGroupStatuses:
-            return Helpz::apply_parse(*msg, &Database::applyModifyGroupStatuses, db_mng);
-        case stGroupStatusTypes:
-            return Helpz::apply_parse(*msg, &Database::applyModifyGroupStatusTypes, db_mng);
-        case stSigns:
-            return Helpz::apply_parse(*msg, &Database::applyModifySigns, db_mng);
-        case stScripts:
-            return Helpz::apply_parse(*msg, &Database::applyModifyScripts, db_mng);
+        auto v = Helpz::Network::Protocol::DATASTREAM_VERSION;
+        switch (structType)
+        {
+        case STRUCT_TYPE_DEVICES:
+            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyDevices, db_mng);
+        case STRUCT_TYPE_CHECKER_TYPES:
+            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyCheckerTypes, db_mng);
+        case STRUCT_TYPE_DEVICE_ITEMS:
+            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyDeviceItems, db_mng);
+        case STRUCT_TYPE_DEVICE_ITEM_TYPES:
+            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyDeviceItemTypes, db_mng);
+        case STRUCT_TYPE_SECTIONS:
+            return Helpz::apply_parse(*data_dev, v, &Database::applyModifySections, db_mng);
+        case STRUCT_TYPE_GROUPS:
+            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyGroups, db_mng);
+        case STRUCT_TYPE_GROUP_TYPES:
+            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyGroupTypes, db_mng);
+        case STRUCT_TYPE_GROUP_PARAMS:
+            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyGroupParams, db_mng);
+        case STRUCT_TYPE_GROUP_PARAM_TYPES:
+            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyGroupParamTypes, db_mng);
+        case STRUCT_TYPE_GROUP_STATUSES:
+            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyGroupStatuses, db_mng);
+        case STRUCT_TYPE_GROUP_STATUS_TYPE:
+            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyGroupStatusTypes, db_mng);
+        case STRUCT_TYPE_SIGNS:
+            return Helpz::apply_parse(*data_dev, v, &Database::applyModifySigns, db_mng);
+        case STRUCT_TYPE_SCRIPTS:
+            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyScripts, db_mng);
 
         default: return false;
         }
