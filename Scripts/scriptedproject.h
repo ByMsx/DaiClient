@@ -62,7 +62,6 @@ public:
     QScriptValue valueFromVariant(const QVariant& data) const;
 signals:
     void sctItemChanged(DeviceItem*);
-    void groupStatusChanged(quint32 group_id, quint32 status);
 
     void statusAdded(quint32 group_id, quint32 info_id, const QStringList& args);
     void statusRemoved(quint32 group_id, quint32 info_id);
@@ -89,11 +88,9 @@ private slots:
 
     bool controlChangeCheck(DeviceItem* item, const QVariant& raw_data);
     bool checkValue(DeviceItem* item) const;
-    quint32 groupStatus(ItemGroup::ValueType val) const;
 
     void groupModeChanged(uint mode, quint32 group_id);
     void itemChanged(DeviceItem* item);
-    void statusChanged(quint32 status);
     void handlerException(const QScriptValue &exception);
 private:
     void run_automation(ItemGroup *group, const QScriptValue &groupObj, const QScriptValue& itemObj = QScriptValue());

@@ -70,10 +70,9 @@ signals:
 
     // D-BUS Signals
     void started();
-    void change(const Dai::ValuePackItem& item, bool immediately);
+    void change(const ValuePackItem& item, bool immediately);
 
     void modeChanged(uint mode_id, uint group_id);
-    void groupStatusChanged(quint32 group_id, quint32 status);
 
     void statusAdded(quint32 group_id, quint32 info_id, const QStringList& args);
     void statusRemoved(quint32 group_id, quint32 info_id);

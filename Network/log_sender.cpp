@@ -16,6 +16,9 @@ Log_Sender::Log_Sender(Protocol* protocol) :
     connect(&timer_, &QTimer::timeout, this, &Log_Sender::send_log_packs);
     timer_.setSingleShot(true);
 
+    qRegisterMetaType<ValuePackItem>("ValuePackItem");
+    qRegisterMetaType<EventPackItem>("EventPackItem");
+
     auto w = protocol->worker();
     connect(this, &Log_Sender::get_log_range, w->database(), &DBManager::log_range, Qt::BlockingQueuedConnection);
     connect(this, &Log_Sender::get_log_value_data, w->database(), &DBManager::log_value_data, Qt::BlockingQueuedConnection);

@@ -31,7 +31,7 @@ public:
     uint id() const override;
 
 private:
-    int m_index;
+    uint32_t m_index;
     int m_last;
 };
 
@@ -97,7 +97,7 @@ QScriptClass::QueryFlags ParamGroupClass::queryProperty(const QScriptValue &obje
         return 0;
 
     bool isArrayIndex;
-    qint32 pos = name.toArrayIndex(&isArrayIndex);
+    quint32 pos = name.toArrayIndex(&isArrayIndex);
     if (!isArrayIndex)
         return param->has(name.toString()) ? flags : static_cast<QScriptClass::QueryFlags>(0);
 

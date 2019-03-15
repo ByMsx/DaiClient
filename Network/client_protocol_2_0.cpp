@@ -18,7 +18,6 @@ Protocol_2_0::Protocol_2_0(Worker *worker, const Authentication_Info &auth_info)
     Protocol{worker, auth_info},
     log_sender_(this)
 {
-
     connect_worker_signals();
 }
 
@@ -36,11 +35,13 @@ void Protocol_2_0::connect_worker_signals()
     connect(this, &Protocol_2_0::exec_script_command, worker()->prj->ptr(), &ScriptedProject::console, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::modify_project, worker(), &Worker::applyStructModify, Qt::BlockingQueuedConnection);
 
+    connect(worker(), &Worker::modeChanged, this, &Protocol_2_0::send_mode, Qt::QueuedConnection);
+    connect(worker(), &Worker::statusAdded, this, &Protocol_2_0::send_status_added, Qt::QueuedConnection);
+    connect(worker(), &Worker::statusRemoved, this, &Protocol_2_0::send_status_removed, Qt::QueuedConnection);
     connect(worker(), &Worker::paramValuesChanged, this, &Protocol_2_0::sendParamValues, Qt::QueuedConnection);
 
     /*
     qRegisterMetaType<CodeItem>("CodeItem");
-    qRegisterMetaType<EventPackItem>("EventPackItem");
     qRegisterMetaType<std::vector<uint>>("std::vector<uint>");
 
     connect(this, &Protocol_2_0::setControlState, worker, &Worker::setControlState, Qt::QueuedConnection);
@@ -49,10 +50,6 @@ void Protocol_2_0::connect_worker_signals()
 
     //    connect(this, &Protocol_2_0::lostValues, worker, &Worker::sendLostValues, Qt::QueuedConnection);
 
-    connect(worker, &Worker::modeChanged, this, &Client::modeChanged, Qt::QueuedConnection);
-    connect(worker, &Worker::groupStatusChanged, this, &Client::groupStatusChanged, Qt::QueuedConnection);
-    connect(worker, &Worker::statusAdded, this, &Client::statusAdded, Qt::QueuedConnection);
-    connect(worker, &Worker::statusRemoved, this, &Client::statusRemoved, Qt::QueuedConnection);
 
 
     connect(this, &Protocol_2_0::getServerInfo, worker->prj->ptr(), &Project::dumpInfoToStream, Qt::DirectConnection);
@@ -87,14 +84,21 @@ void Protocol_2_0::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data
     case Cmd::SET_PARAM_VALUES:     apply_parse(data_dev, &Protocol_2_0::set_param_values);     break;
     case Cmd::EXEC_SCRIPT_COMMAND:  apply_parse(data_dev, &Protocol_2_0::exec_script_command);  break;
 
-    case Cmd::GET_PROJECT:          apply_parse(data_dev, &Protocol_2_0::send_project_structure, msg_id); break;
-    case Cmd::MODIFY_PROJECT:       apply_parse(data_dev, &Protocol_2_0::modify_project, &data_dev); break;
+    case Cmd::GET_PROJECT:          apply_parse(data_dev, &Protocol_2_0::send_project_structure, msg_id, &data_dev); break;
+    case Cmd::MODIFY_PROJECT:       /*send_answer(cmd, msg_id) << */apply_parse(data_dev, &Protocol_2_0::modify_project, &data_dev); break;
 
     default:
         if (cmd >= Helpz::Network::Cmd::USER_COMMAND)
+        {
             qCCritical(NetClientLog) << "UNKNOWN MESSAGE" << cmd;
+        }
         break;
     }
+}
+
+void Protocol_2_0::process_answer_message(uint8_t msg_id, uint16_t cmd, QIODevice& data_dev)
+{
+    qCWarning(NetClientLog) << "unprocess answer" << int(msg_id) << cmd;
 }
 
 void Protocol_2_0::start_authentication()
@@ -109,19 +113,22 @@ void Protocol_2_0::start_authentication()
     }, std::chrono::seconds(15)) << auth_info();
 }
 
-void Protocol_2_0::send_project_structure(uint8_t struct_type, uint8_t msg_id)
+void Protocol_2_0::send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev)
 {
-    Helpz::Network::Protocol_Sender&& helper = send_answer(Cmd::GET_PROJECT, msg_id);
+    Helpz::Network::Protocol_Sender helper = std::move(send_answer(Cmd::GET_PROJECT, msg_id));
     helper << struct_type;
 
     std::unique_ptr<QDataStream> ds;
+    std::unique_ptr<QBuffer> buf;
 
     bool hash_flag = struct_type & STRUCT_TYPE_HASH_FLAG;
     if (hash_flag)
     {
         struct_type &= ~STRUCT_TYPE_HASH_FLAG;
 
-        ds.reset(new QDataStream{});
+        buf.reset(new QBuffer{});
+        buf->open(QIODevice::ReadWrite);
+        ds.reset(new QDataStream{buf.get()});
         ds->setVersion(DATASTREAM_VERSION);
     }
     else
@@ -132,49 +139,11 @@ void Protocol_2_0::send_project_structure(uint8_t struct_type, uint8_t msg_id)
     switch (struct_type)
     {
     case STRUCT_TYPE_DEVICES:           *ds << prj_->devices(); break;
-    case STRUCT_TYPE_CHECKER_TYPES:
-        if (prj_->PluginTypeMng)
-        {
-            *ds << *prj_->PluginTypeMng;
-        }
-        break;
-    case STRUCT_TYPE_DEVICE_ITEMS:
-    {
-        auto pos = ds->device()->pos();
-        uint32_t count = 0;
-        *ds << quint32(0);
-
-        for (Device* dev: prj_->devices())
-        {
-            for (DeviceItem* dev_item: dev->items())
-            {
-                *ds << dev_item;
-                ++count;
-            }
-        }
-        ds->device()->seek(pos);
-        *ds << count;
-        break;
-    }
+    case STRUCT_TYPE_CHECKER_TYPES:     add_checker_types(*ds); break;
+    case STRUCT_TYPE_DEVICE_ITEMS:      add_device_items(*ds);  break;
     case STRUCT_TYPE_DEVICE_ITEM_TYPES: *ds << prj_->ItemTypeMng; break;
     case STRUCT_TYPE_SECTIONS:          *ds << prj_->sections(); break;
-    case STRUCT_TYPE_GROUPS:
-    {
-        auto pos = ds->device()->pos();
-        uint32_t count = 0;
-        *ds << quint32(0);
-        for (Section* sct: prj_->sections())
-        {
-            for (ItemGroup* group: sct->groups())
-            {
-                *ds << group;
-                ++count;
-            }
-        }
-        ds->device()->seek(pos);
-        *ds << count;
-        break;
-    }
+    case STRUCT_TYPE_GROUPS:            add_groups(*ds);        break;
     case STRUCT_TYPE_GROUP_TYPES:       *ds << prj_->GroupTypeMng; break;
     case STRUCT_TYPE_GROUP_MODES:       *ds << prj_->ModeTypeMng; break;
     case STRUCT_TYPE_GROUP_PARAMS:      *ds << prj_->get_param_items(); break;
@@ -193,7 +162,8 @@ void Protocol_2_0::send_project_structure(uint8_t struct_type, uint8_t msg_id)
         }
         else
         {
-            // TODO: send all codes
+            apply_parse(*data_dev, &Protocol_2_0::add_codes, ds.get());
+            qDebug(NetClientLog) << "code sended size:" << helper.device()->size();
         }
         break;
     }
@@ -212,6 +182,71 @@ void Protocol_2_0::send_project_structure(uint8_t struct_type, uint8_t msg_id)
     {
         ds.release();
     }
+
+    helper.timeout(nullptr, std::chrono::minutes(5), std::chrono::seconds(90));
+}
+
+void Protocol_2_0::add_checker_types(QDataStream& ds)
+{
+    if (prj_->PluginTypeMng)
+    {
+        ds << *prj_->PluginTypeMng;
+    }
+}
+
+void Protocol_2_0::add_device_items(QDataStream& ds)
+{
+    auto pos = ds.device()->pos();
+    uint32_t count = 0;
+    ds << quint32(0);
+
+    for (Device* dev: prj_->devices())
+    {
+        for (DeviceItem* dev_item: dev->items())
+        {
+            ds << dev_item;
+            ++count;
+        }
+    }
+    ds.device()->seek(pos);
+    ds << count;
+}
+
+void Protocol_2_0::add_groups(QDataStream& ds)
+{
+    auto pos = ds.device()->pos();
+    uint32_t count = 0;
+    ds << quint32(0);
+    for (Section* sct: prj_->sections())
+    {
+        for (ItemGroup* group: sct->groups())
+        {
+            ds << group;
+            ++count;
+        }
+    }
+    ds.device()->seek(pos);
+    ds << count;
+}
+
+void Protocol_2_0::add_codes(const QVector<uint32_t>& ids, QDataStream* ds)
+{
+    CodeItem* code;
+    uint32_t count = 0;
+    auto pos = ds->device()->pos();
+    *ds << count;
+    for (uint32_t id: ids)
+    {
+        code = prj_->CodeMng.getType(id);
+        if (code->id())
+        {
+            *ds << *code;
+            ++count;
+        }
+    }
+    ds->device()->seek(pos);
+    *ds << count;
+    ds->device()->seek(ds->device()->size());
 }
 
 void Protocol_2_0::send_version(uint8_t msg_id)
@@ -229,6 +264,21 @@ void Protocol_2_0::send_time_info(uint8_t msg_id)
 {
     auto dt = QDateTime::currentDateTime();
     send_answer(Cmd::TIME_INFO, msg_id) << dt << dt.timeZone();
+}
+
+void Protocol_2_0::send_mode(uint mode_id, quint32 group_id)
+{
+    send(Cmd::SET_MODE) << mode_id << group_id;
+}
+
+void Protocol_2_0::send_status_added(quint32 group_id, quint32 info_id, const QStringList& args)
+{
+    send(Cmd::ADD_STATUS) << group_id << info_id << args;
+}
+
+void Protocol_2_0::send_status_removed(quint32 group_id, quint32 info_id)
+{
+    send(Cmd::REMOVE_STATUS) << group_id << info_id;
 }
 
 void Protocol_2_0::sendParamValues(const ParamValuesPack& pack)
@@ -355,22 +405,6 @@ public slots:
     }
 
     //void setId(int id) { m_id = id; }
-
-    void modeChanged(uint mode_id, quint32 group_id) {
-        qDebug(NetClientLog) << "modeChanged" << mode_id << group_id;
-        send(cmdChangedMode) << mode_id << group_id;
-    }
-
-    void statusAdded(quint32 group_id, quint32 info_id, const QStringList& args) {
-        send(cmdGroupStatusAdded) << group_id << info_id << args;
-    }
-    void statusRemoved(quint32 group_id, quint32 info_id) {
-        send(cmdGroupStatusRemoved) << group_id << info_id;
-    }
-    void groupStatusChanged(quint32 group_id, quint32 status)
-    {
-        send(cmdChangedStatus) << group_id << status;
-    }
 
     //void sendLostValues(const QVector<ValuePackItem> &valuesPack) {
     //    send(cmdGetLostValues) << valuesPack;

@@ -6,6 +6,8 @@
 
 #include <QHostAddress>
 
+#include <Helpz/settingshelper.h>
+
 #include <csignal>
 #include <iostream>
 
@@ -118,12 +120,24 @@ MainWindow::~MainWindow()
 
 void MainWindow::init_Database(QSettings* s)
 {
-    s->beginGroup("Database");
-    qDebug() << "Open SQL is" << db_mng.create_connection({
-                    s->value("Name", "dai_main").toString(),
-                    s->value("User", "DaiUser").toString(),
-                    s->value("Password", "?").toString() });
-    s->endGroup();
+    auto db_info = Helpz::SettingsHelper
+        #if (__cplusplus < 201402L) || (defined(__GNUC__) && (__GNUC__ < 7))
+            <Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<int>,Z::Param<QString>,Z::Param<QString>>
+        #endif
+            (
+                s, "Database",
+                Helpz::Param<QString>{"Name", "deviceaccess_local"},
+                Helpz::Param<QString>{"User", "DaiUser"},
+                Helpz::Param<QString>{"Password", ""},
+                Helpz::Param<QString>{"Host", "localhost"},
+                Helpz::Param<int>{"Port", -1},
+                Helpz::Param<QString>{"Driver", "QMYSQL"},
+                Helpz::Param<QString>{"ConnectOptions", QString()}
+    ).unique_ptr<Helpz::Database::Connection_Info>();
+    if (!db_info)
+        throw std::runtime_error("Failed get database config");
+
+    qDebug() << "Open SQL is" << db_mng.create_connection(*db_info);
 }
 
 void MainWindow::init()
@@ -241,7 +255,7 @@ MainWindow::SocatInfo MainWindow::createSocat()
     info.socat->setProcessChannelMode(QProcess::MergedChannels);
     info.socat->setReadChannel(QProcess::StandardOutput);
     info.socat->setProgram("/usr/bin/socat");
-    info.socat->setArguments(QStringList() << "-d" << "-d" << "pty,raw,echo=0,user=andrey" << "pty,raw,echo=0,user=andrey");
+    info.socat->setArguments(QStringList() << "-d" << "-d" << "pty,raw,echo=0,user=kirill" << "pty,raw,echo=0,user=kirill");
 
     auto dbg = qDebug() << info.socat->program() << info.socat->arguments();
     info.socat->start(QIODevice::ReadOnly);

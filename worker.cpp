@@ -83,6 +83,9 @@ Worker::Worker(QObject *parent) :
 {
     auto s = settings();
 
+    qRegisterMetaType<ValuePackItem>("ValuePackItem");
+    qRegisterMetaType<EventPackItem>("EventPackItem");
+
     int log_period = init_logging(s.get());
     init_Database(s.get());
     init_Project(s.get()); // инициализация структуры проекта
@@ -217,14 +220,15 @@ void Worker::init_Checker(QSettings* s)
 void Worker::init_network_client(QSettings* s)
 {
     qRegisterMetaType<ValuePackItem>("ValuePackItem");
-    qRegisterMetaType<QVector<ValuePackItem>>("QVector<Dai::ValuePackItem>");
-    qRegisterMetaType<QVector<EventPackItem>>("QVector<Dai::EventPackItem>");
+    qRegisterMetaType<QVector<ValuePackItem>>("QVector<ValuePackItem>");
+    qRegisterMetaType<QVector<EventPackItem>>("QVector<EventPackItem>");
     qRegisterMetaType<QVector<quint32>>("QVector<quint32>");
 
     Authentication_Info auth_info = Helpz::SettingsHelper{
                 s, "RemoteServer",
-                Z::Param<QString>{"Login",                QString()},
-                Z::Param<QString>{"Password",             QString()},
+                Z::Param<QString>{"Login",              QString()},
+                Z::Param<QString>{"Password",           QString()},
+                Z::Param<QString>{"ProjectName",        QString()},
                 Z::Param<QUuid>{"Device",               QUuid()},
             }.obj<Authentication_Info>();
 
@@ -241,7 +245,7 @@ void Worker::init_network_client(QSettings* s)
                 Z::Param<QString>{"Host",               "deviceaccess.ru"},
                 Z::Param<QString>{"Port",               "25588"},
                 Z::Param<QString>{"Protocols",          "dai/2.0,dai/1.1"},
-                Z::Param<uint32_t>{"ReconnectInterval",       15000}
+                Z::Param<uint32_t>{"ReconnectSeconds",       15}
             }();
 
     Helpz::DTLS::Create_Client_Protocol_Func_T func = [this, auth_info](const std::string& app_protocol) -> std::shared_ptr<Helpz::Network::Protocol>
@@ -354,9 +358,9 @@ void Worker::initWebSocketManager(QSettings *s)
     connect(webSock_th->ptr(), &Network::WebSocket::checkAuth,
                      django_th->ptr(), &DjangoHelper::checkToken, Qt::BlockingQueuedConnection);
 
-    connect(this, &Worker::event_message, websock_item.get(), &WebSockItem::send_event_message, Qt::DirectConnection);
 
     websock_item.reset(new WebSockItem(this));
+    connect(this, &Worker::event_message, websock_item.get(), &WebSockItem::send_event_message, Qt::DirectConnection);
     connect(webSock_th->ptr(), &Network::WebSocket::throughCommand,
             websock_item.get(), &WebSockItem::procCommand, Qt::BlockingQueuedConnection);
     connect(websock_item.get(), &WebSockItem::send, webSock_th->ptr(), &Network::WebSocket::send, Qt::QueuedConnection);
@@ -625,7 +629,8 @@ bool Worker::applyStructModify(quint8 structType, QIODevice* data_dev)
     using namespace Network;
     qCDebug(Service::Log) << "applyStructModify" << (StructureType)structType << "size" << data_dev->size();
 
-    try {
+    try
+    {
         auto v = Helpz::Network::Protocol::DATASTREAM_VERSION;
         switch (structType)
         {
@@ -658,7 +663,9 @@ bool Worker::applyStructModify(quint8 structType, QIODevice* data_dev)
 
         default: return false;
         }
-    } catch(const std::exception& e) {
+    }
+    catch(const std::exception& e)
+    {
         qCritical() << "EXCEPTION: applyStructModify" << (StructureType)structType << e.what();
     }
     return false;

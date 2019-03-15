@@ -106,7 +106,6 @@ ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleRe
     connect(this, &T::statusAdded, worker, &Worker::statusAdded, Qt::QueuedConnection);
     connect(this, &T::statusRemoved, worker, &Worker::statusRemoved, Qt::QueuedConnection);
     connect(this, &T::sctItemChanged, worker, &Worker::newValue);
-    connect(this, &T::groupStatusChanged, worker, &Worker::groupStatusChanged, Qt::QueuedConnection);
 //    connect(worker, &Worker::dumpSectionsInfo, this, &T::dumpInfo, Qt::BlockingQueuedConnection);
 
     connect(this, &ScriptedProject::dayTimeChanged, &m_dayTime, &DayTimeHelper::init, Qt::QueuedConnection);
@@ -170,9 +169,7 @@ void ScriptedProject::reinitialization(const Helpz::Database::Connection_Info& d
     for(Section* sct: sections())
         for (ItemGroup* group: sct->groups())
         {
-            connect(group, &ItemGroup::getStatus, this, &ScriptedProject::groupStatus);
             connect(group, &ItemGroup::checkValue, this, &ScriptedProject::checkValue);
-            connect(group, &ItemGroup::statusChanged, this, &ScriptedProject::statusChanged);
             connect(group, &ItemGroup::itemChanged, this, &ScriptedProject::itemChanged);
             connect(group, &ItemGroup::itemChanged, this, &ScriptedProject::sctItemChanged);
             connect(group, &ItemGroup::modeChanged, this, &ScriptedProject::groupModeChanged);
@@ -528,11 +525,6 @@ void ScriptedProject::itemChanged(DeviceItem *item)
     t.invalidate();
 }
 
-void ScriptedProject::statusChanged(quint32 status)
-{
-    groupStatusChanged(static_cast<ItemGroup*>(sender())->id(), status);
-}
-
 void ScriptedProject::afterAllInitialization()
 {
     callFunction(fAfterAllInitialization);
@@ -604,12 +596,6 @@ bool ScriptedProject::checkValue(DeviceItem* item) const
                                            valueFromVariant(item->getValue()),
                                            m_script_engine->newQObject(item) });
     return ret.isBool() && ret.toBool();
-}
-
-quint32 ScriptedProject::groupStatus(ItemGroup::ValueType val) const
-{
-    auto ret = callFunction(fGroupStatus, { m_script_engine->newQObject(sender()), m_script_engine->toScriptValue(val) });
-    return ret.isNumber() ? ret.toUInt32() : val->status();
 }
 
 void ScriptedProject::handlerException(const QScriptValue &exception)

@@ -29,11 +29,21 @@ private:
 
     void ready_write() override;
     void process_message(uint8_t msg_id, uint16_t cmd, QIODevice& data_dev) override;
+    void process_answer_message(uint8_t msg_id, uint16_t cmd, QIODevice& data_dev) override;
 
     void start_authentication();
-    void send_project_structure(uint8_t struct_type, uint8_t msg_id);
+    void send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev);
+    void add_checker_types(QDataStream& ds);
+    void add_device_items(QDataStream& ds);
+    void add_groups(QDataStream& ds);
+    void add_codes(const QVector<uint32_t>& ids, QDataStream* ds);
     void send_version(uint8_t msg_id);
     void send_time_info(uint8_t msg_id);
+
+    void send_mode(uint mode_id, quint32 group_id);
+    void send_status_added(quint32 group_id, quint32 info_id, const QStringList& args);
+    void send_status_removed(quint32 group_id, quint32 info_id);
+
 
     void sendParamValues(const ParamValuesPack& pack);
 
