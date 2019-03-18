@@ -50,7 +50,6 @@ private:
     bool b_break;
 
     std::shared_ptr<PluginTypeManager> PluginTypeMng;
-
 //    friend class ModbusThread;
 //    friend struct ModbusReadHelper;
 };

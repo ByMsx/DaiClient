@@ -43,15 +43,9 @@ void Protocol_2_0::connect_worker_signals()
     /*
     qRegisterMetaType<CodeItem>("CodeItem");
     qRegisterMetaType<std::vector<uint>>("std::vector<uint>");
-
     connect(this, &Protocol_2_0::setControlState, worker, &Worker::setControlState, Qt::QueuedConnection);
-
     connect(this, &Protocol_2_0::setCode, worker, &Worker::setCode, Qt::BlockingQueuedConnection);
-
-    //    connect(this, &Protocol_2_0::lostValues, worker, &Worker::sendLostValues, Qt::QueuedConnection);
-
-
-
+//    connect(this, &Protocol_2_0::lostValues, worker, &Worker::sendLostValues, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::getServerInfo, worker->prj->ptr(), &Project::dumpInfoToStream, Qt::DirectConnection);
     connect(this, &Protocol_2_0::setServerInfo, worker->prj->ptr(), &Project::initFromStream, Qt::BlockingQueuedConnection);
     connect(this, &Protocol_2_0::saveServerInfo, worker->database(), &Database::saveProject, Qt::BlockingQueuedConnection);
