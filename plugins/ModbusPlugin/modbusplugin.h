@@ -76,7 +76,7 @@ public:
     void configure(QSettings* settings, Project*) override;
     bool check(Device *dev) override;
     void stop() override;
-    void write(DeviceItem* item, const QVariant& raw_data) override;
+    void write(DeviceItem* item, const QVariant& raw_data, uint32_t user_id) override;
 
     void writeFile(uint serverAddress, const QString& fileName);
 public slots:

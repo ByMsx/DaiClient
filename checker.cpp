@@ -1,7 +1,6 @@
 #include <QDebug>
 #include <QProcess>
 #include <QCoreApplication>
-#include <QRegularExpression>
 #include <QDir>
 #include <QFile>
 
@@ -26,9 +25,6 @@ Checker::Checker(Worker *worker, int interval, const QString &pluginstr, QObject
     PluginTypeMng = prj->PluginTypeMng;
     loadPlugins(pluginstr.split(','));
 
-
-
-
     connect(prj, &Project::controlStateChanged, this, &Checker::write_data, Qt::QueuedConnection);
 
     connect(prj, SIGNAL(modbusStop()), SLOT(stop()), Qt::QueuedConnection);
@@ -45,8 +41,6 @@ Checker::Checker(Worker *worker, int interval, const QString &pluginstr, QObject
     write_timer.setInterval(MINIMAL_WRITE_INTERVAL);
     write_timer.setSingleShot(true);
     // --------------------------------------------------------------------------------
-
-
 
     checkDevices(); // Первый опрос контроллеров
     QMetaObject::invokeMethod(prj, "afterAllInitialization", Qt::QueuedConnection);
@@ -170,17 +164,21 @@ void Checker::checkDevices()
     if (check_timer.interval() >= MINIMAL_WRITE_INTERVAL)
         check_timer.start();
 
-    if (m_writeCache.size() && !write_timer.isActive())
+    if (write_cache_.size() && !write_timer.isActive())
         writeCache();
 }
 
-void Checker::write_data(DeviceItem *item, const QVariant &raw_data)
+void Checker::write_data(DeviceItem *item, const QVariant &raw_data, uint32_t user_id)
 {
-    auto it = m_writeCache.find(item);
-    if (it == m_writeCache.end())
-        m_writeCache.emplace(item, raw_data);
-    else if (it->second != raw_data)
-        it->second = raw_data;
+    auto it = std::find(write_cache_.begin(), write_cache_.end(), item);
+    if (it == write_cache_.end())
+    {
+        write_cache_.push_back({user_id, item, raw_data});
+    }
+    else if (it->raw_value != raw_data)
+    {
+        it->raw_value = raw_data;
+    }
 
     if (!b_break)
         write_timer.start();
@@ -191,27 +189,22 @@ void Checker::writeCache()
     if (!check_timer.isActive() && check_timer.interval() >= MINIMAL_WRITE_INTERVAL)
         return;
 
-    while (m_writeCache.size()) {
-        auto iterator = m_writeCache.begin();
-        DeviceItem *dev_item = iterator->first;
-        QVariant raw_data = iterator->second;
-        m_writeCache.erase(iterator);
-
-        writeItem(dev_item, raw_data);
+    while (write_cache_.size())
+    {
+        Write_Cache_Item cache_item = std::move(write_cache_.front());
+        write_cache_.erase(write_cache_.begin());
+        writeItem(cache_item.dev_item, cache_item.raw_value, cache_item.user_id);
     }
 }
 
-void Checker::writeItem(DeviceItem *item, const QVariant &raw_data)
+void Checker::writeItem(DeviceItem* item, const QVariant& raw_data, uint32_t user_id)
 {
+    QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data), Q_ARG(bool, false), Q_ARG(uint32_t, user_id));
+
     PluginType* chk_type = item->device()->checkerType();
     if (chk_type && chk_type->id() && chk_type->checker)
-        chk_type->checker->write(item, raw_data);
-    else
     {
-        QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(QVariant, raw_data));
-
-        if (!chk_type || (chk_type->id() && !chk_type->checker))
-            qCWarning(CheckerLog) << "Checker not initialized" << item->toString() << (chk_type ? ("%1 " + chk_type->name()).arg(chk_type->id()) : QString());
+        chk_type->checker->write(item, raw_data, user_id);
     }
 }
 

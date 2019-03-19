@@ -106,12 +106,13 @@ ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleRe
     connect(this, &T::statusAdded, worker, &Worker::statusAdded, Qt::QueuedConnection);
     connect(this, &T::statusRemoved, worker, &Worker::statusRemoved, Qt::QueuedConnection);
     connect(this, &T::sctItemChanged, worker, &Worker::newValue);
+    connect(this, &T::add_event_message, worker, &Worker::add_event_message, Qt::QueuedConnection);
 //    connect(worker, &Worker::dumpSectionsInfo, this, &T::dumpInfo, Qt::BlockingQueuedConnection);
 
     connect(this, &ScriptedProject::dayTimeChanged, &m_dayTime, &DayTimeHelper::init, Qt::QueuedConnection);
 
     if (consoleReader)
-        connect(consoleReader, &Helpz::ConsoleReader::textReceived, this, &T::console);
+        connect(consoleReader, &Helpz::ConsoleReader::textReceived, [this](const QString& text) { console(0, text); });
 }
 
 ScriptedProject::~ScriptedProject()
@@ -422,7 +423,7 @@ void ScriptedProject::log(const QString &msg, uint type)
     }
 }
 
-void ScriptedProject::console(const QString &cmd)
+void ScriptedProject::console(uint32_t user_id, const QString &cmd)
 {
     QString script = cmd.trimmed();
     if (script.isEmpty() || !m_script_engine->canEvaluate(script))
@@ -450,8 +451,9 @@ void ScriptedProject::console(const QString &cmd)
             is_error = true;
         }
     }
-
-    (is_error ? qCritical(ScriptLog) : qInfo(ScriptLog)).noquote() << "CONSOLE ["<< script << "] >" << res.toString();
+    EventPackItem event{0, user_id, is_error ? QtCriticalMsg : QtInfoMsg, 0, Service::Log().categoryName(), "CONSOLE [" + script + "] >" + res.toString()};
+    std::cerr << event.text.toStdString() << std::endl;
+    add_event_message(event);
 }
 
 //void ScriptedProject::evaluateFile(const QString& fileName)
@@ -480,26 +482,26 @@ QScriptValue ScriptedProject::callFunction(uint func_idx, const QScriptValueList
     return QScriptValue();
 }
 
-void ScriptedProject::run_automation(ItemGroup* group, const QScriptValue& groupObj, const QScriptValue &itemObj)
+void ScriptedProject::run_automation(ItemGroup* group, const QScriptValue& groupObj, const QScriptValue &itemObj, uint32_t user_id)
 {
     auto automation = m_automation.find(group->type());
     if (automation != m_automation.cend())
-        callFunction(automation->second, { (groupObj.isValid() ? groupObj : m_script_engine->newQObject(group)), itemObj });
+        callFunction(automation->second, { (groupObj.isValid() ? groupObj : m_script_engine->newQObject(group)), itemObj, user_id });
 }
 
-void ScriptedProject::groupModeChanged(uint mode, quint32 /*group_id*/)
+void ScriptedProject::groupModeChanged(uint32_t user_id, uint32_t mode, uint32_t /*group_id*/)
 {
     auto group = static_cast<ItemGroup*>(sender());
     if (!group)
         return;
     QScriptValue groupObj = m_script_engine->newQObject(group);
 
-    callFunction(fModeChanged, { groupObj, mode });
-    run_automation(group, groupObj);
+    callFunction(fModeChanged, { groupObj, mode, user_id });
+    run_automation(group, groupObj, QScriptValue(), user_id);
 }
 
 QElapsedTimer t;
-void ScriptedProject::itemChanged(DeviceItem *item)
+void ScriptedProject::itemChanged(DeviceItem *item, uint32_t user_id)
 {
     t.restart();
 
@@ -508,14 +510,14 @@ void ScriptedProject::itemChanged(DeviceItem *item)
     QScriptValue groupObj = m_script_engine->newQObject(group);
     QScriptValue itemObj = m_script_engine->newQObject(item);
 
-    callFunction(fItemChanged, { groupObj, itemObj });
+    callFunction(fItemChanged, { groupObj, itemObj, user_id });
 
     if (item->isControl())
-        callFunction(fControlChanged, { groupObj, itemObj });
+        callFunction(fControlChanged, { groupObj, itemObj, user_id });
     else
-        callFunction(fSensorChanged, { groupObj, itemObj });
+        callFunction(fSensorChanged, { groupObj, itemObj, user_id });
 
-    run_automation(group, groupObj, itemObj);
+    run_automation(group, groupObj, itemObj, user_id);
 
 //    eng->collectGarbage();
 
@@ -584,9 +586,9 @@ QVariant ScriptedProject::normalize(const QVariant &val)
     return callFunction(fNormalize, { m_script_engine->newQObject(sender()), valueFromVariant(val) }).toVariant();
 }
 
-bool ScriptedProject::controlChangeCheck(DeviceItem *item, const QVariant &raw_data)
+bool ScriptedProject::controlChangeCheck(DeviceItem *item, const QVariant &raw_data, uint32_t user_id)
 {
-    auto ret = callFunction(fControlChangeCheck, { m_script_engine->newQObject(sender()), m_script_engine->newQObject(item), valueFromVariant(raw_data) });
+    auto ret = callFunction(fControlChangeCheck, { m_script_engine->newQObject(sender()), m_script_engine->newQObject(item), valueFromVariant(raw_data), user_id });
     return ret.isBool() && ret.toBool();
 }
 

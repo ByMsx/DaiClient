@@ -242,7 +242,7 @@ void ModbusPlugin::stop() {
         wait.exit(1);
 }
 
-void ModbusPlugin::write(DeviceItem *item, const QVariant &raw_data)
+void ModbusPlugin::write(DeviceItem *item, const QVariant &raw_data, uint32_t user_id)
 {
     if (!checkConnect())
         return;
@@ -250,7 +250,7 @@ void ModbusPlugin::write(DeviceItem *item, const QVariant &raw_data)
     auto regType = static_cast<QModbusDataUnit::RegisterType>( item->registerType() );
     if (regType != QModbusDataUnit::Coils && regType != QModbusDataUnit::HoldingRegisters)
     {
-        qCWarning(ModbusLog) << "ERROR: Try to toggle not supported item.";
+        qCWarning(ModbusLog).noquote().nospace() << user_id << "|ERROR: Try to toggle not supported item.";
         return;
     }
     quint16 write_data;
@@ -259,7 +259,7 @@ void ModbusPlugin::write(DeviceItem *item, const QVariant &raw_data)
     else
         write_data = raw_data.toUInt();
 
-    qCDebug(ModbusLog) << "WRITE" << write_data << "TO" << item->toString() << "ADR" << item->device()->address() << "UNIT" << item->unit()
+    qCDebug(ModbusLog).noquote() << QString::number(user_id) + "|WRITE" << write_data << "TO" << item->toString() << "ADR" << item->device()->address() << "UNIT" << item->unit()
                        << (regType == QModbusDataUnit::Coils ? "Coils" : "HoldingRegisters");
 
     QModbusDataUnit writeUnit(regType, item->unit().toInt(), 1);
@@ -276,9 +276,10 @@ void ModbusPlugin::write(DeviceItem *item, const QVariant &raw_data)
         }
 
         if (!reply->isFinished())
-            qCDebug(ModbusLog) << "Write break";
+            qCDebug(ModbusLog).noquote() << QString::number(user_id) + "|Write break";
         else if (reply->error() != NoError)
-            qCWarning(ModbusLog).noquote() << tr("Write response error: %1 Device address: %2 (%3) Function: %4 Unit: %5 Data:")
+            qCWarning(ModbusLog).noquote() << tr("%1|Write response error: %2 Device address: %3 (%4) Function: %5 Unit: %6 Data:")
+                          .arg(user_id)
                           .arg(reply->errorString())
                           .arg(item->device()->address())
                           .arg(reply->error() == ProtocolError ?
@@ -288,7 +289,7 @@ void ModbusPlugin::write(DeviceItem *item, const QVariant &raw_data)
 
         reply->deleteLater();
     } else
-        qCCritical(ModbusLog).noquote() << tr("Write error: ") + this->errorString();
+        qCCritical(ModbusLog).noquote() << QString::number(user_id) + tr("|Write error: ") + this->errorString();
 }
 
 void ModbusPlugin::writeFile(uint serverAddress, const QString &fileName)

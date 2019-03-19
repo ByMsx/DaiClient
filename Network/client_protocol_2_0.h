@@ -16,13 +16,12 @@ public:
     Protocol_2_0(Worker* worker, const Authentication_Info &auth_info);
 
 signals:
-    void restart();
-    void write_to_item(quint32 item_id, const QVariant& raw_data);
-    bool set_mode(quint32 mode_id, quint32 group_id);
-    void set_param_values(const ParamValuesPack& pack);
-    void exec_script_command(const QString& script);
-
-    bool modify_project(quint8 struct_type, QIODevice* data_dev);
+    void restart(uint32_t user_id);
+    void write_to_item(uint32_t user_id, uint32_t item_id, const QVariant& raw_data);
+    bool set_mode(uint32_t user_id, quint32 mode_id, quint32 group_id);
+    void set_param_values(uint32_t user_id, const ParamValuesPack& pack);
+    void exec_script_command(uint32_t user_id, const QString& script);
+    bool modify_project(uint32_t user_id, quint8 struct_type, QIODevice* data_dev);
 
 private:
     void connect_worker_signals();
@@ -40,12 +39,10 @@ private:
     void send_version(uint8_t msg_id);
     void send_time_info(uint8_t msg_id);
 
-    void send_mode(uint mode_id, quint32 group_id);
+    void send_mode(uint32_t user_id, uint mode_id, quint32 group_id);
     void send_status_added(quint32 group_id, quint32 info_id, const QStringList& args);
     void send_status_removed(quint32 group_id, quint32 info_id);
-
-
-    void sendParamValues(const ParamValuesPack& pack);
+    void send_param_values(uint32_t user_id, const ParamValuesPack& pack);
 
     Project* prj_;
 

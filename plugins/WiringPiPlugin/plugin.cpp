@@ -61,7 +61,7 @@ bool WiringPiPlugin::check(Device* dev)
 
 void WiringPiPlugin::stop() {}
 
-void WiringPiPlugin::write(DeviceItem *item, const QVariant &raw_data) {
+void WiringPiPlugin::write(DeviceItem *item, const QVariant &raw_data, uint32_t user_id) {
     digitalWrite(item->unit().toUInt(), raw_data.toBool() ? HIGH : LOW);
 }
 

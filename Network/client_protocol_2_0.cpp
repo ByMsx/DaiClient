@@ -28,7 +28,7 @@ void Protocol_2_0::connect_worker_signals()
     while (!worker()->prj->ptr() && !worker()->prj->wait(5));
     prj_ = worker()->prj->ptr();
 
-    connect(this, &Protocol_2_0::restart, worker(), &Worker::serviceRestart, Qt::QueuedConnection);
+    connect(this, &Protocol_2_0::restart, worker(), &Worker::restart_service_object, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::write_to_item, worker(), &Worker::writeToItem, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::set_mode, worker(), &Worker::setMode, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::set_param_values, worker(), &Worker::setParamValues, Qt::QueuedConnection);
@@ -38,12 +38,11 @@ void Protocol_2_0::connect_worker_signals()
     connect(worker(), &Worker::modeChanged, this, &Protocol_2_0::send_mode, Qt::QueuedConnection);
     connect(worker(), &Worker::statusAdded, this, &Protocol_2_0::send_status_added, Qt::QueuedConnection);
     connect(worker(), &Worker::statusRemoved, this, &Protocol_2_0::send_status_removed, Qt::QueuedConnection);
-    connect(worker(), &Worker::paramValuesChanged, this, &Protocol_2_0::sendParamValues, Qt::QueuedConnection);
+    connect(worker(), &Worker::paramValuesChanged, this, &Protocol_2_0::send_param_values, Qt::QueuedConnection);
 
     /*
     qRegisterMetaType<CodeItem>("CodeItem");
     qRegisterMetaType<std::vector<uint>>("std::vector<uint>");
-    connect(this, &Protocol_2_0::setControlState, worker, &Worker::setControlState, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::setCode, worker, &Worker::setCode, Qt::BlockingQueuedConnection);
 //    connect(this, &Protocol_2_0::lostValues, worker, &Worker::sendLostValues, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::getServerInfo, worker->prj->ptr(), &Project::dumpInfoToStream, Qt::DirectConnection);
@@ -72,7 +71,7 @@ void Protocol_2_0::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data
     case Cmd::LOG_RANGE:            Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_log_range, &log_sender_, msg_id);    break;
     case Cmd::LOG_DATA:             Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_log_data, &log_sender_, msg_id);     break;
 
-    case Cmd::RESTART:              restart();   break;
+    case Cmd::RESTART:              apply_parse(data_dev, &Protocol_2_0::restart);              break;
     case Cmd::WRITE_TO_ITEM:        apply_parse(data_dev, &Protocol_2_0::write_to_item);        break;
     case Cmd::SET_MODE:             apply_parse(data_dev, &Protocol_2_0::set_mode);             break;
     case Cmd::SET_PARAM_VALUES:     apply_parse(data_dev, &Protocol_2_0::set_param_values);     break;
@@ -260,9 +259,9 @@ void Protocol_2_0::send_time_info(uint8_t msg_id)
     send_answer(Cmd::TIME_INFO, msg_id) << dt << dt.timeZone();
 }
 
-void Protocol_2_0::send_mode(uint mode_id, quint32 group_id)
+void Protocol_2_0::send_mode(uint32_t user_id, uint mode_id, quint32 group_id)
 {
-    send(Cmd::SET_MODE) << mode_id << group_id;
+    send(Cmd::SET_MODE) << user_id << mode_id << group_id;
 }
 
 void Protocol_2_0::send_status_added(quint32 group_id, quint32 info_id, const QStringList& args)
@@ -275,9 +274,9 @@ void Protocol_2_0::send_status_removed(quint32 group_id, quint32 info_id)
     send(Cmd::REMOVE_STATUS) << group_id << info_id;
 }
 
-void Protocol_2_0::sendParamValues(const ParamValuesPack& pack)
+void Protocol_2_0::send_param_values(uint32_t user_id, const ParamValuesPack& pack)
 {
-    send(Cmd::SET_PARAM_VALUES) << pack;
+    send(Cmd::SET_PARAM_VALUES) << user_id << pack;
 }
 
 // -----------------------
@@ -348,7 +347,6 @@ signals:
     void setServerInfo(QIODevice* dev, QVector<ParamTypeItem> *param_items_out, bool* = nullptr);
     void saveServerInfo(const QVector<ParamTypeItem>& param_values, Project *proj);
 
-    void setControlState(quint32 section_id, quint32 device_type, const QVariant& raw_data);
     bool setCode(const CodeItem&);
 public slots:
     void setImportFlag(bool import_config)
@@ -490,9 +488,6 @@ protected:
             //        emit getServerInfo(&helper.dataStream());
             //        break;
         }
-        case cmdSetControlState:
-            apply_parse(data_dev, &Client::setControlState, 1);
-            break;
             //    case cmdGetLostValues:
             //        apply_parse(msg, &Client::lostValues);
             //        break;

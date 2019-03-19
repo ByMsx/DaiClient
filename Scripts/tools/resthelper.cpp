@@ -75,7 +75,7 @@ void RestHelper::controlChanged(DeviceItem *dev_item)
             m_timer->start( work_time * 1000 );
         }
         else if (m_resting)
-            setControlState(false);
+            writeToControl(false);
     }
     else
     {
@@ -110,7 +110,7 @@ void RestHelper::onTimer()
     }
 
     if (flag)
-        setControlState(newState);
+        writeToControl(newState);
 }
 
 } // namespace Dai

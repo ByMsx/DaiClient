@@ -33,7 +33,7 @@ public slots:
     void send_event_message(const EventPackItem& event);
 
     void modeChanged(uint mode_id, uint group_id);
-    void procCommand(quint32 user_team_id, quint32 proj_id, quint8 cmd, const QByteArray& data);
+    void procCommand(uint32_t user_id, quint32 user_team_id, quint32 proj_id, quint8 cmd, const QByteArray& raw_data);
 private:
     Worker* w;
 };
@@ -72,17 +72,19 @@ signals:
     void started();
     void change(const ValuePackItem& item, bool immediately);
 
-    void modeChanged(uint mode_id, uint group_id);
+    void modeChanged(uint32_t user_id, uint32_t mode_id, uint32_t group_id);
 
     void statusAdded(quint32 group_id, quint32 info_id, const QStringList& args);
     void statusRemoved(quint32 group_id, quint32 info_id);
 
-    void paramValuesChanged(const ParamValuesPack& pack);
+    void paramValuesChanged(uint32_t user_id, const ParamValuesPack& pack);
 
     void event_message(const EventPackItem&);
 //    std::shared_ptr<Dai::Prt::ServerInfo> dumpSectionsInfo() const;
 public slots:
+    void restart_service_object(uint32_t user_id);
     void logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QString &str);
+    void add_event_message(const EventPackItem& event);
     void processCommands(const QStringList& args);
 
     QString getUserDevices();
@@ -96,17 +98,16 @@ public slots:
     QByteArray sections();
     bool setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs);
 
-    void setControlState(quint32 section_id, quint32 item_type, const QVariant &raw_data);
-    void writeToItem(quint32 item_id, const QVariant &raw_data);
-    bool setMode(uint mode_id, quint32 group_id);
+    void writeToItem(uint32_t user_id, uint32_t item_id, const QVariant &raw_data);
+    bool setMode(uint32_t user_id, uint32_t mode_id, uint32_t group_id);
     bool setCode(const CodeItem &item);
 
-    void setParamValues(const ParamValuesPack& pack);
-    bool applyStructModify(quint8 structType, QIODevice* data_dev);
+    void setParamValues(uint32_t user_id, const ParamValuesPack& pack);
+    bool applyStructModify(uint32_t user_id, quint8 structType, QIODevice* data_dev);
 
 //    bool setSettings(uchar stType, google::protobuf::Message* msg);
 public slots:
-    void newValue(DeviceItem* item);
+    void newValue(DeviceItem* item, uint32_t user_id = 0);
 
 //    std::shared_ptr<Prt::ServerInfo> serverInfo() const;
 
@@ -116,9 +117,11 @@ private:
     DBManager* db_mng;
 
     friend class Client::Protocol_2_0;
+    friend class Client::Protocol;
 //    using NetworkClientThread = Helpz::SettingsThreadHelper<Network::Client, Worker*, QString, quint16, QString, QString, QUuid, int>;
 //    NetworkClientThread::Type* g_mng_th;
     std::shared_ptr<Helpz::DTLS::Client_Thread> net_thread_;
+    QThread net_protocol_thread_;
 
     using ScriptsThread = Helpz::SettingsThreadHelper<ScriptedProject, Worker*, Helpz::ConsoleReader*, QString, bool>;
     ScriptsThread::Type* prj;

@@ -84,7 +84,7 @@ bool OneWireThermPlugin::check(Device* dev)
 
 void OneWireThermPlugin::stop() {}
 
-void OneWireThermPlugin::write(DeviceItem *item, const QVariant &raw_data) {
+void OneWireThermPlugin::write(DeviceItem *item, const QVariant &raw_data, uint32_t user_id) {
 //    digitalWrite(item->unit(), raw_data.toBool() ? HIGH : LOW);
 }
 
