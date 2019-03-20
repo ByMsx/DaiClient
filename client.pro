@@ -31,7 +31,8 @@ SOURCES += main.cpp \
     Scripts/scriptedproject.cpp \
     Network/client_protocol.cpp \
     Network/client_protocol_2_0.cpp \
-    Network/log_sender.cpp
+    Network/log_sender.cpp \
+    structure_synchronizer.cpp
 
 HEADERS  += \
     worker.h \
@@ -49,7 +50,8 @@ HEADERS  += \
     Scripts/scriptedproject.h \
     Network/client_protocol.h \
     Network/client_protocol_2_0.h \
-    Network/log_sender.h
+    Network/log_sender.h \
+    structure_synchronizer.h
 
 #Target version
 VER_MAJ = 1

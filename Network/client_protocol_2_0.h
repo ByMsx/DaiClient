@@ -4,6 +4,7 @@
 #include <Dai/project.h>
 
 #include "log_sender.h"
+#include "structure_synchronizer.h"
 #include "client_protocol.h"
 
 namespace Dai {
@@ -13,7 +14,7 @@ class Protocol_2_0 : public Protocol
 {
     Q_OBJECT
 public:
-    Protocol_2_0(Worker* worker, const Authentication_Info &auth_info);
+    Protocol_2_0(Worker* worker, Structure_Synchronizer* structure_synchronizer, const Authentication_Info &auth_info);
 
 signals:
     void restart(uint32_t user_id);
@@ -21,8 +22,9 @@ signals:
     bool set_mode(uint32_t user_id, quint32 mode_id, quint32 group_id);
     void set_param_values(uint32_t user_id, const ParamValuesPack& pack);
     void exec_script_command(uint32_t user_id, const QString& script);
-    bool modify_project(uint32_t user_id, quint8 struct_type, QIODevice* data_dev);
 
+    void send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev, Helpz::Network::Protocol* protocol);
+    bool modify_project(uint32_t user_id, quint8 struct_type, QIODevice* data_dev);
 private:
     void connect_worker_signals();
 
@@ -31,11 +33,6 @@ private:
     void process_answer_message(uint8_t msg_id, uint16_t cmd, QIODevice& data_dev) override;
 
     void start_authentication();
-    void send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev);
-    void add_checker_types(QDataStream& ds);
-    void add_device_items(QDataStream& ds);
-    void add_groups(QDataStream& ds);
-    void add_codes(const QVector<uint32_t>& ids, QDataStream* ds);
     void send_version(uint8_t msg_id);
     void send_time_info(uint8_t msg_id);
 
@@ -47,6 +44,7 @@ private:
     Project* prj_;
 
     Log_Sender log_sender_;
+    Structure_Synchronizer* structure_sync_;
 };
 
 } // namespace Client

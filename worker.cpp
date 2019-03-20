@@ -27,7 +27,7 @@ WebSockItem::WebSockItem(Worker *obj) :
     set_id(1);
     set_teams({1});
     connect(w, &Worker::modeChanged, this, &WebSockItem::modeChanged, Qt::QueuedConnection);
-
+    connect(this, &WebSockItem::applyStructModify, &w->structure_sync_, &Client::Structure_Synchronizer::modify, Qt::BlockingQueuedConnection);
 }
 
 WebSockItem::~WebSockItem() {
@@ -65,7 +65,7 @@ void WebSockItem::procCommand(uint32_t user_id, quint32 user_team_id, quint32 pr
         case wsWriteToDevItem:      Helpz::apply_parse(ds, &Worker::writeToItem, w); break;
         case wsChangeGroupMode:     Helpz::apply_parse(ds, &Worker::setMode, w); break;
         case wsChangeParamValues:   Helpz::apply_parse(ds, &Worker::setParamValues, w); break;
-        case wsStructModify:        Helpz::apply_parse(ds, &Worker::applyStructModify, w, ds.device()); break;
+        case wsStructModify:        Helpz::apply_parse(ds, &WebSockItem::applyStructModify, this, ds.device()); break;
         case wsExecScript:          Helpz::apply_parse(ds, &ScriptedProject::console, w->prj->ptr()); break;
 
         default:
@@ -131,6 +131,8 @@ Worker::~Worker()
         checker_th->terminate();
     if (!prj->wait(15000))
         prj->terminate();
+
+    net_protocol_thread_.wait();
 
     if (webSock_th)
         delete webSock_th;
@@ -228,6 +230,9 @@ void Worker::init_Checker(QSettings* s)
 void Worker::init_network_client(QSettings* s)
 {
     net_protocol_thread_.start();
+    structure_sync_.moveToThread(&net_protocol_thread_);
+    structure_sync_.set_project(prj->ptr());
+
     qRegisterMetaType<ValuePackItem>("ValuePackItem");
     qRegisterMetaType<QVector<ValuePackItem>>("QVector<ValuePackItem>");
     qRegisterMetaType<QVector<EventPackItem>>("QVector<EventPackItem>");
@@ -259,7 +264,7 @@ void Worker::init_network_client(QSettings* s)
 
     Helpz::DTLS::Create_Client_Protocol_Func_T func = [this, auth_info](const std::string& app_protocol) -> std::shared_ptr<Helpz::Network::Protocol>
     {
-        return std::shared_ptr<Helpz::Network::Protocol>(new Client::Protocol_2_0{this, auth_info});
+        return std::shared_ptr<Helpz::Network::Protocol>(new Client::Protocol_2_0{this, &structure_sync_, auth_info});
     };
 
     Helpz::DTLS::Client_Thread_Config conf{ tls_policy_file.toStdString(), host.toStdString(), port.toStdString(),
@@ -655,59 +660,6 @@ void Worker::setParamValues(uint32_t user_id, const ParamValuesPack &pack)
     add_event_message(event);
 
     emit paramValuesChanged(user_id, pack);
-}
-
-bool Worker::applyStructModify(uint32_t user_id, quint8 structType, QIODevice* data_dev)
-{
-    using namespace Network;
-    EventPackItem event {0, user_id, QtDebugMsg, 0, Service::Log().categoryName(), "Change project structure "};
-    {
-        QTextStream ts(&event.text);
-        ts << static_cast<StructureType>(structType) << " size " << data_dev->size();
-    }
-
-    try
-    {
-        auto v = Helpz::Network::Protocol::DATASTREAM_VERSION;
-        switch (structType)
-        {
-        case STRUCT_TYPE_DEVICES:
-            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyDevices, db_mng);
-        case STRUCT_TYPE_CHECKER_TYPES:
-            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyCheckerTypes, db_mng);
-        case STRUCT_TYPE_DEVICE_ITEMS:
-            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyDeviceItems, db_mng);
-        case STRUCT_TYPE_DEVICE_ITEM_TYPES:
-            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyDeviceItemTypes, db_mng);
-        case STRUCT_TYPE_SECTIONS:
-            return Helpz::apply_parse(*data_dev, v, &Database::applyModifySections, db_mng);
-        case STRUCT_TYPE_GROUPS:
-            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyGroups, db_mng);
-        case STRUCT_TYPE_GROUP_TYPES:
-            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyGroupTypes, db_mng);
-        case STRUCT_TYPE_GROUP_PARAMS:
-            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyGroupParams, db_mng);
-        case STRUCT_TYPE_GROUP_PARAM_TYPES:
-            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyGroupParamTypes, db_mng);
-        case STRUCT_TYPE_GROUP_STATUSES:
-            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyGroupStatuses, db_mng);
-        case STRUCT_TYPE_GROUP_STATUS_TYPE:
-            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyGroupStatusTypes, db_mng);
-        case STRUCT_TYPE_SIGNS:
-            return Helpz::apply_parse(*data_dev, v, &Database::applyModifySigns, db_mng);
-        case STRUCT_TYPE_SCRIPTS:
-            return Helpz::apply_parse(*data_dev, v, &Database::applyModifyScripts, db_mng);
-
-        default: return false;
-        }
-    }
-    catch(const std::exception& e)
-    {
-        event.type_id = QtCriticalMsg;
-        event.text += " EXCEPTION: " + QString::fromStdString(e.what());
-    }
-    add_event_message(event);
-    return false;
 }
 
 void Worker::newValue(DeviceItem *item, uint32_t user_id)

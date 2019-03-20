@@ -17,6 +17,8 @@
 #include "plus/dai/websocket.h"
 #include "plus/dai/proj_info.h"
 
+#include "structure_synchronizer.h"
+
 namespace Dai {
 class Worker;
 
@@ -29,6 +31,7 @@ public:
 
 signals:
     void send(const Project_Info &proj, const QByteArray& data) const;
+    bool applyStructModify(uint32_t user_id, uint8_t structType, QIODevice* data_dev);
 public slots:
     void send_event_message(const EventPackItem& event);
 
@@ -103,7 +106,6 @@ public slots:
     bool setCode(const CodeItem &item);
 
     void setParamValues(uint32_t user_id, const ParamValuesPack& pack);
-    bool applyStructModify(uint32_t user_id, quint8 structType, QIODevice* data_dev);
 
 //    bool setSettings(uchar stType, google::protobuf::Message* msg);
 public slots:
@@ -122,6 +124,7 @@ private:
 //    NetworkClientThread::Type* g_mng_th;
     std::shared_ptr<Helpz::DTLS::Client_Thread> net_thread_;
     QThread net_protocol_thread_;
+    Client::Structure_Synchronizer structure_sync_;
 
     using ScriptsThread = Helpz::SettingsThreadHelper<ScriptedProject, Worker*, Helpz::ConsoleReader*, QString, bool>;
     ScriptsThread::Type* prj;

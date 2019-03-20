@@ -14,9 +14,10 @@
 namespace Dai {
 namespace Client {
 
-Protocol_2_0::Protocol_2_0(Worker *worker, const Authentication_Info &auth_info) :
+Protocol_2_0::Protocol_2_0(Worker *worker, Structure_Synchronizer *structure_synchronizer, const Authentication_Info &auth_info) :
     Protocol{worker, auth_info},
-    log_sender_(this)
+    log_sender_(this),
+    structure_sync_(structure_synchronizer)
 {
     connect_worker_signals();
 }
@@ -33,7 +34,9 @@ void Protocol_2_0::connect_worker_signals()
     connect(this, &Protocol_2_0::set_mode, worker(), &Worker::setMode, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::set_param_values, worker(), &Worker::setParamValues, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::exec_script_command, worker()->prj->ptr(), &ScriptedProject::console, Qt::QueuedConnection);
-    connect(this, &Protocol_2_0::modify_project, worker(), &Worker::applyStructModify, Qt::BlockingQueuedConnection);
+
+    connect(this, &Protocol_2_0::modify_project, structure_sync_, &Structure_Synchronizer::modify, Qt::BlockingQueuedConnection);
+    connect(this, &Protocol_2_0::send_project_structure, structure_sync_, &Structure_Synchronizer::send_project_structure, Qt::BlockingQueuedConnection);
 
     connect(worker(), &Worker::modeChanged, this, &Protocol_2_0::send_mode, Qt::QueuedConnection);
     connect(worker(), &Worker::statusAdded, this, &Protocol_2_0::send_status_added, Qt::QueuedConnection);
@@ -77,7 +80,7 @@ void Protocol_2_0::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data
     case Cmd::SET_PARAM_VALUES:     apply_parse(data_dev, &Protocol_2_0::set_param_values);     break;
     case Cmd::EXEC_SCRIPT_COMMAND:  apply_parse(data_dev, &Protocol_2_0::exec_script_command);  break;
 
-    case Cmd::GET_PROJECT:          apply_parse(data_dev, &Protocol_2_0::send_project_structure, msg_id, &data_dev); break;
+    case Cmd::GET_PROJECT:          apply_parse(data_dev, &Protocol_2_0::send_project_structure, msg_id, &data_dev, this); break;
     case Cmd::MODIFY_PROJECT:       /*send_answer(cmd, msg_id) << */apply_parse(data_dev, &Protocol_2_0::modify_project, &data_dev); break;
 
     default:
@@ -103,143 +106,7 @@ void Protocol_2_0::start_authentication()
         qDebug(NetClientLog) << "Authentication status:" << authorized;
     }).timeout([]() {
         std::cout << "Authentication timeout" << std::endl;
-    }, std::chrono::seconds(15)) << auth_info();
-}
-
-void Protocol_2_0::send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev)
-{
-    Helpz::Network::Protocol_Sender helper = std::move(send_answer(Cmd::GET_PROJECT, msg_id));
-    helper << struct_type;
-
-    std::unique_ptr<QDataStream> ds;
-    std::unique_ptr<QBuffer> buf;
-
-    bool hash_flag = struct_type & STRUCT_TYPE_HASH_FLAG;
-    if (hash_flag)
-    {
-        struct_type &= ~STRUCT_TYPE_HASH_FLAG;
-
-        buf.reset(new QBuffer{});
-        buf->open(QIODevice::ReadWrite);
-        ds.reset(new QDataStream{buf.get()});
-        ds->setVersion(DATASTREAM_VERSION);
-    }
-    else
-    {
-        ds.reset(&helper);
-    }
-
-    switch (struct_type)
-    {
-    case STRUCT_TYPE_DEVICES:           *ds << prj_->devices(); break;
-    case STRUCT_TYPE_CHECKER_TYPES:     add_checker_types(*ds); break;
-    case STRUCT_TYPE_DEVICE_ITEMS:      add_device_items(*ds);  break;
-    case STRUCT_TYPE_DEVICE_ITEM_TYPES: *ds << prj_->ItemTypeMng; break;
-    case STRUCT_TYPE_SECTIONS:          *ds << prj_->sections(); break;
-    case STRUCT_TYPE_GROUPS:            add_groups(*ds);        break;
-    case STRUCT_TYPE_GROUP_TYPES:       *ds << prj_->GroupTypeMng; break;
-    case STRUCT_TYPE_GROUP_MODES:       *ds << prj_->ModeTypeMng; break;
-    case STRUCT_TYPE_GROUP_PARAMS:      *ds << prj_->get_param_items(); break;
-    case STRUCT_TYPE_GROUP_PARAM_TYPES: *ds << prj_->ParamMng; break;
-    case STRUCT_TYPE_GROUP_STATUSES:    *ds << prj_->StatusMng; break;
-    case STRUCT_TYPE_GROUP_STATUS_TYPE: *ds << prj_->StatusTypeMng; break;
-    case STRUCT_TYPE_SIGNS:             *ds << prj_->SignMng; break;
-    case STRUCT_TYPE_SCRIPTS:
-    {
-        if (hash_flag)
-        {
-            hash_flag = false;
-            ds.reset();
-
-            helper << prj_->get_codes_checksum();
-        }
-        else
-        {
-            apply_parse(*data_dev, &Protocol_2_0::add_codes, ds.get());
-            qDebug(NetClientLog) << "code sended size:" << helper.device()->size();
-        }
-        break;
-    }
-    default:
-        helper.release();
-        break;
-    }
-
-    if (hash_flag)
-    {
-        ds->device()->seek(0);
-        QByteArray data = ds->device()->readAll();
-        helper << qChecksum(data.constData(), data.size());
-    }
-    else
-    {
-        ds.release();
-    }
-
-    helper.timeout(nullptr, std::chrono::minutes(5), std::chrono::seconds(90));
-}
-
-void Protocol_2_0::add_checker_types(QDataStream& ds)
-{
-    if (prj_->PluginTypeMng)
-    {
-        ds << *prj_->PluginTypeMng;
-    }
-}
-
-void Protocol_2_0::add_device_items(QDataStream& ds)
-{
-    auto pos = ds.device()->pos();
-    uint32_t count = 0;
-    ds << quint32(0);
-
-    for (Device* dev: prj_->devices())
-    {
-        for (DeviceItem* dev_item: dev->items())
-        {
-            ds << dev_item;
-            ++count;
-        }
-    }
-    ds.device()->seek(pos);
-    ds << count;
-}
-
-void Protocol_2_0::add_groups(QDataStream& ds)
-{
-    auto pos = ds.device()->pos();
-    uint32_t count = 0;
-    ds << quint32(0);
-    for (Section* sct: prj_->sections())
-    {
-        for (ItemGroup* group: sct->groups())
-        {
-            ds << group;
-            ++count;
-        }
-    }
-    ds.device()->seek(pos);
-    ds << count;
-}
-
-void Protocol_2_0::add_codes(const QVector<uint32_t>& ids, QDataStream* ds)
-{
-    CodeItem* code;
-    uint32_t count = 0;
-    auto pos = ds->device()->pos();
-    *ds << count;
-    for (uint32_t id: ids)
-    {
-        code = prj_->CodeMng.getType(id);
-        if (code->id())
-        {
-            *ds << *code;
-            ++count;
-        }
-    }
-    ds->device()->seek(pos);
-    *ds << count;
-    ds->device()->seek(ds->device()->size());
+    }, std::chrono::seconds(15)) << auth_info() << structure_sync_->modified();
 }
 
 void Protocol_2_0::send_version(uint8_t msg_id)
