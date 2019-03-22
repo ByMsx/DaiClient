@@ -87,7 +87,7 @@ private:
 
     Dai::DBManager db_mng;
     Dai::Project prj;
-//    Dai::TypeManagers mng;
+//    Dai::Type_Managers mng;
 //    Dai::Devices devs;
 
     std::map<uint, std::map<uchar, QByteArray>> tmp;

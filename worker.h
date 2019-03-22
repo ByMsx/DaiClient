@@ -33,7 +33,7 @@ signals:
     void send(const Project_Info &proj, const QByteArray& data) const;
     bool applyStructModify(uint32_t user_id, uint8_t structType, QIODevice* data_dev);
 public slots:
-    void send_event_message(const EventPackItem& event);
+    void send_event_message(const Log_Event_Item& event);
 
     void modeChanged(uint mode_id, uint group_id);
     void procCommand(uint32_t user_id, quint32 user_team_id, quint32 proj_id, quint8 cmd, const QByteArray& raw_data);
@@ -73,7 +73,7 @@ signals:
 
     // D-BUS Signals
     void started();
-    void change(const ValuePackItem& item, bool immediately);
+    void change(const Log_Value_Item& item, bool immediately);
 
     void modeChanged(uint32_t user_id, uint32_t mode_id, uint32_t group_id);
 
@@ -82,12 +82,12 @@ signals:
 
     void paramValuesChanged(uint32_t user_id, const ParamValuesPack& pack);
 
-    void event_message(const EventPackItem&);
+    void event_message(const Log_Event_Item&);
 //    std::shared_ptr<Dai::Prt::ServerInfo> dumpSectionsInfo() const;
 public slots:
     void restart_service_object(uint32_t user_id);
     void logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QString &str);
-    void add_event_message(const EventPackItem& event);
+    void add_event_message(const Log_Event_Item& event);
     void processCommands(const QStringList& args);
 
     QString getUserDevices();
@@ -97,13 +97,46 @@ public slots:
     void clearServerConfig();
     void saveServerAuthData(const QString& login, const QString& password);
     void saveServerData(const QUuid &devive_uuid, const QString& login, const QString& password);
+/*
+    QByteArray sections()
+    {
+        while (!prj->ptr() && !prj->wait(5));
 
-    QByteArray sections();
+        QByteArray buff;
+        {
+            QDataStream ds(&buff, QIODevice::WriteOnly);
+            ds.setVersion(QDataStream::Qt_5_7);
+            prj->ptr()->dumpInfoToStream(&ds);
+        }
+        return buff;
+
+        //    std::shared_ptr<Prt::ServerInfo> info = prj->ptr()->dumpInfoToStream();
+        //    return serialize( info.get() );
+    }
+
+    bool setCode(const Code_Item &item)
+    {
+        if (!item.id()) {
+            qCWarning(Service::Log) << "Attempt to save zero code";
+            return false;
+        }
+
+        CodeManager& CodeMng = prj->ptr()->CodeMng;
+        Code_Item* code = CodeMng.getType(item.id());
+
+        qDebug() << "SetCode" << item.id() << item.text.length() << code->id();
+        if (code->id())
+            *code = item;
+        else
+            CodeMng.add(item);
+        return db_mng->setCodes(&CodeMng);
+    }
+
+    */
     bool setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs);
 
     void writeToItem(uint32_t user_id, uint32_t item_id, const QVariant &raw_data);
     bool setMode(uint32_t user_id, uint32_t mode_id, uint32_t group_id);
-    bool setCode(const CodeItem &item);
 
     void setParamValues(uint32_t user_id, const ParamValuesPack& pack);
 

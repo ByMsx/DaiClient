@@ -4,6 +4,7 @@
 
 #include <Helpz/settingshelper.h>
 #include <Dai/deviceitem.h>
+#include <Dai/device.h>
 
 #include "plugin.h"
 
@@ -53,7 +54,7 @@ bool OneWireThermPlugin::check(Device* dev)
     bool ok;
 
     for (DeviceItem * item: items) {
-        unit = item->unit().toString();
+        unit = item->extra().find("unit").value().toString();
         if (unit.isEmpty())
             continue;
         value.clear();
@@ -74,7 +75,7 @@ bool OneWireThermPlugin::check(Device* dev)
             file_.close();
         }
 
-        if (item->getRawValue() != value) {
+        if (item->raw_value() != value) {
             QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, value));
         }
     }

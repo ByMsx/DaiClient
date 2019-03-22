@@ -8,6 +8,8 @@
 
 #include <Helpz/settingshelper.h>
 
+#include <Dai/device.h>
+
 #include <csignal>
 #include <iostream>
 
@@ -179,7 +181,7 @@ void MainWindow::init()
     for (GH::Device* dev: prj.devices())
     {
         if (dev->items().size() == 0 ||
-                dev->items().first()->type() == GH::Prt::itProcessor)
+                dev->items().first()->type_id() == GH::Prt::itProcessor)
             continue;
 
         ModbusDeviceItem item;
@@ -209,7 +211,7 @@ void MainWindow::init()
 
         connect(item.serialPort, &QSerialPort::readyRead, this, &MainWindow::socketDataReady);
 
-        item.box = new MainBox(&prj.ItemTypeMng, dev, item.device, ui->content);
+        item.box = new MainBox(&prj.item_type_mng_, dev, item.device, ui->content);
         modbus_list.emplace(dev->address(), item);
 
         box->addWidget( item.box, box->rowCount(), 0, 1, 2 );

@@ -22,7 +22,7 @@ Checker::Checker(Worker *worker, int interval, const QString &pluginstr, QObject
     while (!worker->prj->ptr() && !worker->prj->wait(5));
     prj = worker->prj->ptr();
 
-    PluginTypeMng = prj->PluginTypeMng;
+    plugin_type_mng_ = prj->plugin_type_mng_;
     loadPlugins(pluginstr.split(','));
 
     connect(prj, &Project::controlStateChanged, this, &Checker::write_data, Qt::QueuedConnection);
@@ -50,7 +50,7 @@ Checker::~Checker()
 {
     stop();
 
-    for (const PluginType& plugin: PluginTypeMng->types())
+    for (const Plugin_Type& plugin: plugin_type_mng_->types())
         if (plugin.loader && !plugin.loader->unload())
             qWarning(CheckerLog) << "Unload fail" << plugin.loader->fileName() << plugin.loader->errorString();
 }
@@ -60,7 +60,7 @@ void Checker::loadPlugins(const QStringList &allowed_plugins)
     //    pluginLoader.emplace("modbus", nullptr);
     QString type;
     QObject *plugin;
-    PluginType* pl_type;
+    Plugin_Type* pl_type;
     CheckerInterface *checkerInterface;
 
     QDir pluginsDir(qApp->applicationDirPath());
@@ -87,7 +87,7 @@ void Checker::loadPlugins(const QStringList &allowed_plugins)
 
             if (!type.isEmpty() && type.length() < 128)
             {
-                pl_type = PluginTypeMng->getType(type);
+                pl_type = plugin_type_mng_->get_type(type);
                 if (pl_type->id() && pl_type->need_it && !pl_type->loader)
                 {
                     qDebug(CheckerLog) << "Load plugin:" << fileName << type;
@@ -122,7 +122,7 @@ void Checker::breakChecking()
 {
     b_break = true;
 
-    for (const PluginType& plugin: PluginTypeMng->types())
+    for (const Plugin_Type& plugin: plugin_type_mng_->types())
         if (plugin.loader && plugin.checker)
             plugin.checker->stop();
 }
@@ -153,9 +153,9 @@ void Checker::checkDevices()
 
         if (dev->items().size() == 0) continue;
 
-        if (dev->checkerType()->loader && dev->checkerType()->checker)
-            if (!dev->checkerType()->checker->check(dev))
-                qCDebug(CheckerLog) << "Fail check" << dev->checkerType()->name();
+        if (dev->checker_type()->loader && dev->checker_type()->checker)
+            if (!dev->checker_type()->checker->check(dev))
+                qCDebug(CheckerLog) << "Fail check" << dev->checker_type()->name();
     }
 
     if (b_break)
@@ -201,7 +201,7 @@ void Checker::writeItem(DeviceItem* item, const QVariant& raw_data, uint32_t use
 {
     QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data), Q_ARG(bool, false), Q_ARG(uint32_t, user_id));
 
-    PluginType* chk_type = item->device()->checkerType();
+    Plugin_Type* chk_type = item->device()->checker_type();
     if (chk_type && chk_type->id() && chk_type->checker)
     {
         chk_type->checker->write(item, raw_data, user_id);

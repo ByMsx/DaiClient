@@ -3,7 +3,7 @@
 #include <Helpz/net_version.h>
 #include <Helpz/db_version.h>
 #include <Helpz/srv_version.h>
-#include <Helpz/dtls_client_controller.h>
+#include <Helpz/dtls_client_node.h>
 
 #include <Dai/commands.h>
 #include <Dai/lib.h>
@@ -44,7 +44,7 @@ void Protocol_2_0::connect_worker_signals()
     connect(worker(), &Worker::paramValuesChanged, this, &Protocol_2_0::send_param_values, Qt::QueuedConnection);
 
     /*
-    qRegisterMetaType<CodeItem>("CodeItem");
+    qRegisterMetaType<Code_Item>("Code_Item");
     qRegisterMetaType<std::vector<uint>>("std::vector<uint>");
     connect(this, &Protocol_2_0::setCode, worker, &Worker::setCode, Qt::BlockingQueuedConnection);
 //    connect(this, &Protocol_2_0::lostValues, worker, &Worker::sendLostValues, Qt::QueuedConnection);
@@ -56,8 +56,11 @@ void Protocol_2_0::connect_worker_signals()
 
 void Protocol_2_0::ready_write()
 {
-    auto ctrl = dynamic_cast<Helpz::DTLS::Client_Controller*>(writer());
-    qCDebug(NetClientLog) << "Connected. Server choose protocol:" << ctrl->application_protocol().c_str();
+    auto ctrl = dynamic_cast<Helpz::DTLS::Client_Node*>(writer());
+    if (ctrl)
+    {
+        qCDebug(NetClientLog) << "Connected. Server choose protocol:" << ctrl->application_protocol().c_str();
+    }
 
     start_authentication();
 }
@@ -211,10 +214,10 @@ public:
 //    bool canConnect() const override { return !(/*m_device.isNull() || */m_login.isEmpty() || m_password.isEmpty()); }
 signals:
     void getServerInfo(QIODevice* dev) const;
-    void setServerInfo(QIODevice* dev, QVector<ParamTypeItem> *param_items_out, bool* = nullptr);
-    void saveServerInfo(const QVector<ParamTypeItem>& param_values, Project *proj);
+    void setServerInfo(QIODevice* dev, QVector<Param_Type_Item> *param_items_out, bool* = nullptr);
+    void saveServerInfo(const QVector<Param_Type_Item>& param_values, Project *proj);
 
-    bool setCode(const CodeItem&);
+    bool setCode(const Code_Item&);
 public slots:
     void setImportFlag(bool import_config)
     {
@@ -265,7 +268,7 @@ public slots:
 
     //void setId(int id) { m_id = id; }
 
-    //void sendLostValues(const QVector<ValuePackItem> &valuesPack) {
+    //void sendLostValues(const QVector<Log_Value_Item> &valuesPack) {
     //    send(cmdGetLostValues) << valuesPack;
     //}
     //void sendNotFoundIds(const QVector<quint32> &ids) {
@@ -327,7 +330,7 @@ protected:
         case cmdServerInfo:
         {
             close_connection();
-            QVector<ParamTypeItem> param_values;
+            QVector<Param_Type_Item> param_values;
             emit setServerInfo(&msg, &param_values);
             emit saveServerInfo(param_values, worker->prj->ptr());
 

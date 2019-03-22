@@ -58,7 +58,7 @@ public:
     void setSSHHost(const QString &value);
 
     qint64 uptime() const;
-    Section *addSection(quint32 id, const QString &name, const TimeRange &dayTime) override;
+    Section *addSection(quint32 id, const QString &name, quint32 day_start_secs, quint32 day_end_secs) override;
 
     QScriptValue valueFromVariant(const QVariant& data) const;
 signals:
@@ -70,7 +70,7 @@ signals:
     void modbusStop();
     void modbusStart();
 
-    void add_event_message(const EventPackItem& event);
+    void add_event_message(const Log_Event_Item& event);
 //    QVariantList modbusRead(int serverAddress, uchar registerType = QModbusDataUnit::InputRegisters,
 //                                                 int startAddress = 0, quint16 unitCount = 1);
 //    void modbusWrite(int server, uchar registerType, int unit, quint16 state);

@@ -86,6 +86,8 @@ private:
     void writeFilePart();
     bool checkConnect();
 
+    int32_t unit(DeviceItem* item) const;
+
     std::unique_ptr<Conf> conf;
 
     typedef std::map<int, DeviceItem*> DevItems;

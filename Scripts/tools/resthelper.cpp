@@ -57,7 +57,7 @@ void RestHelper::checkParam(uint time, bool rest)
 
 void RestHelper::controlChanged(DeviceItem *dev_item)
 {
-    if (dev_item->type() != type())
+    if (dev_item->type_id() != type())
         return;
 
     bool isControlOn = group()->isControlOn(type());

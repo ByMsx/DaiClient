@@ -15,11 +15,13 @@
 
 #include "Dai/typemanager/typemanager.h"
 #include "Dai/section.h"
+#include <Dai/device.h>
+
 #include "mainbox.h"
 
 using namespace std::placeholders;
 
-MainBox::MainBox(Dai::ItemTypeManager *mng, Dai::Device* dev, QModbusServer *modbus, QWidget *parent) :
+MainBox::MainBox(Dai::Item_Type_Manager *mng, Dai::Device* dev, QModbusServer *modbus, QWidget *parent) :
     QFrame(parent),
     dev(dev),
     modbus(modbus), mng(mng)
@@ -69,7 +71,7 @@ MainBox::MainBox(Dai::ItemTypeManager *mng, Dai::Device* dev, QModbusServer *mod
                     str.resize(4);
             name = parts.join(' ');
         }
-        return name.arg(item->id()).arg(item->unit().toUInt());
+        return name.arg(item->id()).arg(item->extra().find("unit").value().toUInt());
     };
 
     auto addWidget = [&](Dai::DeviceItem* item, QWidget* w)
@@ -124,7 +126,7 @@ MainBox::MainBox(Dai::ItemTypeManager *mng, Dai::Device* dev, QModbusServer *mod
         Dai::DeviceItem* item = *it;
         QWidget* w = nullptr;
 
-        if (    mng->registerType(item->type()) < 3)
+        if (    mng->register_type(item->type_id()) < 3)
         {
             ++coils_count;
             auto cb = new QCheckBox("Вкл/Выкл");
@@ -139,18 +141,18 @@ MainBox::MainBox(Dai::ItemTypeManager *mng, Dai::Device* dev, QModbusServer *mod
             spin->setRange(std::numeric_limits<qint16>::min(),
                            std::numeric_limits<qint16>::max());
 
-            if (item->type() == Dai::Prt::itWindowState)
+            if (item->type_id() == Dai::Prt::itWindowState)
                 spin->setValue(Dai::Prt::wCalibrated | Dai::Prt::wExecuted | Dai::Prt::wClosed);
             else
-                spin->setValue(mng->needNormalize(item->type()) ? (qrand() % 100) + 240 : (qrand() % 3000) + 50);
+                spin->setValue(mng->need_normalize(item->type_id()) ? (qrand() % 100) + 240 : (qrand() % 3000) + 50);
 
-            if (mng->registerType(item->type()) == QModbusDataUnit::HoldingRegisters)
+            if (mng->register_type(item->type_id()) == QModbusDataUnit::HoldingRegisters)
                 spin->setProperty("IsHolding", true);
             connect(spin, SIGNAL(valueChanged(int)), SLOT(setRegisterValue(int)));
             w = spin;
         }
 
-        m_items[static_cast<QModbusDataUnit::RegisterType>(mng->registerType(item->type()))].push_back(item);
+        m_items[static_cast<QModbusDataUnit::RegisterType>(mng->register_type(item->type_id()))].push_back(item);
         val_idx[item] = i;
 
         addWidget(item, w);
@@ -167,15 +169,15 @@ MainBox::MainBox(Dai::ItemTypeManager *mng, Dai::Device* dev, QModbusServer *mod
     {
         auto sort_units = [](const DevItemPtr& a, const DevItemPtr& b) -> bool
         {
-            return a->unit().toInt() < b->unit().toInt();
+            return a->extra().find("unit").value().toInt() < b->extra().find("unit").value().toInt();
         };
         std::sort(it.second.begin(), it.second.end(), sort_units);
 
-        int max_unit = it.second.back()->unit().toInt();
+        int max_unit = it.second.back()->extra().find("unit").value().toInt();
         auto it_t = it.second.begin();
         for (int i = 0; i <= max_unit; ++i)
         {
-            if (it_t == it.second.end() || (*it_t)->unit() != i)
+            if (it_t == it.second.end() || (*it_t)->extra().find("unit").value() != i)
                 it_t = it.second.insert(it_t, nullptr);
             ++it_t;
         }

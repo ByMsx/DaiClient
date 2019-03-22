@@ -47,7 +47,7 @@ QScriptValue ParamGroupPrototype::byTypeId(quint32 param_type) const
 QString ParamGroupPrototype::toString() const
 {
     Param* param = thisParam();
-//    if (param->type().type == ParamType::TimeType)
+//    if (param->type().type == Param_Type::TimeType)
 //        return QDateTime::fromMSecsSinceEpoch(param->value().toLongLong()).toString();
     return param->value().toString();
 }
@@ -55,7 +55,7 @@ QString ParamGroupPrototype::toString() const
 QScriptValue ParamGroupPrototype::valueOf() const
 {
     Param* param = thisParam();
-//    if (param->type().type == ParamType::TimeType)
+//    if (param->type().type == Param_Type::TimeType)
 //        return engine()->newDate(QDateTime::fromMSecsSinceEpoch(param->value().toLongLong()));
     if (pgClass)
         return pgClass->getValue(param);

@@ -24,8 +24,9 @@ bool Structure_Synchronizer::modified() const
 void Structure_Synchronizer::modify(uint32_t user_id, uint8_t structType, QIODevice* data_dev)
 {
     modified_ = true;
+    /*
 //    using namespace Network;
-    EventPackItem event {0, user_id, QtDebugMsg, 0, "project", "Change project structure "};
+    Log_Event_Item event {0, user_id, QtDebugMsg, 0, "project", "Change project structure "};
     {
         QTextStream ts(&event.text);
         ts << static_cast<StructureType>(structType) << " size " << data_dev->size();
@@ -73,6 +74,7 @@ void Structure_Synchronizer::modify(uint32_t user_id, uint8_t structType, QIODev
     }
     add_event_message(event);
     return false;
+    */
 }
 
 void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice *data_dev, Helpz::Network::Protocol *protocol)
@@ -103,16 +105,16 @@ void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t
     case STRUCT_TYPE_DEVICES:           *ds << prj_->devices(); break;
     case STRUCT_TYPE_CHECKER_TYPES:     add_checker_types(*ds); break;
     case STRUCT_TYPE_DEVICE_ITEMS:      add_device_items(*ds);  break;
-    case STRUCT_TYPE_DEVICE_ITEM_TYPES: *ds << prj_->ItemTypeMng; break;
+    case STRUCT_TYPE_DEVICE_ITEM_TYPES: *ds << prj_->item_type_mng_; break;
     case STRUCT_TYPE_SECTIONS:          *ds << prj_->sections(); break;
     case STRUCT_TYPE_GROUPS:            add_groups(*ds);        break;
-    case STRUCT_TYPE_GROUP_TYPES:       *ds << prj_->GroupTypeMng; break;
-    case STRUCT_TYPE_GROUP_MODES:       *ds << prj_->ModeTypeMng; break;
+    case STRUCT_TYPE_GROUP_TYPES:       *ds << prj_->group_type_mng_; break;
+    case STRUCT_TYPE_GROUP_MODES:       *ds << prj_->mode_type_mng_; break;
     case STRUCT_TYPE_GROUP_PARAMS:      *ds << prj_->get_param_items(); break;
-    case STRUCT_TYPE_GROUP_PARAM_TYPES: *ds << prj_->ParamMng; break;
-    case STRUCT_TYPE_GROUP_STATUSES:    *ds << prj_->StatusMng; break;
-    case STRUCT_TYPE_GROUP_STATUS_TYPE: *ds << prj_->StatusTypeMng; break;
-    case STRUCT_TYPE_SIGNS:             *ds << prj_->SignMng; break;
+    case STRUCT_TYPE_GROUP_PARAM_TYPES: *ds << prj_->param_mng_; break;
+    case STRUCT_TYPE_GROUP_STATUS_INFO: *ds << prj_->status_mng_; break;
+    case STRUCT_TYPE_GROUP_STATUS_TYPE: *ds << prj_->status_type_mng_; break;
+    case STRUCT_TYPE_SIGNS:             *ds << prj_->sign_mng_; break;
     case STRUCT_TYPE_SCRIPTS:
     {
         if (hash_flag)
@@ -150,9 +152,9 @@ void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t
 
 void Structure_Synchronizer::add_checker_types(QDataStream &ds)
 {
-    if (prj_->PluginTypeMng)
+    if (prj_->plugin_type_mng_)
     {
-        ds << *prj_->PluginTypeMng;
+        ds << *prj_->plugin_type_mng_;
     }
 }
 
@@ -193,13 +195,13 @@ void Structure_Synchronizer::add_groups(QDataStream &ds)
 
 void Structure_Synchronizer::add_codes(const QVector<uint32_t> &ids, QDataStream *ds)
 {
-    CodeItem* code;
+    Code_Item* code;
     uint32_t count = 0;
     auto pos = ds->device()->pos();
     *ds << count;
     for (uint32_t id: ids)
     {
-        code = prj_->CodeMng.getType(id);
+        code = prj_->code_mng_.get_type(id);
         if (code->id())
         {
             *ds << *code;

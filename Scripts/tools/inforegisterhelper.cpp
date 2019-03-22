@@ -1,5 +1,7 @@
 #include <QDebug>
 
+#include <Dai/device.h>
+
 #include "inforegisterhelper.h"
 
 namespace Dai {
@@ -23,9 +25,9 @@ void InfoRegisterHelper::init(InfoRegisterHelper* other)
 
     for (auto& item: group()->items())
     {
-        if (item->type() == type())
+        if (item->type_id() == type())
             m_items.emplace(item, nullptr);
-        else if (item->type() == m_info_type)
+        else if (item->type_id() == m_info_type)
             infos.push_back(item);
     }
 
@@ -34,7 +36,7 @@ void InfoRegisterHelper::init(InfoRegisterHelper* other)
         for (auto item: infos)
         {
             if (    it.first->device()->address() == item->device()->address() &&
-                    it.first->unit() == item->unit() )
+                    it.first->extra() == item->extra() )
             {
                 it.second = item;
                 break;
@@ -47,7 +49,7 @@ QVariant InfoRegisterHelper::info(DeviceItem *item) const
 {
     auto it = m_items.find(item);
     if (it != m_items.cend() && it->second)
-        return it->second->getValue();
+        return it->second->value();
     return QVariant();
 }
 

@@ -7,6 +7,7 @@
 #include <QModbusServer>
 
 #include <Dai/deviceitem.h>
+#include <Dai/typemanager/typemanager.h>
 
 class QHBoxLayout;
 class QCheckBox;
@@ -17,7 +18,7 @@ class MainBox : public QFrame
 {
     Q_OBJECT
 public:
-    explicit MainBox(Dai::ItemTypeManager* mng, Dai::Device* dev, QModbusServer* modbus, QWidget *parent = 0);
+    explicit MainBox(Dai::Item_Type_Manager* mng, Dai::Device* dev, QModbusServer* modbus, QWidget *parent = 0);
     Dai::Device* dev;
     QModbusServer* modbus;
 
@@ -45,7 +46,7 @@ protected:
     typedef std::multimap<DevItemPtr, QWidget*> WidgetsMap;
     WidgetsMap widgets;
 
-    Dai::ItemTypeManager* mng;
+    Dai::Item_Type_Manager* mng;
 };
 
 class ModbusBox : public MainBox

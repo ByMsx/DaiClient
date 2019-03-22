@@ -71,18 +71,18 @@ QScriptValue ParamGroupClass::getValue(Param *param)
 /*static*/ QScriptValue ParamGroupClass::getValue(ParamGroupClass *pgClass, Param *param)
 {
     switch (param->type()->type()) {
-    case ParamType::IntType:       return param->value().toInt();
-    case ParamType::BoolType:      return param->value().toInt() ? true : false;
-    case ParamType::FloatType:     return param->value().toReal();
-    case ParamType::BytesType:     return QString::fromLocal8Bit(param->value().toByteArray().toHex());
-    case ParamType::TimeType:      return pgClass->engine()->newDate(param->value().toDateTime());
-    case ParamType::RangeType:
+    case Param_Type::IntType:       return param->value().toInt();
+    case Param_Type::BoolType:      return param->value().toInt() ? true : false;
+    case Param_Type::FloatType:     return param->value().toReal();
+    case Param_Type::BytesType:     return QString::fromLocal8Bit(param->value().toByteArray().toHex());
+    case Param_Type::TimeType:      return pgClass->engine()->newDate(param->value().toDateTime());
+    case Param_Type::RangeType:
         if (pgClass)
             return ParamGroupClass::newInstance(pgClass, const_cast<Param*>(param));
         else
             return param->value().toString();
-    case ParamType::ComboType:
-    case ParamType::StringType:
+    case Param_Type::ComboType:
+    case Param_Type::StringType:
     default:
         return param->value().toString();
     }
@@ -147,7 +147,7 @@ void ParamGroupClass::setProperty(QScriptValue &object, const QScriptString &nam
     if (child_param)
         child_param->setValue(value.toVariant());
 
-//    if (child_param->type().type == ParamType::TimeType)
+//    if (child_param->type().type == Param_Type::TimeType)
 //    {
 //        if (value.isDate())
 //            child_param->setValue(value.toDateTime().toMSecsSinceEpoch());
