@@ -5,265 +5,171 @@
 #include <QtDBus>
 
 #include <QHostAddress>
-
-#include <Helpz/settingshelper.h>
-
-#include <Dai/device.h>
+#include <QInputDialog>
 
 #include <csignal>
 #include <iostream>
 
-#include "mainbox.h"
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <QGroupBox>
+
+#include <Dai/device.h>
+#include "device_item_view.h"
 
 namespace GH = ::Dai;
 
-void DBusTTY::setPath(const QString &path) { m_path = path; }
-QString DBusTTY::ttyPath() const { return m_path; }
+void DBusTTY::setPath(const QString &path) { path_ = path; }
+QString DBusTTY::ttyPath() const { return path_; }
 
-MainWindow* obj = nullptr;
+Main_Window* obj = nullptr;
 
 void term_handler(int)
 {
     if (obj)
     {
-        obj->m_socat->terminate();
-        obj->m_socat->waitForFinished();
-        delete obj->m_socat;
+        obj->socat_process_->terminate();
+        obj->socat_process_->waitForFinished();
+        delete obj->socat_process_;
 
-        for (auto&& item: obj->modbus_list)
+        for (auto&& item: obj->modbus_list_)
         {
-            item.second.serialPort->close();
-            item.second.socat->terminate();
-            item.second.socat->waitForFinished();
-            delete item.second.socat;
+            item.second.serial_port_->close();
+            item.second.socat_process_->terminate();
+            item.second.socat_process_->waitForFinished();
+            delete item.second.socat_process_;
         }
     }
     std::cerr << "Termination.\n";
 }
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow),
-    db_mng(), prj(&db_mng),
-    m_socat(nullptr)
+Main_Window::Main_Window(QWidget *parent) : QMainWindow(parent), ui_(new Ui::Main_Window),
+    db_manager_(), dai_project_(&db_manager_),
+    socat_process_(nullptr)
 {
     obj = this;
+    ui_->setupUi(this);
 
-//    db_mng.setTypeManager(&prj);
-
-    conf.baudRate = QSerialPort::Baud9600;
-
-    ui->setupUi(this);
-
-    qsrand(QDateTime::currentDateTime().toTime_t());
-
-    QSettings dai_s("DaiClient.conf", QSettings::NativeFormat);
-
-    init_Database(&dai_s);
-    init();
+    init();              
+}
 
 
-//    QLoggingCategory::setFilterRules(QStringLiteral("qt.modbus* = true"));
-//    QLoggingCategory::setFilterRules(QStringLiteral("qt.modbus*=true;qt.modbus.lowlevel*=true;"));
-    m_serialPort = new QSerialPort(this);
-    connect(m_serialPort, &QSerialPort::readyRead, this, &MainWindow::proccessData);
 
-    connect(&m_temp_timer, &QTimer::timeout, this, &MainWindow::changeTemperature);
-    m_temp_timer.setInterval(3000);
-    m_temp_timer.start();
-
-    QSettings s;
-    ui->portName->setText(s.value("portName", "/dev/pts/").toString());
-
-    // -----------------------------------
+void Main_Window::init() noexcept
+{
     std::signal(SIGTERM, term_handler);
     std::signal(SIGINT, term_handler);
     std::signal(SIGKILL, term_handler);
+
+    config_.baud_rate_ = QSerialPort::Baud9600;
+    qsrand(QDateTime::currentDateTime().toTime_t());
+
+    init_database();
+    db_manager_.initProject(&dai_project_);
+
+    fill_data();
+
+    init_client_connection();
+
+    connect(&temp_timer_, &QTimer::timeout, this, &Main_Window::changeTemperature);
+    temp_timer_.setInterval(3000);
+    temp_timer_.start();
+}
+
+void Main_Window::init_database() noexcept
+{
+    QSettings dai_settings("DaiClient.conf", QSettings::NativeFormat);
+    dai_settings.beginGroup("Database");
+    qDebug() << "Open SQL is" << db_manager_.create_connection({
+                    dai_settings.value("Name", "dai_main").toString(),
+                    dai_settings.value("User", "DaiUser").toString(),
+                    dai_settings.value("Password", "?").toString() });
+    dai_settings.endGroup();
+}
+
+void Main_Window::fill_data() noexcept
+{
+    auto box = static_cast<QGridLayout*>(ui_->content->layout());
+
+    for (GH::Device* dev: dai_project_.devices())
+    {
+        if (dev->items().size() > 0 && dev->items().first()->type_id() != GH::Prt::itProcessor)
+        {
+            Modbus_Device_Item modbus_device_item;
+            modbus_device_item = create_socat();
+            modbus_device_item.modbus_device_ = new QModbusRtuSerialSlave(this);
+            modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialPortNameParameter, modbus_device_item.port_from_name_);
+            modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialParityParameter, config_.parity_);
+            modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialBaudRateParameter, config_.baud_rate_);
+            modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialDataBitsParameter, config_.data_bits_);
+            modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialStopBitsParameter, config_.stop_bits_);
+            modbus_device_item.modbus_device_->setServerAddress(dev->address());
+
+    //        connect(modbusDevice, &QModbusServer::stateChanged,
+    //                this, &MainWindow::onStateChanged);
+            connect(modbus_device_item.modbus_device_, &QModbusServer::errorOccurred, this, &Main_Window::handleDeviceError);
+
+            modbus_device_item.serial_port_ = new QSerialPort(this);
+            modbus_device_item.serial_port_->setPortName(modbus_device_item.port_to_name_);
+            modbus_device_item.serial_port_->setBaudRate(config_.baud_rate_);
+            modbus_device_item.serial_port_->setDataBits(config_.data_bits_);
+            modbus_device_item.serial_port_->setParity(config_.parity_);
+            modbus_device_item.serial_port_->setStopBits(config_.stop_bits_);
+            modbus_device_item.serial_port_->setFlowControl(config_.flow_control_);
+
+            if (!modbus_device_item.serial_port_->open(QIODevice::ReadWrite))
+                qCritical() << modbus_device_item.serial_port_->errorString();
+
+            connect(modbus_device_item.serial_port_, &QSerialPort::readyRead, this, &Main_Window::socketDataReady);
+
+            modbus_device_item.device_item_view_ = new Device_Item_View(&dai_project_.item_type_mng_, dev, modbus_device_item.modbus_device_, ui_->content);
+            box->addWidget(modbus_device_item.device_item_view_);
+
+            modbus_list_.emplace(dev->address(), modbus_device_item);
+        }
+    }
+}
+
+void Main_Window::init_client_connection()
+{
+    serial_port_ = new QSerialPort(this);
+    connect(serial_port_, &QSerialPort::readyRead, this, &Main_Window::proccessData);
+
+    QSettings s;
+    ui_->portName->setText(s.value("portName", "/dev/pts/").toString());
 
     if (QDBusConnection::sessionBus().isConnected())
     {
         if (QDBusConnection::sessionBus().registerService("ru.deviceaccess.Dai.Emulator"))
         {
-            m_dbus = new DBusTTY;
-            QDBusConnection::sessionBus().registerObject("/", m_dbus, QDBusConnection::ExportAllInvokables);
+            dbus_ = new DBusTTY;
+            QDBusConnection::sessionBus().registerObject("/", dbus_, QDBusConnection::ExportAllInvokables);
         }
         else
+        {
             qCritical() << "Уже зарегистрирован";
+        }
     }
 
     on_socatReset_clicked();
 }
 
-void MainWindow::handleDeviceError(QModbusDevice::Error newError)
+Main_Window::Socat_Info Main_Window::create_socat()
 {
-    auto modbusDevice = qobject_cast<QModbusServer*>(sender());
-    if (newError == QModbusDevice::NoError || !modbusDevice)
-        return;
+    Socat_Info info;
 
-    statusBar()->showMessage(modbusDevice->errorString(), 5000);
-}
+    info.socat_process_ = new QProcess;
+    info.socat_process_->setProcessChannelMode(QProcess::MergedChannels);
+    info.socat_process_->setReadChannel(QProcess::StandardOutput);
+    info.socat_process_->setProgram("/usr/bin/socat");
+    // TODO need take the username from GUI
+    info.socat_process_->setArguments(QStringList() << "-d" << "-d" << ("pty,raw,echo=0,user=" + get_user()) << ("pty,raw,echo=0,user=" + get_user()));
 
-void MainWindow::onStateChanged(int state)
-{
-    Q_UNUSED(state)
-//    auto modbusDevice = static_cast<QModbusRtuSerialSlave*>(sender());
-//    qDebug() << "onStateChanged" << modbusDevice->serverAddress() <<  state;
-}
-
-MainWindow::~MainWindow()
-{
-    QSettings s;
-    s.setValue("portName", ui->portName->text());
-
-    term_handler(0);
-
-    delete ui;
-}
-
-void MainWindow::init_Database(QSettings* s)
-{
-    auto db_info = Helpz::SettingsHelper
-        #if (__cplusplus < 201402L) || (defined(__GNUC__) && (__GNUC__ < 7))
-            <Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<int>,Z::Param<QString>,Z::Param<QString>>
-        #endif
-            (
-                s, "Database",
-                Helpz::Param<QString>{"Name", "deviceaccess_local"},
-                Helpz::Param<QString>{"User", "DaiUser"},
-                Helpz::Param<QString>{"Password", ""},
-                Helpz::Param<QString>{"Host", "localhost"},
-                Helpz::Param<int>{"Port", -1},
-                Helpz::Param<QString>{"Driver", "QMYSQL"},
-                Helpz::Param<QString>{"ConnectOptions", QString()}
-    ).unique_ptr<Helpz::Database::Connection_Info>();
-    if (!db_info)
-        throw std::runtime_error("Failed get database config");
-
-    qDebug() << "Open SQL is" << db_mng.create_connection(*db_info);
-}
-
-void MainWindow::init()
-{
-    auto box = static_cast<QGridLayout*>(ui->content->layout());
-
-    while (auto it = box->takeAt(0)) {
-        delete it->widget();
-        delete it;
-    }
-
-    db_mng.initProject(&prj);
-
-//    db_mng.fillTypes();
-//    devs = db_mng.fillDevices();
-/*
-    std::map<quint32, bool> hasZeroUnit;
-    std::map<quint32, bool>::iterator hasZeroUnitIt;
-    for (GH::Device* dev: prj.devices())
+    auto dbg = qDebug() << info.socat_process_->program() << info.socat_process_->arguments();
+    info.socat_process_->start(QIODevice::ReadOnly);
+    if (info.socat_process_->waitForStarted() && info.socat_process_->waitForReadyRead() && info.socat_process_->waitForReadyRead())
     {
-        hasZeroUnit.clear();
-//        hasZeroUnit = false;
-        for (GH::DeviceItem* item: dev->items())
-        {
-            hasZeroUnitIt = hasZeroUnit.find(item->type());
-            if (hasZeroUnitIt == hasZeroUnit.end())
-                hasZeroUnitIt = hasZeroUnit.emplace(item->type(), false).first;
-
-            if (item->unit() == 0 && !hasZeroUnitIt->second)
-                hasZeroUnitIt->second = true;
-        }
-
-        for (auto it = hasZeroUnit.cbegin(); it != hasZeroUnit.cend(); ++it)
-            if (!it->second)
-                dev->createItem(0, 0, {}, "0");
-    }*/
-
-//    int column = -1;
-    for (GH::Device* dev: prj.devices())
-    {
-        if (dev->items().size() == 0 ||
-                dev->items().first()->type_id() == GH::Prt::itProcessor)
-            continue;
-
-        ModbusDeviceItem item;
-        item = createSocat();
-        item.device = new QModbusRtuSerialSlave(this);
-        item.device->setConnectionParameter(QModbusDevice::SerialPortNameParameter, item.portFromName );
-        item.device->setConnectionParameter(QModbusDevice::SerialParityParameter,   conf.parity);
-        item.device->setConnectionParameter(QModbusDevice::SerialBaudRateParameter, conf.baudRate);
-        item.device->setConnectionParameter(QModbusDevice::SerialDataBitsParameter, conf.dataBits);
-        item.device->setConnectionParameter(QModbusDevice::SerialStopBitsParameter, conf.stopBits);
-        item.device->setServerAddress(dev->address());
-
-//        connect(modbusDevice, &QModbusServer::stateChanged,
-//                this, &MainWindow::onStateChanged);
-        connect(item.device, &QModbusServer::errorOccurred, this, &MainWindow::handleDeviceError);
-
-        item.serialPort = new QSerialPort(this);
-        item.serialPort->setPortName(item.portToName);
-        item.serialPort->setBaudRate(   conf.baudRate);
-        item.serialPort->setDataBits(   conf.dataBits);
-        item.serialPort->setParity(     conf.parity);
-        item.serialPort->setStopBits(   conf.stopBits);
-        item.serialPort->setFlowControl(conf.flowControl);
-
-        if (!item.serialPort->open(QIODevice::ReadWrite))
-            qCritical() << item.serialPort->errorString();
-
-        connect(item.serialPort, &QSerialPort::readyRead, this, &MainWindow::socketDataReady);
-
-        item.box = new MainBox(&prj.item_type_mng_, dev, item.device, ui->content);
-        modbus_list.emplace(dev->address(), item);
-
-        box->addWidget( item.box, box->rowCount(), 0, 1, 2 );
-        /*continue;
-
-        QWidget* w = nullptr;
-        switch (dev->type()) {
-        case GH::Prt::itTemperature:
-            w = new TemperatureBox(dev.get(), ui->content);
-            break;
-        case GH::Prt::itMistiner:
-        case GH::Prt::itWindow:
-            w = new WindowBox(dev.get(), ui->content);
-            break;
-        case GH::Prt::itProcessor:
-            continue;
-        default:
-            if (dev->item_size() && GH::DeviceItem::isControl( dev->item(0).type() ))
-                w = new OnOffBox(dev.get(), ui->content);
-            else
-                w = new LightBox(dev.get(), ui->content);
-            break;
-        }
-
-        if (dev->type() == GH::Prt::itTemperature ||
-                dev->type() == GH::Prt::itWindow ||
-                dev->type() == GH::Prt::itMistiner)
-            box->addWidget( w, box->rowCount(), 0, 1, 2 );
-        else
-        {
-            column = (column + 1) % 2;
-            box->addWidget( w, box->rowCount() - column, column);
-        }*/
-    }
-    box->addItem(new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding), box->rowCount(), 0);
-}
-
-MainWindow::SocatInfo MainWindow::createSocat()
-{
-    SocatInfo info;
-
-    info.socat = new QProcess;
-    info.socat->setProcessChannelMode(QProcess::MergedChannels);
-    info.socat->setReadChannel(QProcess::StandardOutput);
-    info.socat->setProgram("/usr/bin/socat");
-    info.socat->setArguments(QStringList() << "-d" << "-d" << "pty,raw,echo=0,user=kirill" << "pty,raw,echo=0,user=kirill");
-
-    auto dbg = qDebug() << info.socat->program() << info.socat->arguments();
-    info.socat->start(QIODevice::ReadOnly);
-    if (info.socat->waitForStarted() && info.socat->waitForReadyRead() && info.socat->waitForReadyRead())
-    {
-        auto data = info.socat->readAllStandardOutput();
+        auto data = info.socat_process_->readAllStandardOutput();
         QRegularExpression re("/dev/pts/\\d+");
         auto it = re.globalMatch(data);
 
@@ -273,21 +179,48 @@ MainWindow::SocatInfo MainWindow::createSocat()
 
         if (args.count() == 2)
         {
-            info.portFromName = args.at(0);
-            info.portToName = args.at(1);
-            dbg << info.portFromName << info.portToName;
+            info.port_from_name_ = args.at(0);
+            info.port_to_name_ = args.at(1);
+            dbg << info.port_from_name_ << info.port_to_name_;
         }
         else
-            qCritical() << data << info.socat->readAllStandardError();
+            qCritical() << data << info.socat_process_->readAllStandardError();
     }
     else
-        qCritical() << info.socat->errorString();
+        qCritical() << info.socat_process_->errorString();
     return info;
 }
 
-void MainWindow::changeTemperature()
+QString Main_Window::get_user() noexcept
 {
-    for (GH::Device* dev: prj.devices())
+    QString user = qgetenv("USER");
+    if (user.isEmpty())
+    {
+        user = qgetenv("USERNAME");
+    }
+    return user;
+}
+
+void Main_Window::handleDeviceError(QModbusDevice::Error newError)
+{
+    auto modbusDevice = qobject_cast<QModbusServer*>(sender());
+    if (newError == QModbusDevice::NoError || !modbusDevice)
+        return;
+
+    statusBar()->showMessage(modbusDevice->errorString(), 5000);
+}
+
+void Main_Window::onStateChanged(int state)
+{
+    Q_UNUSED(state)
+//    auto modbusDevice = static_cast<QModbusRtuSerialSlave*>(sender());
+//    qDebug() << "onStateChanged" << modbusDevice->serverAddress() <<  state;
+}
+
+
+void Main_Window::changeTemperature()
+{
+    for (GH::Device* dev: dai_project_.devices())
         for (GH::DeviceItem* item: dev->items())
         {
             if (!item->isControl() && item->isConnected())
@@ -297,13 +230,13 @@ void MainWindow::changeTemperature()
             }
         }
 
-    m_temp_timer.stop();
+    temp_timer_.stop();
 }
 
 QElapsedTimer t;
 QByteArray buff;
 
-void MainWindow::proccessData()
+void Main_Window::proccessData()
 {
     if (!t.isValid())
         t.start();
@@ -311,168 +244,97 @@ void MainWindow::proccessData()
     if (t.elapsed() >= 50)
         buff.clear();
 
-    buff += m_serialPort->readAll();
+    buff += serial_port_->readAll();
 
-    auto it = modbus_list.find( (uchar)buff.at(0) );
-    if (it != modbus_list.cend())
+    auto it = modbus_list_.find( (uchar)buff.at(0) );
+    if (it != modbus_list_.cend())
     {
-        if (it->second.box->isUsed())
-            it->second.serialPort->write(buff);
+        if (it->second.device_item_view_->is_use())
+        {
+            it->second.serial_port_->write(buff);
+        }
     }
     else
         qDebug() << "Device not found";
 
     t.restart();
-//    qDebug() << buff.toHex().toUpper();
-
-    return;
-/*
-    if (buff.size() == 32)
-    {
-        uint type = buff.at(0);
-        uchar adr = buff.at(1);
-
-        for (GH::DevicePtr& dev: prj.devices())
-            if (dev->type() == type && dev->address() == adr)
-            {
-                if (!dev->item(0).isauto())
-                    break;
-
-                if (GH::DeviceItem::isControl(type))
-                {
-                    uchar value = dev->item(0).value().int32v();
-// TODO: Fix it
-#pragma GCC warning "Отправляет на включение два раза подряд"
-                    if (type != GH::Prt::itWindow || value & GH::Prt::wExecuted)
-                    {
-                        if (buff.at(2) == 1)
-                        {
-                            value |= GH::Prt::wOpened;
-                            value &= ~GH::Prt::wClosed;
-                        }
-                        else if (buff.at(2) == 2)
-                        {
-                            value |= GH::Prt::wClosed;
-                            value &= ~GH::Prt::wOpened;
-                        }
-
-                        if (dev->item(0).value().int32v() != value)
-                        {
-                            if (dev->type() == GH::Prt::itWindow)
-                            {
-                                qDebug() << "WND" << bool((value & GH::Prt::wExecuted) != 0) << value << dev->item(0).value().int32v() << dev->id() << adr;
-                                QTimer::singleShot(3000, std::bind(&GH::DeviceItem::setValue, unconstPtr<GH::DeviceItem>(dev->item(0)), value));
-                                value = GH::Prt::wCalibrated;
-                            }
-                            qDebug() << "toggle" << dev->item(0).value().int32v() << value;
-                            unconstPtr<GH::DeviceItem>(dev->item(0))->setValue(value);
-                        }
-                    }
-
-                    buff[ 3 ] = value & 0xFF;
-                }
-                else
-                {
-                    for (uchar i = 0; i < dev->item_size(); i++)
-                    {
-                        qint16 val;
-
-                        if (GH::DeviceItem::isConnected(dev->item(i).value()))
-                            val = dev->item(i).value().int32v();
-                        else
-                            val = qint16(0xFFFF);
-
-                        buff[ 3 + (i * 2) ] = val >> 8;
-                        buff[ 4 + (i * 2) ] = val & 0xFF;
-                    }
-                }
-
-                auto data = buff.right(buff.size() - 3);
-                if (tmp[type][adr] != data)
-                {
-                    auto shorter = [](const QByteArray& buff) {
-                        auto hex = buff;
-                        int i = hex.size();
-                        for (; i; --i)
-                            if (hex.at(i - 1) != 0)
-                                break;
-                        hex.remove(i, hex.size() - i);
-                        return hex.toHex().toUpper();
-                    };
-
-                    qDebug() << type << adr << shorter(tmp[type][adr]) << shorter(data);
-                    tmp[type][adr] = data;
-                }
-                m_serialPort->write(buff);
-                break;
-            }
-    }
-    else
-        qDebug("READ SIZE NOT 32 bytes");
-        */
 }
 
-void MainWindow::socketDataReady()
+void Main_Window::socketDataReady()
 {
     QThread::msleep(50);
-    m_serialPort->write(static_cast<QSerialPort*>(sender())->readAll());
+    serial_port_->write(static_cast<QSerialPort*>(sender())->readAll());
 }
 
-void MainWindow::on_openBtn_toggled(bool open)
+void Main_Window::on_openBtn_toggled(bool open)
 {
-    if (m_serialPort->isOpen())
+    if (serial_port_->isOpen())
     {
-        for (auto&& item: modbus_list)
-            item.second.device->disconnectDevice();
-        m_serialPort->close();
+        for (auto&& item: modbus_list_)
+        {
+            item.second.modbus_device_->disconnectDevice();
+        }
+        serial_port_->close();
     }
 
     if (open)
     {
-        m_serialPort->setPortName( ui->portName->text() );
-        m_serialPort->setBaudRate(   conf.baudRate);
-        m_serialPort->setDataBits(   conf.dataBits);
-        m_serialPort->setParity(     conf.parity);
-        m_serialPort->setStopBits(   conf.stopBits);
-        m_serialPort->setFlowControl(conf.flowControl);
+        serial_port_->setPortName( ui_->portName->text() );
+        serial_port_->setBaudRate(   config_.baud_rate_);
+        serial_port_->setDataBits(   config_.data_bits_);
+        serial_port_->setParity(     config_.parity_);
+        serial_port_->setStopBits(   config_.stop_bits_);
+        serial_port_->setFlowControl(config_.flow_control_);
 
-        if (!m_serialPort->open(QIODevice::ReadWrite))
-            qCritical() << m_serialPort->errorString();
+        if (!serial_port_->open(QIODevice::ReadWrite))
+            qCritical() << serial_port_->errorString();
 
-        m_serialPort->setBaudRate(   conf.baudRate);
-        m_serialPort->setDataBits(   conf.dataBits);
-        m_serialPort->setParity(     conf.parity);
-        m_serialPort->setStopBits(   conf.stopBits);
-        m_serialPort->setFlowControl(conf.flowControl);
+        serial_port_->setBaudRate(   config_.baud_rate_);
+        serial_port_->setDataBits(   config_.data_bits_);
+        serial_port_->setParity(     config_.parity_);
+        serial_port_->setStopBits(   config_.stop_bits_);
+        serial_port_->setFlowControl(config_.flow_control_);
 
-        for (auto&& item: modbus_list)
+        for (auto&& item: modbus_list_)
         {
-            if (!item.second.device->connectDevice())
-                qCritical() << item.second.device->errorString();
+            if (!item.second.modbus_device_->connectDevice())
+            {
+                qCritical() << item.second.modbus_device_->errorString();
+            }
         }
     }
 }
 
-void MainWindow::on_socatReset_clicked()
+void Main_Window::on_socatReset_clicked()
 {
-    ui->openBtn->setChecked(false);
+    ui_->openBtn->setChecked(false);
 
-    if (m_socat)
+    if (socat_process_)
     {
-        m_socat->terminate();
-        m_socat->waitForFinished();
-        delete m_socat;
+        socat_process_->terminate();
+        socat_process_->waitForFinished();
+        delete socat_process_;
     }
 
-    auto [new_socat, pathFrom, pathTo] = createSocat();
-    m_socat = new_socat;
+    auto [new_socat, pathFrom, pathTo] = create_socat();
+    socat_process_ = new_socat;
 
-    if (!pathFrom.isEmpty() && m_dbus)
+    if (!pathFrom.isEmpty() && dbus_)
     {
-        m_dbus->setPath(pathTo);
-        ui->portName->setText(pathFrom);
-        ui->openBtn->setChecked(true);
+        dbus_->setPath(pathTo);
+        ui_->portName->setText(pathFrom);
+        ui_->openBtn->setChecked(true);
 
-        ui->statusbar->showMessage("Server port address is " + pathTo);
+        ui_->statusbar->showMessage("Server port address is " + pathTo);
     }
+}
+
+Main_Window::~Main_Window()
+{
+    QSettings s;
+    s.setValue("portName", ui_->portName->text());
+
+    term_handler(0);
+
+    delete ui_;
 }

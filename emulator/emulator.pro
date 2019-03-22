@@ -9,7 +9,7 @@ DESTDIR = $${OUT_PWD}/../..
 
 #Target version
 VER_MAJ = 1
-VER_MIN = 1
+VER_MIN = 2
 include(../../common.pri)
 
 INCLUDEPATH += $${PWD}/..
@@ -18,12 +18,14 @@ LIBS += -lDai -lDaiPlus -lHelpzBase -lHelpzService -lHelpzDB -lHelpzNetwork -lbo
 SOURCES += main.cpp \
     ../Database/db_manager.cpp \
     mainwindow.cpp \
-    mainbox.cpp
+    device_item_view.cpp \
+    units_table_model.cpp
 
 HEADERS  += \ 
     ../Database/db_manager.h \
     mainwindow.h \
-    mainbox.h
+    device_item_view.h \
+    units_table_model.h
 
 FORMS += \
     mainwindow.ui
