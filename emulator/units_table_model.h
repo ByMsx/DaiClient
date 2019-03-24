@@ -5,11 +5,12 @@
 #include <map>
 #include <QModbusDataUnit>
 
-namespace Dai
-{
-class DeviceItem;
+namespace Dai {
+namespace Database {
 struct Item_Type_Manager;
-}
+} // namespace Database
+class DeviceItem;
+} // namespace Dai
 
 class QModbusServer;
 
@@ -26,11 +27,11 @@ class Units_Table_Model : public QAbstractItemModel
 private:
     typedef std::vector<Dai::DeviceItem*> Device_Items_Vector;
     std::map<QModbusDataUnit::RegisterType, Device_Items_Vector> modbus_units_map_;
-    Dai::Item_Type_Manager* item_type_manager_;
+    Dai::Database::Item_Type_Manager* item_type_manager_;
     QModbusServer *modbus_server_;
 
 public:
-    explicit Units_Table_Model(Dai::Item_Type_Manager* mng, const QVector<Dai::DeviceItem *> *units_vector, QModbusServer *modbus_server, QObject *parent = 0);
+    explicit Units_Table_Model(Dai::Database::Item_Type_Manager* mng, const QVector<Dai::DeviceItem *> *units_vector, QModbusServer *modbus_server, QObject *parent = 0);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
     int columnCount(const QModelIndex &parent = QModelIndex()) const;
@@ -43,7 +44,6 @@ public:
 
 private slots:
     void update_table_values(QModbusDataUnit::RegisterType type, int address, int size) noexcept;
-
 };
 
 #endif // UNITS_TABLE_MODEL_H

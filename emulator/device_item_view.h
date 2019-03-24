@@ -12,10 +12,12 @@ class QModbusServer;
 //class Units_Table_Delegate;
 
 namespace Dai {
-class Device;
+namespace Database {
 struct Item_Type_Manager;
+} // namespace Database
+class Device;
 class DeviceItem;
-}
+} // namespace Dai
 
 class Device_Item_View : public QWidget
 {
@@ -27,11 +29,11 @@ private:
 //    Units_Table_Delegate *units_table_delegate_;
 
     Dai::Device *device_;
-    Dai::Item_Type_Manager *item_type_manager_;
+    Dai::Database::Item_Type_Manager *item_type_manager_;
     QModbusServer *modbus_server_;
 
 public:
-    explicit Device_Item_View(Dai::Item_Type_Manager* mng, Dai::Device* dev, QModbusServer *modbus_server, QWidget *parent = nullptr);
+    explicit Device_Item_View(Dai::Database::Item_Type_Manager* mng, Dai::Device* dev, QModbusServer *modbus_server, QWidget *parent = nullptr);
 
     bool is_use() const noexcept;
 

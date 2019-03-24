@@ -5,7 +5,7 @@
 #include <Helpz/settingshelper.h>
 #include <Dai/deviceitem.h>
 #include <Dai/device.h>
-#include <Dai/typemanager/typemanager.h>
+#include <Dai/db/item_type.h>
 
 #include "randomplugin.h"
 
@@ -37,12 +37,12 @@ bool RandomPlugin::check(Device* dev)
         if (writed_list_.find(item->id()) != writed_list_.cend())
             continue;
         switch (static_cast<Item_Type::RegisterType>(item->register_type())) {
-        case Dai::Item_Type::rtDiscreteInputs:
-        case Dai::Item_Type::rtCoils:
+        case Item_Type::rtDiscreteInputs:
+        case Item_Type::rtCoils:
             value = random(-32767, 32768) > 0;
             break;
-        case Dai::Item_Type::rtInputRegisters:
-        case Dai::Item_Type::rtHoldingRegisters:
+        case Item_Type::rtInputRegisters:
+        case Item_Type::rtHoldingRegisters:
             value = random(-32767, 32768);
             break;
         default:

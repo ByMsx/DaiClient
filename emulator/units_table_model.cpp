@@ -1,6 +1,6 @@
 #include "units_table_model.h"
 #include <Dai/deviceitem.h>
-#include "Dai/typemanager/typemanager.h"
+#include "Dai/type_managers.h"
 #include "Dai/section.h"
 
 #include <QModbusServer>

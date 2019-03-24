@@ -243,7 +243,7 @@ void ScriptedProject::registerTypes()
 }
 
 template<typename T>
-void initTypes(QScriptValue& parent, const QString& prop_name, Base_Type_Manager<T>& type_mng)
+void initTypes(QScriptValue& parent, const QString& prop_name, Database::Base_Type_Manager<T>& type_mng)
 {
     QScriptValue deprecated_types_node = parent.engine()->currentContext()->activationObject().property("api");
 

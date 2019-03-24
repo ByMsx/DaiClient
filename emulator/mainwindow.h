@@ -13,7 +13,7 @@
 //#include "simplemodbusdevice.h"
 #include "Database/db_manager.h"
 #include "Dai/project.h"
-#include "Dai/typemanager/typemanager.h"
+#include "Dai/type_managers.h"
 
 class QProcess;
 class QSettings;
