@@ -8,6 +8,12 @@
 
 #include <algorithm>
 
+int unit(const Dai::DeviceItem *a)
+{
+    auto it = a->extra().find("unit");
+    return it != a->extra().cend() ? it.value().toInt() : 0;
+}
+
 Units_Table_Model::Units_Table_Model(Dai::Item_Type_Manager *mng, const QVector<Dai::DeviceItem *> *units_vector, QModbusServer *modbus_server, QObject *parent)
     : QAbstractItemModel(parent), item_type_manager_(mng), modbus_server_(modbus_server)
 {    
@@ -26,15 +32,15 @@ Units_Table_Model::Units_Table_Model(Dai::Item_Type_Manager *mng, const QVector<
     {
         auto sort_units = [](const Dai::DeviceItem *a, const Dai::DeviceItem *b) -> bool
         {
-            return a->extra().find("unit").value().toInt() < b->extra().find("unit").value().toInt();
+            return unit(a) < unit(b);
         };
         std::sort(it.second.begin(), it.second.end(), sort_units);
 
-        int max_unit = it.second.back()->extra().find("unit").value().toInt();
+        int max_unit = unit(it.second.back());
         auto it_t = it.second.begin();
         for (int i = 0; i <= max_unit; ++i)
         {
-            if (it_t == it.second.end() || (*it_t)->extra().find("unit").value() != i)
+            if (it_t == it.second.end() || unit(*it_t) != i)
             {
                 it_t = it.second.insert(it_t, nullptr);
             }
@@ -151,7 +157,7 @@ QVariant Units_Table_Model::data(const QModelIndex &index, int role) const
             case Column::UNIT_TYPE:
                 if (role == Qt::DisplayRole)
                 {
-                    return device_item->extra().find("unit").value();
+                    return unit(device_item);
                 }
                 break;
             case Column::UNIT_NAME:
@@ -268,7 +274,7 @@ bool Units_Table_Model::setData(const QModelIndex &index, const QVariant &value,
                 {
                     device_item->setRawValue(value);
                     emit dataChanged(index, index);
-                    modbus_server_->setData(reg_type, device_item->extra().find("unit").value().toInt(), value.toBool());
+                    modbus_server_->setData(reg_type, unit(device_item), value.toBool());
                     return true;
                 }
 
@@ -279,7 +285,7 @@ bool Units_Table_Model::setData(const QModelIndex &index, const QVariant &value,
                 {
                     device_item->setRawValue(value);
                     emit dataChanged(index, index);
-                    modbus_server_->setData(reg_type, device_item->extra().find("unit").value().toInt(), value.toInt());
+                    modbus_server_->setData(reg_type, unit(device_item), value.toInt());
                     return true;
                 }
             }
