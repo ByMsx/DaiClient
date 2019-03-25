@@ -6,15 +6,18 @@
 
 #include <QHostAddress>
 #include <QInputDialog>
+#include <QGroupBox>
 
 #include <csignal>
 #include <iostream>
 
-#include "mainwindow.h"
-#include "ui_mainwindow.h"
-#include <QGroupBox>
+#include <Helpz/settingshelper.h>
 
 #include <Dai/device.h>
+
+#include "mainwindow.h"
+#include "ui_mainwindow.h"
+
 #include "device_item_view.h"
 
 namespace GH = ::Dai;
@@ -79,12 +82,23 @@ void Main_Window::init() noexcept
 void Main_Window::init_database() noexcept
 {
     QSettings dai_settings("DaiClient.conf", QSettings::NativeFormat);
-    dai_settings.beginGroup("Database");
-    qDebug() << "Open SQL is" << db_manager_.create_connection({
-                    dai_settings.value("Name", "dai_main").toString(),
-                    dai_settings.value("User", "DaiUser").toString(),
-                    dai_settings.value("Password", "?").toString() });
-    dai_settings.endGroup();
+
+    auto db_info = Helpz::SettingsHelper
+        #if (__cplusplus < 201402L) || (defined(__GNUC__) && (__GNUC__ < 7))
+            <Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<int>,Z::Param<QString>,Z::Param<QString>>
+        #endif
+            (
+                &dai_settings, "Database",
+                Helpz::Param<QString>{"Name", "deviceaccess_local"},
+                Helpz::Param<QString>{"User", "DaiUser"},
+                Helpz::Param<QString>{"Password", ""},
+                Helpz::Param<QString>{"Host", "localhost"},
+                Helpz::Param<int>{"Port", -1},
+                Helpz::Param<QString>{"Driver", "QMYSQL"},
+                Helpz::Param<QString>{"ConnectOptions", QString()}
+    ).obj<Helpz::Database::Connection_Info>();
+
+    qDebug() << "Open SQL is" << db_manager_.create_connection(db_info);
 }
 
 void Main_Window::fill_data() noexcept

@@ -25,21 +25,21 @@ bool DBManager::setDayTime(uint id, const TimeRange &range)
 
 void DBManager::getListValues(const QVector<quint32>& ids, QVector<quint32> &found, QVector<Log_Value_Item> &pack)
 {
-    QString sql("SELECT id, user_id, item_id, date, raw_value, value FROM house_logs WHERE id IN (");
+    QString suffix("WHERE id IN (");
 
     bool first = true;
     for (quint32 id: ids)
     {
         if (first) first = false;
         else
-            sql += ',';
-        sql += QString::number(id);
+            suffix += ',';
+        suffix += QString::number(id);
     }
-    sql += ')';
+    suffix += ')';
 
     pack.clear();
     quint32 id;
-    auto q = exec(sql);
+    auto q = select(Database::db_table<Log_Value_Item>(), suffix);
     if (q.isActive())
     {
 //        DeviceItem::ValueType raw_val, val;
@@ -47,7 +47,7 @@ void DBManager::getListValues(const QVector<quint32>& ids, QVector<quint32> &fou
         while(q.next())
         {
             id = q.value(0).toUInt();
-            pack.push_back(Log_Value_Item{ id, q.value(1).toUInt(), q.value(2).toUInt(), q.value(3).toDateTime().toMSecsSinceEpoch(), q.value(4), q.value(5)});
+            pack.push_back(Log_Value_Item{ id, q.value(1).toDateTime().toMSecsSinceEpoch(), q.value(2).toUInt(), q.value(3).toUInt(), q.value(4), q.value(5)});
             found.push_back(id);
         }
     }
@@ -62,6 +62,16 @@ void DBManager::saveCode(uint type, const QString &code)
 
 QPair<quint32, quint32> DBManager::log_range(quint8 log_type, qint64 date_ms)
 {
+    auto log_table_name = [](uint8_t log_type, const QString& db_name = QString()) -> QString
+    {
+        switch (static_cast<Log_Type>(log_type))
+        {
+        case LOG_VALUE: return Database::db_table_name<Log_Value_Item>(db_name);
+        case LOG_EVENT: return Database::db_table_name<Log_Event_Item>(db_name);
+        default: break;
+        }
+        return {};
+    };
     QString tableName = log_table_name(log_type);
 
     QString where;
@@ -92,19 +102,19 @@ QPair<quint32, quint32> DBManager::log_range(quint8 log_type, qint64 date_ms)
 
 void DBManager::log_value_data(const QPair<quint32, quint32>& range, QVector<quint32>* not_found, QVector<Log_Value_Item>* data_out)
 {
-    get_log_range_values({"house_logs", {"id", "user_id", "item_id", "date", "raw_value", "value"}}, range, not_found, [data_out](const QSqlQuery& q)
+    get_log_range_values(Database::db_table<Log_Value_Item>(), range, not_found, [data_out](const QSqlQuery& q)
     {
-        data_out->push_back(Log_Value_Item{ q.value(0).toUInt(), q.value(1).toUInt(), q.value(2).toUInt(),
-                                 q.value(3).toDateTime().toMSecsSinceEpoch(), q.value(4), q.value(5)});
+        data_out->push_back(Log_Value_Item{ q.value(0).toUInt(), q.value(1).toDateTime().toMSecsSinceEpoch(), q.value(2).toUInt(),
+                                            q.value(3).toUInt(), q.value(4), q.value(5)});
     });
 }
 
 void DBManager::log_event_data(const QPair<quint32, quint32>& range, QVector<quint32>* not_found, QVector<Log_Event_Item>* data_out)
 {
-    get_log_range_values({"house_eventlog", {"id", "user_id", "type", "date", "who", "msg"}}, range, not_found, [data_out](const QSqlQuery& q)
+    get_log_range_values(Database::db_table<Log_Event_Item>(), range, not_found, [data_out](const QSqlQuery& q)
     {
-        data_out->push_back(Log_Event_Item{ q.value(0).toUInt(), q.value(1).toUInt(), q.value(2).toUInt(),
-                                 q.value(3).toDateTime().toMSecsSinceEpoch(), q.value(4).toString(), q.value(5).toString()});
+        data_out->push_back(Log_Event_Item{ q.value(0).toUInt(), q.value(1).toDateTime().toMSecsSinceEpoch(), q.value(2).toUInt(),
+                                            q.value(3).toUInt(), q.value(4).toString(), q.value(5).toString()});
     });
 }
 

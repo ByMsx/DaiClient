@@ -19,9 +19,6 @@ Log_Sender::Log_Sender(Protocol* protocol) :
     connect(&timer_, &QTimer::timeout, this, &Log_Sender::send_log_packs);
     timer_.setSingleShot(true);
 
-    qRegisterMetaType<Log_Value_Item>("Log_Value_Item");
-    qRegisterMetaType<Log_Event_Item>("Log_Event_Item");
-
     auto w = protocol->worker();
     connect(this, &Log_Sender::get_log_range, w->database(), &DBManager::log_range, Qt::BlockingQueuedConnection);
     connect(this, &Log_Sender::get_log_value_data, w->database(), &DBManager::log_value_data, Qt::BlockingQueuedConnection);
@@ -52,6 +49,8 @@ void Log_Sender::send_log_data(Log_Type_Wrapper log_type, QPair<quint32, quint32
     {
         QVector<Log_Value_Item> data_value;
         get_log_value_data(range, &not_found, &data_value);
+        for (const Log_Value_Item& item: data_value)
+            qDebug() << "s_log" << int(item.value().type()) << item.value() << int(item.raw_value().type()) << item.raw_value();
         protocol_->send_answer(Cmd::LOG_DATA, msg_id) << log_type << not_found << data_value;
     }
     else // log_type == LOG_EVENT
@@ -70,7 +69,7 @@ void Log_Sender::send_value_log(const Log_Value_Item& item, bool immediately)
 
 void Log_Sender::send_event_log(const Log_Event_Item& item)
 {
-    if (item.type_id() == QtDebugMsg && item.category().startsWith("net"))
+    if (item.type() == QtDebugMsg && item.who().startsWith("net"))
     {
         return;
     }

@@ -88,9 +88,6 @@ Worker::Worker(QObject *parent) :
 {
     auto s = settings();
 
-    qRegisterMetaType<Log_Value_Item>("Log_Value_Item");
-    qRegisterMetaType<Log_Event_Item>("Log_Event_Item");
-
     int log_period = init_logging(s.get());
     init_Database(s.get());
     init_Project(s.get()); // инициализация структуры проекта
@@ -229,11 +226,13 @@ void Worker::init_Checker(QSettings* s)
 
 void Worker::init_network_client(QSettings* s)
 {
+    while (!prj->ptr() && !prj->wait(5));
     net_protocol_thread_.start();
     structure_sync_.moveToThread(&net_protocol_thread_);
     structure_sync_.set_project(prj->ptr());
 
     qRegisterMetaType<Log_Value_Item>("Log_Value_Item");
+    qRegisterMetaType<Log_Event_Item>("Log_Event_Item");
     qRegisterMetaType<QVector<Log_Value_Item>>("QVector<Log_Value_Item>");
     qRegisterMetaType<QVector<Log_Event_Item>>("QVector<Log_Event_Item>");
     qRegisterMetaType<QVector<quint32>>("QVector<quint32>");
@@ -412,7 +411,7 @@ void Worker::logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QStr
     if (match.hasMatch())
     {
         event.set_user_id(match.captured(1).toUInt());
-        event.set_text(str.right(str.size() - (match.capturedEnd(1) + 1)));
+        event.set_msg(str.right(str.size() - (match.capturedEnd(1) + 1)));
     }
 
     add_event_message(event);

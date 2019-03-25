@@ -79,22 +79,24 @@ int Units_Table_Model::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid())
     {
-        if (parent.internalPointer() != nullptr)
+        if (parent.internalPointer() == nullptr)
         {
-            return 0;
+            auto reg_type = row_to_register_type(parent.row());
+            if (reg_type != QModbusDataUnit::Invalid)
+            {
+                auto it = modbus_units_map_.find(reg_type);
+                if (it != modbus_units_map_.cend())
+                {
+                    return it->second.size();
+                }
+            }
         }
-
-        auto reg_type = row_to_register_type(parent.row());
-        if (reg_type == QModbusDataUnit::Invalid)
-        {
-            return 0;
-        }
-        return modbus_units_map_.at(reg_type).size();
     }
     else
     {
         return 4;
     }
+    return 0;
 }
 
 
