@@ -1,6 +1,6 @@
 #include <QDateTime>
 
-#include <Helpz/db_base.h>
+#include <Helpz/db_builder.h>
 
 #include <Dai/log/log_type.h>
 
@@ -89,7 +89,7 @@ void Log_Helper::log_data(const QPair<quint32, quint32>& range, std::function<vo
                 }
                 ++next_id;
 
-//                data.push_back(db_build<T>(q));
+                data.push_back(Helpz::Database::db_build<T>(q));
             }
 
             callback(not_found, data);
