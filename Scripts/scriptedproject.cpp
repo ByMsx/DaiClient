@@ -112,7 +112,12 @@ ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleRe
     connect(this, &ScriptedProject::dayTimeChanged, &m_dayTime, &DayTimeHelper::init, Qt::QueuedConnection);
 
     if (consoleReader)
-        connect(consoleReader, &Helpz::ConsoleReader::textReceived, [this](const QString& text) { console(0, text); });
+    {
+        connect(consoleReader, &Helpz::ConsoleReader::textReceived, [this](const QString& text)
+        {
+            QMetaObject::invokeMethod(this, "console", Qt::QueuedConnection, Q_ARG(uint32_t, 0), Q_ARG(QString, text));
+        });
+    }
 }
 
 ScriptedProject::~ScriptedProject()
@@ -453,7 +458,7 @@ void ScriptedProject::console(uint32_t user_id, const QString &cmd)
             is_error = true;
         }
     }
-    Log_Event_Item event{0, user_id, is_error ? QtCriticalMsg : QtInfoMsg, 0, Service::Log().categoryName(), "CONSOLE [" + script + "] >" + res.toString()};
+    Log_Event_Item event{0, 0, user_id, is_error ? QtCriticalMsg : QtInfoMsg, Service::Log().categoryName(), "CONSOLE [" + script + "] >" + res.toString()};
     std::cerr << event.msg().toStdString() << std::endl;
     add_event_message(event);
 }
