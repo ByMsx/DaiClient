@@ -49,6 +49,7 @@ public:
     ~Worker();
 
     DBManager* database() const;
+    Helpz::Database::Thread* db_pending();
     const Helpz::Database::Connection_Info& database_info() const;
 
     static std::unique_ptr<QSettings> settings();
@@ -156,6 +157,7 @@ private:
 //    using NetworkClientThread = Helpz::SettingsThreadHelper<Network::Client, Worker*, QString, quint16, QString, QString, QUuid, int>;
 //    NetworkClientThread::Type* g_mng_th;
     std::shared_ptr<Helpz::DTLS::Client_Thread> net_thread_;
+    std::unique_ptr<Helpz::Database::Thread> db_pending_thread_;
     QThread net_protocol_thread_;
     Client::Structure_Synchronizer structure_sync_;
 

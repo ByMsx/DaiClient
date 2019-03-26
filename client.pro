@@ -32,7 +32,8 @@ SOURCES += main.cpp \
     Network/client_protocol.cpp \
     Network/client_protocol_2_0.cpp \
     Network/log_sender.cpp \
-    structure_synchronizer.cpp
+    structure_synchronizer.cpp \
+    Database/db_log_helper.cpp
 
 HEADERS  += \
     worker.h \
@@ -51,7 +52,8 @@ HEADERS  += \
     Network/client_protocol.h \
     Network/client_protocol_2_0.h \
     Network/log_sender.h \
-    structure_synchronizer.h
+    structure_synchronizer.h \
+    Database/db_log_helper.h
 
 #Target version
 VER_MAJ = 1
@@ -67,7 +69,7 @@ linux-rasp-pi2-g++|linux-opi-zero-g++|linux-rasp-pi3-g++ {
     INCLUDEPATH += $$[QT_INSTALL_HEADERS]/botan-2
 }
 
-LIBS += -lDai -lDaiPlus -lHelpzBase -lHelpzService -lHelpzNetwork -lHelpzDB -lHelpzDTLS -lbotan-2 -lboost_system -lboost_thread -ldl
+LIBS += -lDai -lDaiPlus -lHelpzBase -lHelpzService -lHelpzNetwork -lHelpzDBMeta -lHelpzDB -lHelpzDTLS -lbotan-2 -lboost_system -lboost_thread -ldl
 
 RESOURCES += \
     main.qrc

@@ -121,6 +121,10 @@ Worker::~Worker()
 
     net_protocol_thread_.quit();
     net_thread_.reset();
+    if (db_pending_thread_)
+    {
+        db_pending_thread_->stop();
+    }
 
     if (webSock_th && !webSock_th->wait(15000))
         webSock_th->terminate();
@@ -143,6 +147,7 @@ Worker::~Worker()
 }
 
 DBManager* Worker::database() const { return db_mng; }
+Helpz::Database::Thread* Worker::db_pending() { return db_pending_thread_.get(); }
 const Helpz::Database::Connection_Info& Worker::database_info() const { return *db_info_; }
 
 std::unique_ptr<QSettings> Worker::settings()
@@ -195,6 +200,8 @@ void Worker::init_Database(QSettings* s)
     ).unique_ptr<Helpz::Database::Connection_Info>();
     if (!db_info_)
         throw std::runtime_error("Failed get database config");
+
+    db_pending_thread_.reset(new Helpz::Database::Thread{Helpz::Database::Connection_Info(*db_info_)});
 
     db_mng = new DBManager(*db_info_, "Worker_" + QString::number((quintptr)this));
     connect(this, &Worker::statusAdded, db_mng, &DBManager::addStatus, Qt::QueuedConnection);
