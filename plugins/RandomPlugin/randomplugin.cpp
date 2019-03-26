@@ -4,7 +4,8 @@
 
 #include <Helpz/settingshelper.h>
 #include <Dai/deviceitem.h>
-#include <Dai/typemanager/typemanager.h>
+#include <Dai/device.h>
+#include <Dai/db/item_type.h>
 
 #include "randomplugin.h"
 
@@ -35,13 +36,13 @@ bool RandomPlugin::check(Device* dev)
     {
         if (writed_list_.find(item->id()) != writed_list_.cend())
             continue;
-        switch (static_cast<ItemType::RegisterType>(item->registerType())) {
-        case Dai::ItemType::rtDiscreteInputs:
-        case Dai::ItemType::rtCoils:
+        switch (static_cast<Item_Type::RegisterType>(item->register_type())) {
+        case Item_Type::rtDiscreteInputs:
+        case Item_Type::rtCoils:
             value = random(-32767, 32768) > 0;
             break;
-        case Dai::ItemType::rtInputRegisters:
-        case Dai::ItemType::rtHoldingRegisters:
+        case Item_Type::rtInputRegisters:
+        case Item_Type::rtHoldingRegisters:
             value = random(-32767, 32768);
             break;
         default:
@@ -57,10 +58,9 @@ bool RandomPlugin::check(Device* dev)
 
 void RandomPlugin::stop() {}
 
-void RandomPlugin::write(DeviceItem *item, const QVariant &raw_data)
+void RandomPlugin::write(DeviceItem *item, const QVariant &raw_data, uint32_t user_id)
 {
     writed_list_.insert(item->id());
-    QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data));
 }
 
 int RandomPlugin::random(int min, int max) const {

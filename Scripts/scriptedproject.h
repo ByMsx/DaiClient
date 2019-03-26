@@ -6,9 +6,10 @@
 //#include <QQmlEngine>
 
 #include <Helpz/simplethread.h>
-#include <Helpz/db_connectioninfo.h>
+#include <Helpz/db_connection_info.h>
 
 #include <Dai/project.h>
+#include <Dai/log/log_pack.h>
 
 #include "tools/daytimehelper.h"
 #include "tools/automationhelper.h"
@@ -57,18 +58,19 @@ public:
     void setSSHHost(const QString &value);
 
     qint64 uptime() const;
-    Section *addSection(quint32 id, const QString &name, const TimeRange &dayTime) override;
+    Section *addSection(quint32 id, const QString &name, quint32 day_start_secs, quint32 day_end_secs) override;
 
     QScriptValue valueFromVariant(const QVariant& data) const;
 signals:
-    void sctItemChanged(DeviceItem*);
-    void groupStatusChanged(quint32 group_id, quint32 status);
+    void sctItemChanged(DeviceItem*, uint32_t user_id);
 
     void statusAdded(quint32 group_id, quint32 info_id, const QStringList& args);
     void statusRemoved(quint32 group_id, quint32 info_id);
 
     void modbusStop();
     void modbusStart();
+
+    void add_event_message(const Log_Event_Item& event);
 //    QVariantList modbusRead(int serverAddress, uchar registerType = QModbusDataUnit::InputRegisters,
 //                                                 int startAddress = 0, quint16 unitCount = 1);
 //    void modbusWrite(int server, uchar registerType, int unit, quint16 state);
@@ -76,8 +78,8 @@ signals:
     void dayTimeChanged(/*Section* sct*/);
 public slots:
     void log(const QString& msg, uint type);
-    void console(const QString& cmd);
-    void reinitialization(const Helpz::Database::ConnectionInfo &db_info);
+    void console(uint32_t user_id, const QString& cmd);
+    void reinitialization(const Helpz::Database::Connection_Info &db_info);
     void afterAllInitialization();
 
     void ssh(quint16 port = 22, quint32 remote_port = 25589);
@@ -87,16 +89,14 @@ private slots:
     QVariant normalize(const QVariant& val);
 //    void dayTimeChanged(Section* sct);
 
-    bool controlChangeCheck(DeviceItem* item, const QVariant& raw_data);
+    bool controlChangeCheck(DeviceItem* item, const QVariant& raw_data, uint32_t user_id);
     bool checkValue(DeviceItem* item) const;
-    quint32 groupStatus(ItemGroup::ValueType val) const;
 
-    void groupModeChanged(uint mode, quint32 group_id);
-    void itemChanged(DeviceItem* item);
-    void statusChanged(quint32 status);
+    void groupModeChanged(uint32_t user_id, uint32_t mode, uint32_t group_id);
+    void itemChanged(DeviceItem* item, uint32_t user_id);
     void handlerException(const QScriptValue &exception);
 private:
-    void run_automation(ItemGroup *group, const QScriptValue &groupObj, const QScriptValue& itemObj = QScriptValue());
+    void run_automation(ItemGroup *group, const QScriptValue &groupObj, const QScriptValue& itemObj, uint32_t user_id = 0);
     void check_error(const QString &str, const QScriptValue &result) const;
     void check_error(const QString &name, const QString &code) const;
 

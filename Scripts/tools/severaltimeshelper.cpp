@@ -61,13 +61,13 @@ void SeveralTimesHelper::onTimer()
     if (m_timer->interval() != period() * 1000)
         m_timer->start( period() * 1000 );
 
-    toggleDevice(true);
+    writeToControl(true);
     m_timerOff->start( duration() * 1000 );
 }
 
 void SeveralTimesHelper::onTimerOff()
 {
-    toggleDevice(false, {});
+    writeToControl(false);
 }
 
 } // namespace Dai

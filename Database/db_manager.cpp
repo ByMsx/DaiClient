@@ -7,41 +7,39 @@
 #include <memory>
 
 #include <Dai/project.h>
+#include <Dai/log/log_type.h>
+#include <plus/dai/database_table.h>
 
-#include "Network/n_client.h"
 #include "db_manager.h"
 
 namespace Dai {
 
-DBManager::DBManager(const Helpz::Database::ConnectionInfo &info, const QString &name) :
-    Database(info, name)
-{
-    qRegisterMetaType<Dai::DBManager::LogDataT>("Dai::DBManager::LogDataT");
-}
+//DBManager::DBManager(const Helpz::Database::Connection_Info& info, const QString &name) :
+//    Database(info, name) {}
 
 bool DBManager::setDayTime(uint id, const TimeRange &range)
 {
-    return update({"house_section", {"dayStart", "dayEnd"}},
+    return update({Database::db_table_name<Section>(), {"dayStart", "dayEnd"}},
         {range.start(), range.end()}, "id=" + QString::number(id));
 }
 
-void DBManager::getListValues(const QVector<quint32>& ids, QVector<quint32> &found, QVector<ValuePackItem> &pack)
+void DBManager::getListValues(const QVector<quint32>& ids, QVector<quint32> &found, QVector<Log_Value_Item> &pack)
 {
-    QString sql("SELECT id, item_id, date, raw_value, value FROM house_logs WHERE id IN (");
+    QString suffix("WHERE id IN (");
 
     bool first = true;
     for (quint32 id: ids)
     {
         if (first) first = false;
         else
-            sql += ',';
-        sql += QString::number(id);
+            suffix += ',';
+        suffix += QString::number(id);
     }
-    sql += ')';
+    suffix += ')';
 
     pack.clear();
     quint32 id;
-    auto q = exec(sql);
+    auto q = select(Database::db_table<Log_Value_Item>(), suffix);
     if (q.isActive())
     {
 //        DeviceItem::ValueType raw_val, val;
@@ -49,7 +47,7 @@ void DBManager::getListValues(const QVector<quint32>& ids, QVector<quint32> &fou
         while(q.next())
         {
             id = q.value(0).toUInt();
-            pack.push_back(ValuePackItem{ id, q.value(1).toUInt(), q.value(2).toDateTime().toMSecsSinceEpoch(), q.value(3), q.value(4)});
+            pack.push_back(Log_Value_Item{ id, q.value(1).toDateTime().toMSecsSinceEpoch(), q.value(2).toUInt(), q.value(3).toUInt(), q.value(4), q.value(5)});
             found.push_back(id);
         }
     }
@@ -62,62 +60,19 @@ void DBManager::saveCode(uint type, const QString &code)
 
 // -----> Sync database
 
-DBManager::LogDataT DBManager::getLogData(quint8 log_type, const QPair<quint32, quint32> &range)
+QPair<quint32, quint32> DBManager::log_range(quint8 log_type, qint64 date_ms)
 {
-    LogDataT res;
-
-    auto getLogRangeValues = [&](const Helpz::Database::Table &table, std::function<void(const QSqlQuery&)> callback)
+    auto log_table_name = [](uint8_t log_type, const QString& db_name = QString()) -> QString
     {
-        quint32 id, next_id = range.first;
-        auto q = select(table, QString("WHERE id >= %1 AND id <= %2").arg(range.first).arg(range.second));
-        if (q.isActive())
-            while(q.next())
-            {
-                id = q.value(0).toUInt();
-                while (next_id < id)
-                    res.not_found.push_back(next_id++);
-                ++next_id;
-
-                callback(q);
-            }
+        switch (static_cast<Log_Type>(log_type))
+        {
+        case LOG_VALUE: return Database::db_table_name<Log_Value_Item>(db_name);
+        case LOG_EVENT: return Database::db_table_name<Log_Event_Item>(db_name);
+        default: break;
+        }
+        return {};
     };
-
-    switch (log_type) {
-    case ValueLog: {
-        QVector<ValuePackItem> pack;
-        getLogRangeValues({"house_logs", {"id", "item_id", "date", "raw_value", "value"}}, [&pack](const QSqlQuery& q) {
-            pack.push_back(ValuePackItem{ q.value(0).toUInt(), q.value(1).toUInt(),
-                                     q.value(2).toDateTime().toMSecsSinceEpoch(), q.value(3), q.value(4)});
-        });
-#if (__cplusplus > 201402L) && (!defined(__GNUC__) || (__GNUC__ >= 7))
-        res.data = std::move(pack);
-#else
-        res.data_value = std::move(pack);
-#endif
-        break;
-    }
-    case EventLog: {
-        QVector<EventPackItem> pack;
-        getLogRangeValues({"house_eventlog", {"id", "type", "date", "who", "msg"}}, [&pack](const QSqlQuery& q) {
-            pack.push_back(EventPackItem{ q.value(0).toUInt(), q.value(1).toUInt(),
-                                     q.value(2).toDateTime().toMSecsSinceEpoch(), q.value(3).toString(), q.value(4).toString()});
-        });
-#if (__cplusplus > 201402L) && (!defined(__GNUC__) || (__GNUC__ >= 7))
-        res.data = std::move(pack);
-#else
-        res.data_event = std::move(pack);
-#endif
-        break;
-    }
-    default:
-        break;
-    }
-    return res;
-}
-
-QPair<quint32, quint32> DBManager::getLogRange(quint8 log_type, qint64 date_ms)
-{
-    QString tableName = logTableName(log_type);
+    QString tableName = log_table_name(log_type);
 
     QString where;
     QVariantList values;
@@ -143,6 +98,42 @@ QPair<quint32, quint32> DBManager::getLogRange(quint8 log_type, qint64 date_ms)
                 break;
         }
     return {start, end};
+}
+
+void DBManager::log_value_data(const QPair<quint32, quint32>& range, QVector<quint32>* not_found, QVector<Log_Value_Item>* data_out)
+{
+    get_log_range_values(Database::db_table<Log_Value_Item>(), range, not_found, [data_out](const QSqlQuery& q)
+    {
+        data_out->push_back(Log_Value_Item{ q.value(0).toUInt(), q.value(1).toDateTime().toMSecsSinceEpoch(), q.value(2).toUInt(),
+                                            q.value(3).toUInt(), q.value(4), q.value(5)});
+    });
+}
+
+void DBManager::log_event_data(const QPair<quint32, quint32>& range, QVector<quint32>* not_found, QVector<Log_Event_Item>* data_out)
+{
+    get_log_range_values(Database::db_table<Log_Event_Item>(), range, not_found, [data_out](const QSqlQuery& q)
+    {
+        data_out->push_back(Log_Event_Item{ q.value(0).toUInt(), q.value(1).toDateTime().toMSecsSinceEpoch(), q.value(2).toUInt(),
+                                            q.value(3).toUInt(), q.value(4).toString(), q.value(5).toString()});
+    });
+}
+
+void DBManager::get_log_range_values(const Helpz::Database::Table& table, const QPair<quint32, quint32>& range, QVector<quint32>* not_found,
+                                     std::function<void (const QSqlQuery&)> callback)
+{
+    quint32 id, next_id = range.first;
+    auto q = select(table, QString("WHERE id >= %1 AND id <= %2").arg(range.first).arg(range.second));
+    while(q.isActive() && q.next())
+    {
+        id = q.value(0).toUInt();
+        while (next_id < id)
+        {
+            not_found->push_back(next_id++);
+        }
+        ++next_id;
+
+        callback(q);
+    }
 }
 
 // <--------------------

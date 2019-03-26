@@ -1,6 +1,6 @@
 var api = {
-    actDevice: function(sct, type, newState) {
-        sct.setControlState(type, newState, api.type.mode.automatic)
+    actDevice: function(group, type, newState, user_id) {
+        group.writeToControl(type, newState, api.type.mode.automatic, user_id)
     },
     findItem: function(items, func) {
         for (var item_idx in items)

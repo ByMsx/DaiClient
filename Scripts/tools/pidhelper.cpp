@@ -101,7 +101,7 @@ void PIDHelper::onPWM()
     if (change_flag)
     {
         m_wait_changes_start = current_time;
-        setControlState(new_state);
+        writeToControl(new_state);
     }
     else
         startPWM();

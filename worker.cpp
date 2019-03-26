@@ -6,8 +6,12 @@
 #include <QSettings>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QRegularExpression>
+
+#include <botan/parsing.h>
 
 #include <Helpz/consolereader.h>
+#include <Helpz/dtls_client.h>
 
 #include <Dai/commands.h>
 #include <Dai/checkerinterface.h>
@@ -17,44 +21,52 @@
 namespace Dai {
 
 WebSockItem::WebSockItem(Worker *obj) :
-    QObject(), project::base(),
+    QObject(), Project_Info(),
     w(obj)
 {
     set_id(1);
-    set_title("localhost");
     set_teams({1});
     connect(w, &Worker::modeChanged, this, &WebSockItem::modeChanged, Qt::QueuedConnection);
-
+    connect(this, &WebSockItem::applyStructModify, &w->structure_sync_, &Client::Structure_Synchronizer::modify, Qt::BlockingQueuedConnection);
 }
 
 WebSockItem::~WebSockItem() {
     disconnect(this);
 }
 
+void WebSockItem::send_event_message(const Log_Event_Item& event)
+{
+    QMetaObject::invokeMethod(w->webSock_th->ptr(), "sendEventMessage", Qt::QueuedConnection,
+                              Q_ARG(Project_Info, this), Q_ARG(QVector<Log_Event_Item>, QVector<Log_Event_Item>{event}));
+}
+
 void WebSockItem::modeChanged(uint mode_id, uint group_id) {
 
     QMetaObject::invokeMethod(w->webSock_th->ptr(), "sendModeChanged", Qt::QueuedConnection,
-                              Q_ARG(ProjInfo, this), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id));
+                              Q_ARG(Project_Info, this), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id));
 }
 
-void WebSockItem::procCommand(quint32 user_team_id, quint32 proj_id, quint8 cmd, const QByteArray &data)
+void WebSockItem::procCommand(uint32_t user_id, quint32 user_team_id, quint32 proj_id, quint8 cmd, const QByteArray &raw_data)
 {
-    QDataStream ds(data);
+    QByteArray data(4, Qt::Uninitialized);
+    data += raw_data;
+    QDataStream ds(&data, QIODevice::ReadWrite);
+    ds.setVersion(Helpz::Network::Protocol::DATASTREAM_VERSION);
+    ds << user_id;
+    ds.device()->seek(0);
 
     try {
         switch (cmd) {
         case wsConnectInfo:
-            send(this, w->webSock_th->ptr()->getConnectState(id(), "127.0.0.1", QDateTime::currentDateTime().timeZone(), 0));
+            send(this, w->webSock_th->ptr()->prepare_connect_state_message(id(), "127.0.0.1", QDateTime::currentDateTime().timeZone(), 0));
             break;
 
-        case wsWriteToDevItem: Helpz::applyParse(&Worker::writeToItem, w, ds); break;
-        case wsChangeGroupMode: Helpz::applyParse(&Worker::setMode, w, ds); break;
-        case wsChangeParamValues: Helpz::applyParse(&Worker::setParamValues, w, ds); break;
-        case wsRestart: w->serviceRestart(); break;
-        case wsChangeCode:
-        case wsExecScript:
-            qCritical() << "Attempt to do something bad from local";
-            break;
+        case wsRestart:             Helpz::apply_parse(ds, &Worker::restart_service_object, w); break;
+        case wsWriteToDevItem:      Helpz::apply_parse(ds, &Worker::writeToItem, w); break;
+        case wsChangeGroupMode:     Helpz::apply_parse(ds, &Worker::setMode, w); break;
+        case wsChangeParamValues:   Helpz::apply_parse(ds, &Worker::setParamValues, w); break;
+        case wsStructModify:        Helpz::apply_parse(ds, &WebSockItem::applyStructModify, this, ds.device()); break;
+        case wsExecScript:          Helpz::apply_parse(ds, &ScriptedProject::console, w->prj->ptr()); break;
 
         default:
             qWarning() << "Unknown WebSocket Message:" << (WebSockCmd)cmd;
@@ -74,13 +86,15 @@ using namespace std::placeholders;
 Worker::Worker(QObject *parent) :
     QObject(parent)
 {
+    qRegisterMetaType<uint32_t>("uint32_t");
+
     auto s = settings();
 
     int log_period = init_logging(s.get());
     init_Database(s.get());
     init_Project(s.get()); // инициализация структуры проекта
     init_Checker(s.get()); // запуск потока опроса устройств
-    init_GlobalClient(s.get()); // подключение к серверу
+    init_network_client(s.get()); // подключение к серверу
     init_LogTimer(log_period); // сохранение статуса устройства по таймеру
 
     // используется для подключения к Orange на прямую
@@ -103,24 +117,25 @@ Worker::~Worker()
     checker_th->ptr()->breakChecking();
     checker_th->quit();
 
-    g_mng_th->quit();
     prj->quit();
+
+    net_protocol_thread_.quit();
+    net_thread_.reset();
 
     if (webSock_th && !webSock_th->wait(15000))
         webSock_th->terminate();
     if (!django_th->wait(15000))
         django_th->terminate();
-    if (!g_mng_th->wait(15000))
-        g_mng_th->terminate();
     if (!checker_th->wait(15000))
         checker_th->terminate();
     if (!prj->wait(15000))
         prj->terminate();
 
+    net_protocol_thread_.wait();
+
     if (webSock_th)
         delete webSock_th;
     delete django_th;
-    delete g_mng_th;
     delete checker_th;
     delete prj;
 
@@ -128,12 +143,17 @@ Worker::~Worker()
 }
 
 DBManager* Worker::database() const { return db_mng; }
-const Helpz::Database::ConnectionInfo &Worker::database_info() const { return *db_info_; }
+const Helpz::Database::Connection_Info& Worker::database_info() const { return *db_info_; }
 
 std::unique_ptr<QSettings> Worker::settings()
 {
     QString configFileName = QCoreApplication::applicationDirPath() + QDir::separator() + QCoreApplication::applicationName() + ".conf";
     return std::unique_ptr<QSettings>(new QSettings(configFileName, QSettings::NativeFormat));
+}
+
+std::shared_ptr<Client::Protocol_2_0> Worker::net_protocol()
+{
+    return std::static_pointer_cast<Client::Protocol_2_0>(net_thread_->client()->protocol());
 }
 
 int Worker::init_logging(QSettings *s)
@@ -172,7 +192,7 @@ void Worker::init_Database(QSettings* s)
                 Z::Param<int>{"Port", -1},
                 Z::Param<QString>{"Driver", "QMYSQL"},
                 Z::Param<QString>{"ConnectOptions", QString()}
-    ).unique_ptr<Helpz::Database::ConnectionInfo>();
+    ).unique_ptr<Helpz::Database::Connection_Info>();
     if (!db_info_)
         throw std::runtime_error("Failed get database config");
 
@@ -206,25 +226,53 @@ void Worker::init_Checker(QSettings* s)
     checker_th->start();
 }
 
-void Worker::init_GlobalClient(QSettings* s)
+void Worker::init_network_client(QSettings* s)
 {
-    qRegisterMetaType<ValuePackItem>("ValuePackItem");
-    qRegisterMetaType<QVector<ValuePackItem>>("QVector<Dai::ValuePackItem>");
-    qRegisterMetaType<QVector<EventPackItem>>("QVector<Dai::EventPackItem>");
+    while (!prj->ptr() && !prj->wait(5));
+    net_protocol_thread_.start();
+    structure_sync_.moveToThread(&net_protocol_thread_);
+    structure_sync_.set_project(prj->ptr());
+
+    qRegisterMetaType<Log_Value_Item>("Log_Value_Item");
+    qRegisterMetaType<Log_Event_Item>("Log_Event_Item");
+    qRegisterMetaType<QVector<Log_Value_Item>>("QVector<Log_Value_Item>");
+    qRegisterMetaType<QVector<Log_Event_Item>>("QVector<Log_Event_Item>");
     qRegisterMetaType<QVector<quint32>>("QVector<quint32>");
 
-    g_mng_th = NetworkClientThread()(
-              s, "RemoteServer",
-              this,
-              Z::Param<QString>{"Host",                 "deviceaccess.ru"},
-              Z::Param<quint16>{"Port",                 (quint16)25588},
-              Z::Param<QString>{"Login",                QString()},
-              Z::Param<QString>{"Password",             QString()},
-              Z::Param<QUuid>{"Device",               QUuid()},
-              Z::Param<int>{"CheckServerInterval",  15000}
-            );
+    Authentication_Info auth_info = Helpz::SettingsHelper{
+                s, "RemoteServer",
+                Z::Param<QString>{"Login",              QString()},
+                Z::Param<QString>{"Password",           QString()},
+                Z::Param<QString>{"ProjectName",        QString()},
+                Z::Param<QUuid>{"Device",               QUuid()},
+            }.obj<Authentication_Info>();
 
-    g_mng_th->start();
+    if (!auth_info)
+    {
+        return;
+    }
+
+    const QString default_dir = qApp->applicationDirPath() + '/';
+    auto [ tls_policy_file, host, port, protocols, recpnnect_interval_sec ]
+            = Helpz::SettingsHelper{
+                s, "RemoteServer",
+                Z::Param<QString>{"TlsPolicyFile", default_dir + "tls_policy.conf"},
+                Z::Param<QString>{"Host",               "deviceaccess.ru"},
+                Z::Param<QString>{"Port",               "25588"},
+                Z::Param<QString>{"Protocols",          "dai/2.0,dai/1.1"},
+                Z::Param<uint32_t>{"ReconnectSeconds",       15}
+            }();
+
+    Helpz::DTLS::Create_Client_Protocol_Func_T func = [this, auth_info](const std::string& app_protocol) -> std::shared_ptr<Helpz::Network::Protocol>
+    {
+        return std::shared_ptr<Helpz::Network::Protocol>(new Client::Protocol_2_0{this, &structure_sync_, auth_info});
+    };
+
+    Helpz::DTLS::Client_Thread_Config conf{ tls_policy_file.toStdString(), host.toStdString(), port.toStdString(),
+                Botan::split_on(protocols.toStdString(), ','), recpnnect_interval_sec };
+    conf.set_create_protocol_func(std::move(func));
+
+    net_thread_.reset(new Helpz::DTLS::Client_Thread{std::move(conf)});
 }
 
 void Worker::init_LogTimer(int period)
@@ -247,42 +295,50 @@ void Worker::init_LogTimer(int period)
         if (logTimer.interval() != period * 1000)
             logTimer.setInterval(  period * 1000 );
 
-        QDateTime cur_date = QDateTime::currentDateTime();
-        cur_date.setTime(QTime(cur_date.time().hour(), cur_date.time().minute(), 0));
+        Log_Value_Item pack_item;
+        {
+            QDateTime cur_date = QDateTime::currentDateTime().toUTC();
+            cur_date.setTime(QTime(cur_date.time().hour(), cur_date.time().minute(), 0));
+            pack_item.set_time_msecs(cur_date.toMSecsSinceEpoch());
+        }
 
-        QVariant db_id;
-
-        ItemTypeManager* typeMng = &prj->ptr()->ItemTypeMng;
+        Item_Type_Manager* typeMng = &prj->ptr()->item_type_mng_;
 
         static std::map<quint32, QVariant> cachedValues;
 
         for (Device* dev: prj->ptr()->devices())
             for (DeviceItem* dev_item: dev->items())
             {
-                if (typeMng->saveAlgorithm(dev_item->type()) != ItemType::saSaveByTimer)
+                if (typeMng->save_algorithm(dev_item->type_id()) != Item_Type::saSaveByTimer)
                     continue;
 
                 auto val_it = cachedValues.find(dev_item->id());
 
                 if (val_it == cachedValues.cend())
-                    cachedValues.emplace(dev_item->id(), dev_item->getRawValue());
-                else if (val_it->second != dev_item->getRawValue())
-                    val_it->second = dev_item->getRawValue();
+                    cachedValues.emplace(dev_item->id(), dev_item->raw_value());
+                else if (val_it->second != dev_item->raw_value())
+                    val_it->second = dev_item->raw_value();
                 else
                     continue;
 
-                db_id.clear();
-                if (db_mng->logChanges(dev_item, cur_date, &db_id))
+                pack_item.set_id(0);
+                pack_item.set_item_id(dev_item->id());
+                pack_item.set_raw_value(dev_item->raw_value());
+                pack_item.set_value(dev_item->value());
+
+                if (db_mng->logChanges(pack_item))
                 {
-                    ValuePackItem packItem{ db_id.toUInt(), dev_item->id(), cur_date.toMSecsSinceEpoch(),
-                                    dev_item->getRawValue(), dev_item->getValue() };
-                    QMetaObject::invokeMethod(g_mng_th->ptr(), "change", Qt::QueuedConnection,
-                                              Q_ARG(ValuePackItem, packItem), Q_ARG(bool, false));
+                    auto proto = net_protocol();
+                    if (proto)
+                    {
+                        QMetaObject::invokeMethod(proto.get(), "change", Qt::QueuedConnection,
+                                              Q_ARG(Log_Value_Item, pack_item), Q_ARG(bool, false));
+                    }
                 }
                 else
                 {
                     // TODO: Error event
-                    qCWarning(Service::Log) << "Failed change log with device item" << dev_item->id() << dev_item->getValue();
+                    qCWarning(Service::Log) << "Failed change log with device item" << dev_item->id() << dev_item->value();
                 }
             }
     });
@@ -312,21 +368,30 @@ void Worker::initWebSocketManager(QSettings *s)
 
     webSock_th = WebSocketThread()(
                 s, "WebSocket",
+                Helpz::Param<quint16>{"Port", 25589},
                 Helpz::Param<QString>{"CertPath", QString()},
-                Helpz::Param<QString>{"KeyPath", QString()},
-                Helpz::Param<quint16>{"Port", 25589});
+                Helpz::Param<QString>{"KeyPath", QString()});
     webSock_th->start();
 
     while (!webSock_th->ptr() && !webSock_th->wait(5));
     connect(webSock_th->ptr(), &Network::WebSocket::checkAuth,
                      django_th->ptr(), &DjangoHelper::checkToken, Qt::BlockingQueuedConnection);
 
+
     websock_item.reset(new WebSockItem(this));
+    connect(this, &Worker::event_message, websock_item.get(), &WebSockItem::send_event_message, Qt::DirectConnection);
     connect(webSock_th->ptr(), &Network::WebSocket::throughCommand,
             websock_item.get(), &WebSockItem::procCommand, Qt::BlockingQueuedConnection);
     connect(websock_item.get(), &WebSockItem::send, webSock_th->ptr(), &Network::WebSocket::send, Qt::QueuedConnection);
 //    webSock_th->ptr()->get_proj_in_team_by_id.connect(
-//                std::bind(&Worker::proj_in_team_by_id, this, std::placeholders::_1, std::placeholders::_2));
+    //                std::bind(&Worker::proj_in_team_by_id, this, std::placeholders::_1, std::placeholders::_2));
+}
+
+void Worker::restart_service_object(uint32_t user_id)
+{
+    Log_Event_Item event {0, user_id, QtInfoMsg, 0, Service::Log().categoryName(), "The service restarts."};
+    add_event_message(event);
+    QTimer::singleShot(50, this, SIGNAL(serviceRestart()));
 }
 
 //std::shared_ptr<dai::project::base> Worker::proj_in_team_by_id(uint32_t team_id, uint32_t proj_id) {
@@ -338,17 +403,27 @@ void Worker::logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QStr
 {
     if (qstrcmp(ctx->category, Helpz::Network::DetailLog().categoryName()) == 0 ||
             qstrncmp(ctx->category, "net", 3) == 0)
+    {
         return;
+    }
+    Log_Event_Item event{0, 0, 0, type, ctx->category, str};
 
-    QDateTime cur_date = QDateTime::currentDateTime();
-    QVariant db_id;
-    if (db_mng->eventLog(type, ctx->category, str, cur_date, &db_id)) {
-        EventPackItem item{db_id.toUInt(), type, cur_date.toMSecsSinceEpoch(), ctx->category, str};
-        QMetaObject::invokeMethod(g_mng_th->ptr(), "eventLog", Qt::QueuedConnection, Q_ARG(EventPackItem, item));
-        if (webSock_th)
-            QMetaObject::invokeMethod(webSock_th->ptr(), "sendEventMessage", Qt::QueuedConnection,
-                                      QArgument<project::info>("ProjInfo", websock_item.get()), Q_ARG(quint32, db_id.toUInt()), Q_ARG(quint32, item.type_id),
-                                      Q_ARG(QString, item.category), Q_ARG(QString, item.text), Q_ARG(QDateTime, cur_date));
+    static QRegularExpression re("^(\\d+)\\|");
+    QRegularExpressionMatch match = re.match(str);
+    if (match.hasMatch())
+    {
+        event.set_user_id(match.captured(1).toUInt());
+        event.set_msg(str.right(str.size() - (match.capturedEnd(1) + 1)));
+    }
+
+    add_event_message(event);
+}
+
+void Worker::add_event_message(const Log_Event_Item& event)
+{
+    if (db_mng->eventLog(const_cast<Log_Event_Item&>(event)))
+    {
+        event_message(event);
     }
 }
 
@@ -395,8 +470,13 @@ void Worker::processCommands(const QStringList &args)
 QString Worker::getUserDevices()
 {
     QVector<QPair<QUuid, QString>> devices;
-    QMetaObject::invokeMethod(g_mng_th->ptr(), "getUserDevices", Qt::BlockingQueuedConnection,
+
+    auto proto = net_protocol();
+    if (proto)
+    {
+        QMetaObject::invokeMethod(proto.get(), "getUserDevices", Qt::BlockingQueuedConnection,
                               QReturnArgument<QVector<QPair<QUuid, QString>>>("QVector<QPair<QUuid, QString>>", devices));
+    }
 
     QJsonArray json;
     QJsonObject obj;
@@ -413,8 +493,12 @@ QString Worker::getUserDevices()
 QString Worker::getUserStatus()
 {
     QJsonObject json;
-    json["user"] = g_mng_th->ptr()->username();
-    json["device"] = g_mng_th->ptr()->device().toString();
+    auto proto = net_protocol();
+    if (proto)
+    {
+        json["user"] = proto->auth_info().login();
+        json["device"] = proto->auth_info().device_id().toString();
+    }
     return QJsonDocument(json).toJson(QJsonDocument::Compact);
 }
 
@@ -436,13 +520,13 @@ void Worker::initDevice(const QString &device, const QString &device_name, const
      * 3. Перезагрузится
      **/
 
-    Network::Client* c = g_mng_th->ptr();
-    if (!devive_uuid.isNull())
-        QMetaObject::invokeMethod(c, "importDevice", Qt::BlockingQueuedConnection, Q_ARG(QUuid, devive_uuid));
+    auto proto = net_protocol();
+    if (!devive_uuid.isNull() && proto)
+        QMetaObject::invokeMethod(proto.get(), "importDevice", Qt::BlockingQueuedConnection, Q_ARG(QUuid, devive_uuid));
 
     QUuid new_uuid;
-    if (!device_name.isEmpty())
-        QMetaObject::invokeMethod(c, "createDevice", Qt::BlockingQueuedConnection, Q_RETURN_ARG(QUuid, new_uuid),
+    if (!device_name.isEmpty() && proto)
+        QMetaObject::invokeMethod(proto.get(), "createDevice", Qt::BlockingQueuedConnection, Q_RETURN_ARG(QUuid, new_uuid),
                                   Q_ARG(QString, device_name), Q_ARG(QString, device_latin), Q_ARG(QString, device_desc));
     else
         new_uuid = devive_uuid;
@@ -462,7 +546,11 @@ void Worker::clearServerConfig()
 
 void Worker::saveServerAuthData(const QString &login, const QString &password)
 {
-    saveServerData(g_mng_th->ptr()->device(), login, password);
+    auto proto = net_protocol();
+    if (proto)
+    {
+        saveServerData(proto->auth_info().device_id(), login, password);
+    }
 }
 
 void Worker::saveServerData(const QUuid &devive_uuid, const QString &login, const QString &password)
@@ -474,25 +562,15 @@ void Worker::saveServerData(const QUuid &devive_uuid, const QString &login, cons
     s->setValue("Password", password);
     s->endGroup();
 
-    QMetaObject::invokeMethod(g_mng_th->ptr(), "refreshAuth", Qt::QueuedConnection,
-                              Q_ARG(QUuid, devive_uuid), Q_ARG(QString, login), Q_ARG(QString, password));
-}
-
-QByteArray Worker::sections()
-{
-    while (!prj->ptr() && !prj->wait(5));
-
-    QByteArray buff;
+    auto proto = net_protocol();
+    if (proto)
     {
-        QDataStream ds(&buff, QIODevice::WriteOnly);
-        ds.setVersion(QDataStream::Qt_5_7);
-        prj->ptr()->dumpInfoToStream(&ds);
+        QMetaObject::invokeMethod(proto.get(), "refreshAuth", Qt::QueuedConnection,
+                              Q_ARG(QUuid, devive_uuid), Q_ARG(QString, login), Q_ARG(QString, password));
     }
-    return buff;
-
-//    std::shared_ptr<Prt::ServerInfo> info = prj->ptr()->dumpInfoToStream();
-//    return serialize( info.get() );
 }
+
+
 
 bool Worker::setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs)
 {
@@ -500,35 +578,28 @@ bool Worker::setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs)
     if (Section* sct = prj->ptr()->sectionById( section_id ))
     {
         TimeRange tempRange( dayStartSecs, dayEndSecs );
-        if (*sct->dayTime() != tempRange)
+        if (*sct->day_time() != tempRange)
             if (res = db_mng->setDayTime( section_id, tempRange ), res)
             {
-                *sct->dayTime() = tempRange;
+                *sct->day_time() = tempRange;
                 prj->ptr()->dayTimeChanged(/*sct*/);
             }
     }
     return res;
 }
 
-void Worker::setControlState(quint32 section_id, quint32 item_type, const QVariant &raw_data)
-{
-    if (auto sct = prj->ptr()->sectionById( section_id ))
-        QMetaObject::invokeMethod(sct, "setControlState", Qt::QueuedConnection,
-                                  Q_ARG(uint, item_type), Q_ARG(QVariant, raw_data) );
-}
-
-void Worker::writeToItem(quint32 item_id, const QVariant &raw_data)
+void Worker::writeToItem(uint32_t user_id, uint32_t item_id, const QVariant &raw_data)
 {
     if (DeviceItem* item = prj->ptr()->itemById( item_id ))
         QMetaObject::invokeMethod(item->group(), "writeToControl", Qt::QueuedConnection,
-                                  Q_ARG(DeviceItem*, item), Q_ARG(QVariant, raw_data) );
+                                  Q_ARG(DeviceItem*, item), Q_ARG(QVariant, raw_data), Q_ARG(uint32_t, 0), Q_ARG(uint32_t, user_id) );
 }
 
-bool Worker::setMode(uint mode_id, quint32 group_id)
+bool Worker::setMode(uint32_t user_id, uint32_t mode_id, uint32_t group_id)
 {
     bool res = db_mng->setMode(mode_id, group_id);
     if (res)
-        QMetaObject::invokeMethod(prj->ptr(), "setMode", Qt::QueuedConnection, Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id) );
+        QMetaObject::invokeMethod(prj->ptr(), "setMode", Qt::QueuedConnection, Q_ARG(uint32_t, user_id), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id) );
     return res;
 }
 
@@ -542,34 +613,20 @@ struct ServiceRestarter {
     }
 };
 
-bool Worker::setCode(const CodeItem& item)
+
+
+void Worker::setParamValues(uint32_t user_id, const ParamValuesPack &pack)
 {
-    if (!item.id()) {
-        qCWarning(Service::Log) << "Attempt to save zero code";
-        return false;
+    QMetaObject::invokeMethod(prj->ptr(), "setParamValues", Qt::QueuedConnection, Q_ARG(uint32_t, user_id), Q_ARG(ParamValuesPack, pack));
+
+    QString dbg_msg = "Params changed:";
+    for (const ParamValueItem& item: pack)
+    {
+        db_mng->saveParamValue(item.first, item.second);
+        dbg_msg += "\n " + QString::number(item.first) + ": \"" + item.second + "\"";
     }
 
-    CodeManager& CodeMng = prj->ptr()->CodeMng;
-    CodeItem* code = CodeMng.getType(item.id());
-
-    qDebug() << "SetCode" << item.id() << item.text.length() << code->id();
-    if (code->id())
-        *code = item;
-    else
-        CodeMng.add(item);
-    return db_mng->setCodes(&CodeMng);
-}
-
-void Worker::setParamValues(const ParamValuesPack &pack)
-{
-    qCDebug(Service::Log) << "setParamValues" << pack.size() << pack;
-    QMetaObject::invokeMethod(prj->ptr(), "setParamValues", Qt::QueuedConnection, Q_ARG(ParamValuesPack, pack));
-
-    for (const ParamValueItem& item: pack)
-        db_mng->saveParamValue(item.first, item.second);
-    emit paramValuesChanged(pack);
-}
-
+/*<<<<<<< HEAD
 
 template<typename T>
 bool Worker::applyModify(bool(Database::*db_func)(const QVector<T> &, QVector<T> &, const QVector<quint32> &), QDataStream *msg, quint8 structType)
@@ -647,43 +704,47 @@ bool Worker::applyStructModify(quint8 structType, QDataStream *msg)
         qCritical() << "EXCEPTION: applyStructModify" << (StructureType)structType << e.what();
     }
     return false;
+=======*/
+    Log_Event_Item event {0, user_id, QtDebugMsg, 0, Service::Log().categoryName(), dbg_msg};
+    add_event_message(event);
+
+    emit paramValuesChanged(user_id, pack);
+//>>>>>>> feature/transmission_confirmation
 }
 
-void Worker::newValue(DeviceItem *item)
+void Worker::newValue(DeviceItem *item, uint32_t user_id)
 {
-    auto cur_date = QDateTime::currentDateTime();
-
-    waited_item_values[item->id()] = std::make_pair(item->getRawValue(), item->getValue());
+    waited_item_values[item->id()] = std::make_pair(item->raw_value(), item->value());
     if (!item_values_timer.isActive())
         item_values_timer.start();
 
-    QVariant db_id;
-    bool immediately = prj->ptr()->ItemTypeMng.saveAlgorithm(item->type()) == ItemType::saSaveImmediately;
-    if (immediately && !db_mng->logChanges(item, cur_date, &db_id))
-    {
-        qWarning(Service::Log) << "Упущенное значение:" << item->toString() << item->getValue().toString();
-        // TODO: Error event
-    } else if (prj->ptr()->ItemTypeMng.saveAlgorithm(item->type()) == ItemType::saInvalid)
-        qWarning(Service::Log) << "Неправильный параметр сохранения" << item->toString();
+    Log_Value_Item pack_item{0, user_id, item->id(), 0, item->raw_value(), item->value()};
 
-    ValuePackItem pack_item{db_id.toUInt(), item->id(), cur_date.toMSecsSinceEpoch(), item->getRawValue(), item->getValue()};
+    bool immediately = prj->ptr()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saSaveImmediately;
+    if (immediately && !db_mng->logChanges(pack_item))
+    {
+        qWarning(Service::Log).nospace() << user_id << "|Упущенное значение:" << item->toString() << item->value().toString();
+        // TODO: Error event
+    } else if (prj->ptr()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saInvalid)
+        qWarning(Service::Log).nospace() << user_id << "|Неправильный параметр сохранения: " << item->toString();
+
     emit change(pack_item, immediately);
 
     if (webSock_th) {
-        QVector<Dai::ValuePackItem> pack{pack_item};
+        QVector<Log_Value_Item> pack{pack_item};
         QMetaObject::invokeMethod(webSock_th->ptr(), "sendDeviceItemValues", Qt::QueuedConnection,
-                                  QArgument<project::info>("ProjInfo", websock_item.get()), Q_ARG(QVector<Dai::ValuePackItem>, pack));
+                                  Q_ARG(Project_Info, websock_item.get()), Q_ARG(QVector<Log_Value_Item>, pack));
     }
 }
 
 /*void Worker::sendLostValues(const QVector<quint32> &ids)
 {
-    QVector<ValuePackItem> pack;
+    QVector<Log_Value_Item> pack;
 
     QVector<quint32> found, not_found;
     db_mng->getListValues(ids, found, pack);
 
-    QMetaObject::invokeMethod(g_mng_th->ptr(), "sendLostValues", Qt::QueuedConnection, Q_ARG(QVector<Dai::ValuePackItem>, pack));
+    QMetaObject::invokeMethod(g_mng_th->ptr(), "sendLostValues", Qt::QueuedConnection, Q_ARG(QVector<Log_Value_Item>, pack));
 
     std::set_difference(
         ids.cbegin(), ids.cend(),

@@ -1,6 +1,6 @@
 #include "units_table_model.h"
 #include <Dai/deviceitem.h>
-#include "Dai/typemanager/typemanager.h"
+#include "Dai/type_managers.h"
 #include "Dai/section.h"
 
 #include <QModbusServer>
@@ -8,17 +8,23 @@
 
 #include <algorithm>
 
-Units_Table_Model::Units_Table_Model(Dai::ItemTypeManager *mng, const QVector<Dai::DeviceItem *> *units_vector, QModbusServer *modbus_server, QObject *parent)
+int unit(const Dai::DeviceItem *a)
+{
+    auto it = a->extra().find("unit");
+    return it != a->extra().cend() ? it.value().toInt() : 0;
+}
+
+Units_Table_Model::Units_Table_Model(Dai::Item_Type_Manager *mng, const QVector<Dai::DeviceItem *> *units_vector, QModbusServer *modbus_server, QObject *parent)
     : QAbstractItemModel(parent), item_type_manager_(mng), modbus_server_(modbus_server)
 {    
     for (auto *item_unit : *units_vector)
     {
-        if (item_unit->type() == Dai::Prt::itWindowState)
+        if (item_unit->type_id() == Dai::Prt::itWindowState)
             item_unit->setRawValue(Dai::Prt::wCalibrated | Dai::Prt::wExecuted | Dai::Prt::wClosed);
         else
-            item_unit->setRawValue(mng->needNormalize(item_unit->type()) ? (qrand() % 100) + 240 : (qrand() % 3000) + 50);
+            item_unit->setRawValue(mng->need_normalize(item_unit->type_id()) ? (qrand() % 100) + 240 : (qrand() % 3000) + 50);
 
-        modbus_units_map_[static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->registerType(item_unit->type()))].push_back(item_unit);
+        modbus_units_map_[static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->register_type(item_unit->type_id()))].push_back(item_unit);
     }
 
     QModbusDataUnitMap modbus_data_unit_map;
@@ -26,15 +32,15 @@ Units_Table_Model::Units_Table_Model(Dai::ItemTypeManager *mng, const QVector<Da
     {
         auto sort_units = [](const Dai::DeviceItem *a, const Dai::DeviceItem *b) -> bool
         {
-            return a->unit().toInt() < b->unit().toInt();
+            return unit(a) < unit(b);
         };
         std::sort(it.second.begin(), it.second.end(), sort_units);
 
-        int max_unit = it.second.back()->unit().toInt();
+        int max_unit = unit(it.second.back());
         auto it_t = it.second.begin();
         for (int i = 0; i <= max_unit; ++i)
         {
-            if (it_t == it.second.end() || (*it_t)->unit() != i)
+            if (it_t == it.second.end() || unit(*it_t) != i)
             {
                 it_t = it.second.insert(it_t, nullptr);
             }
@@ -49,7 +55,7 @@ Units_Table_Model::Units_Table_Model(Dai::ItemTypeManager *mng, const QVector<Da
             {
                 if (it.second.at(i))
                 {
-                    modbus_unit.setValue(i, it.second.at(i)->getRawValue().toInt());
+                    modbus_unit.setValue(i, it.second.at(i)->raw_value().toInt());
                 }
             }
 
@@ -79,22 +85,24 @@ int Units_Table_Model::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid())
     {
-        if (parent.internalPointer() != nullptr)
+        if (parent.internalPointer() == nullptr)
         {
-            return 0;
+            auto reg_type = row_to_register_type(parent.row());
+            if (reg_type != QModbusDataUnit::Invalid)
+            {
+                auto it = modbus_units_map_.find(reg_type);
+                if (it != modbus_units_map_.cend())
+                {
+                    return it->second.size();
+                }
+            }
         }
-
-        auto reg_type = row_to_register_type(parent.row());
-        if (reg_type == QModbusDataUnit::Invalid)
-        {
-            return 0;
-        }
-        return modbus_units_map_.at(reg_type).size();
     }
     else
     {
         return 4;
     }
+    return 0;
 }
 
 
@@ -149,7 +157,7 @@ QVariant Units_Table_Model::data(const QModelIndex &index, int role) const
             case Column::UNIT_TYPE:
                 if (role == Qt::DisplayRole)
                 {
-                    return device_item->unit();
+                    return unit(device_item);
                 }
                 break;
             case Column::UNIT_NAME:
@@ -161,14 +169,14 @@ QVariant Units_Table_Model::data(const QModelIndex &index, int role) const
                 break;
             case Column::UNIT_VALUE:
                 {
-                    auto reg_type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->registerType(device_item->type()));
+                    auto reg_type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->register_type(device_item->type_id()));
                     if (reg_type > QModbusDataUnit::Coils)
                     {
                         if (role == Qt::EditRole || role == Qt::DisplayRole)
                         {
-                            if (!device_item->getRawValue().isNull())
+                            if (!device_item->raw_value().isNull())
                             {
-                                return device_item->getRawValue();
+                                return device_item->raw_value();
                             }
                             return 0;
                         }
@@ -178,9 +186,9 @@ QVariant Units_Table_Model::data(const QModelIndex &index, int role) const
                         if (role == Qt::CheckStateRole)
                         {
                             bool result = false;
-                            if (!device_item->getRawValue().isNull())
+                            if (!device_item->raw_value().isNull())
                             {
-                                result = (device_item->getRawValue() > 0 && device_item->getRawValue() <= 2);
+                                result = (device_item->raw_value() > 0 && device_item->raw_value() <= 2);
                             }
                             return static_cast<int>(result ? Qt::Checked : Qt::Unchecked);
                         }
@@ -189,7 +197,7 @@ QVariant Units_Table_Model::data(const QModelIndex &index, int role) const
                     {
                         if (role == Qt::DisplayRole)
                         {
-                            return device_item->getRawValue();
+                            return device_item->raw_value();
                         }
                     }
                 }
@@ -230,7 +238,7 @@ Qt::ItemFlags Units_Table_Model::flags(const QModelIndex &index) const // not wo
 
     Qt::ItemFlags flags = Qt::ItemIsEnabled;
 
-    auto reg_type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->registerType(device_item->type()));
+    auto reg_type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->register_type(device_item->type_id()));
 
     if (index.column() == 2)
     {
@@ -259,14 +267,14 @@ bool Units_Table_Model::setData(const QModelIndex &index, const QVariant &value,
                 return false;
             }
 
-            auto reg_type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->registerType(device_item->type()));
+            auto reg_type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->register_type(device_item->type_id()));
             if (role == Qt::CheckStateRole)
             {
                 if (reg_type > QModbusDataUnit::Invalid && reg_type <= QModbusDataUnit::Coils)
                 {
                     device_item->setRawValue(value);
                     emit dataChanged(index, index);
-                    modbus_server_->setData(reg_type, device_item->unit().toInt(), value.toBool());
+                    modbus_server_->setData(reg_type, unit(device_item), value.toBool());
                     return true;
                 }
 
@@ -277,7 +285,7 @@ bool Units_Table_Model::setData(const QModelIndex &index, const QVariant &value,
                 {
                     device_item->setRawValue(value);
                     emit dataChanged(index, index);
-                    modbus_server_->setData(reg_type, device_item->unit().toInt(), value.toInt());
+                    modbus_server_->setData(reg_type, unit(device_item), value.toInt());
                     return true;
                 }
             }
@@ -330,7 +338,7 @@ QModelIndex Units_Table_Model::parent(const QModelIndex &child) const
     auto device_item = static_cast<Dai::DeviceItem*>(child.internalPointer());
     if (device_item)
     {
-        auto reg_type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->registerType(device_item->type()));
+        auto reg_type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->register_type(device_item->type_id()));
         int row;
         switch (reg_type) {
         case QModbusDataUnit::DiscreteInputs       : row = 0;  break;

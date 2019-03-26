@@ -57,7 +57,7 @@ void RestHelper::checkParam(uint time, bool rest)
 
 void RestHelper::controlChanged(DeviceItem *dev_item)
 {
-    if (dev_item->type() != type())
+    if (dev_item->type_id() != type())
         return;
 
     bool isControlOn = group()->isControlOn(type());
@@ -75,7 +75,7 @@ void RestHelper::controlChanged(DeviceItem *dev_item)
             m_timer->start( work_time * 1000 );
         }
         else if (m_resting)
-            setControlState(false);
+            writeToControl(false);
     }
     else
     {
@@ -110,7 +110,7 @@ void RestHelper::onTimer()
     }
 
     if (flag)
-        setControlState(newState);
+        writeToControl(newState);
 }
 
 } // namespace Dai

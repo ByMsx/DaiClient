@@ -68,14 +68,9 @@ ItemGroup *AutomationHelperItem::group() const { return m_group; }
 uint AutomationHelperItem::type() const { return m_type; }
 void AutomationHelperItem::setType(uint type) { m_type = type; }
 
-void AutomationHelperItem::setControlState(const QVariant &raw_data, uint mode)
+void AutomationHelperItem::writeToControl(const QVariant &raw_data, uint mode)
 {
-    group()->setControlState(m_type, raw_data, mode);
-}
-
-void AutomationHelperItem::toggleDevice(const QVariant &raw_data, uint mode)
-{
-    group()->setControlState(m_type, raw_data, mode);
+    group()->writeToControl(m_type, raw_data, mode);
 }
 
 QScriptValue AutomationHelperItem::data() const { return m_data; }
