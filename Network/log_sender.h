@@ -6,6 +6,7 @@
 #include <Dai/log/log_type.h>
 #include <Dai/log/log_pack.h>
 
+#include <Database/db_log_helper.h>
 #include "client_protocol.h"
 
 namespace Dai {
@@ -19,10 +20,6 @@ public:
 
     void send_log_range(Log_Type_Wrapper log_type, qint64 date_ms, uint8_t msg_id);
     void send_log_data(Log_Type_Wrapper log_type, QPair<quint32, quint32> range, uint8_t msg_id);
-signals:
-    QPair<quint32, quint32> get_log_range(quint8 log_type, qint64 date);
-    void get_log_value_data(const QPair<quint32, quint32> &range, QVector<quint32>* not_found, QVector<Log_Value_Item>* data_out);
-    void get_log_event_data(const QPair<quint32, quint32> &range, QVector<quint32>* not_found, QVector<Log_Event_Item>* data_out);
 
 public slots:
     void send_value_log(const Log_Value_Item &item, bool immediately = false);
@@ -31,6 +28,7 @@ private slots:
     void send_log_packs();
 private:
     Protocol* protocol_;
+    Database::Log_Helper db_helper_;
 
     QTimer timer_;
 
