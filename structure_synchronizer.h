@@ -16,12 +16,14 @@ public:
     Structure_Synchronizer();
 
     void set_project(Project* project);
+    void set_protocol(Helpz::Network::Protocol* protocol);
 
     bool modified() const;
 public slots:
-    void modify(uint32_t user_id, uint8_t structType, QIODevice* data_dev);
-    void send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev, Helpz::Network::Protocol* protocol);
+    void modify_client_structure(uint32_t user_id, uint8_t structType, QIODevice* data_dev);
+    void send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev);
 private:
+    void send_modify_response(const QByteArray &buffer) override;
     void add_checker_types(QDataStream& ds);
     void add_device_items(QDataStream& ds);
     void add_groups(QDataStream& ds);
@@ -29,6 +31,7 @@ private:
 
     bool modified_;
     Project* prj_;
+    Helpz::Network::Protocol* protocol_;
 };
 
 } // namespace Client

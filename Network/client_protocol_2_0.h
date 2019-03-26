@@ -24,7 +24,7 @@ signals:
     void exec_script_command(uint32_t user_id, const QString& script);
 
     void send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev, Helpz::Network::Protocol* protocol);
-    bool modify_project(uint32_t user_id, quint8 struct_type, QIODevice* data_dev);
+//    bool modify_project(uint32_t user_id, quint8 struct_type, QIODevice* data_dev);
 private:
     void connect_worker_signals();
 

@@ -27,7 +27,7 @@ WebSockItem::WebSockItem(Worker *obj) :
     set_id(1);
     set_teams({1});
     connect(w, &Worker::modeChanged, this, &WebSockItem::modeChanged, Qt::QueuedConnection);
-    connect(this, &WebSockItem::applyStructModify, &w->structure_sync_, &Client::Structure_Synchronizer::modify, Qt::BlockingQueuedConnection);
+    connect(this, &WebSockItem::applyStructModify, &w->structure_sync_, &Client::Structure_Synchronizer::modify_client_structure, Qt::BlockingQueuedConnection);
 }
 
 WebSockItem::~WebSockItem() {

@@ -20,6 +20,7 @@ Protocol_2_0::Protocol_2_0(Worker *worker, Structure_Synchronizer *structure_syn
     structure_sync_(structure_synchronizer)
 {
     connect_worker_signals();
+    structure_sync_->set_protocol(this);
 }
 
 void Protocol_2_0::connect_worker_signals()
@@ -34,9 +35,6 @@ void Protocol_2_0::connect_worker_signals()
     connect(this, &Protocol_2_0::set_mode, worker(), &Worker::setMode, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::set_param_values, worker(), &Worker::setParamValues, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::exec_script_command, worker()->prj->ptr(), &ScriptedProject::console, Qt::QueuedConnection);
-
-    connect(this, &Protocol_2_0::modify_project, structure_sync_, &Structure_Synchronizer::modify, Qt::BlockingQueuedConnection);
-    connect(this, &Protocol_2_0::send_project_structure, structure_sync_, &Structure_Synchronizer::send_project_structure, Qt::BlockingQueuedConnection);
 
     connect(worker(), &Worker::modeChanged, this, &Protocol_2_0::send_mode, Qt::QueuedConnection);
     connect(worker(), &Worker::statusAdded, this, &Protocol_2_0::send_status_added, Qt::QueuedConnection);
@@ -83,8 +81,8 @@ void Protocol_2_0::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data
     case Cmd::SET_PARAM_VALUES:     apply_parse(data_dev, &Protocol_2_0::set_param_values);     break;
     case Cmd::EXEC_SCRIPT_COMMAND:  apply_parse(data_dev, &Protocol_2_0::exec_script_command);  break;
 
-    case Cmd::GET_PROJECT:          apply_parse(data_dev, &Protocol_2_0::send_project_structure, msg_id, &data_dev, this); break;
-    case Cmd::MODIFY_PROJECT:       /*send_answer(cmd, msg_id) << */apply_parse(data_dev, &Protocol_2_0::modify_project, &data_dev); break;
+    case Cmd::GET_PROJECT:          Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::send_project_structure, structure_sync_, msg_id, &data_dev); break;
+    case Cmd::MODIFY_PROJECT:       Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::modify_client_structure, structure_sync_, &data_dev); break;
 
     default:
         if (cmd >= Helpz::Network::Cmd::USER_COMMAND)

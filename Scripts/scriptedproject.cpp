@@ -453,7 +453,7 @@ void ScriptedProject::console(uint32_t user_id, const QString &cmd)
             is_error = true;
         }
     }
-    Log_Event_Item event{0, user_id, is_error ? QtCriticalMsg : QtInfoMsg, 0, Service::Log().categoryName(), "CONSOLE [" + script + "] >" + res.toString()};
+    Log_Event_Item event{0, 0, user_id, is_error ? QtCriticalMsg : QtInfoMsg, Service::Log().categoryName(), "CONSOLE [" + script + "] >" + res.toString()};
     std::cerr << event.msg().toStdString() << std::endl;
     add_event_message(event);
 }

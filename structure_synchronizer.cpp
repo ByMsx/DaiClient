@@ -16,70 +16,39 @@ void Structure_Synchronizer::set_project(Project *project)
     prj_ = project;
 }
 
+void Structure_Synchronizer::set_protocol(Helpz::Network::Protocol* protocol)
+{
+    protocol_ = protocol;
+}
+
 bool Structure_Synchronizer::modified() const
 {
     return modified_;
 }
 
-void Structure_Synchronizer::modify(uint32_t user_id, uint8_t structType, QIODevice* data_dev)
+void Structure_Synchronizer::modify_client_structure(uint32_t user_id, uint8_t structType, QIODevice* data_dev)
 {
+    qDebug() << "!!!" << user_id << structType;
     modified_ = true;
-    /*
-//    using namespace Network;
-    Log_Event_Item event {0, user_id, QtDebugMsg, 0, "project", "Change project structure "};
-    {
-        QTextStream ts(&event.text);
-        ts << static_cast<StructureType>(structType) << " size " << data_dev->size();
-    }
-
-    try
-    {
-        auto v = Helpz::Network::Protocol::DATASTREAM_VERSION;
-        switch (structType)
-        {
-        case STRUCT_TYPE_DEVICES:
-            return Helpz::apply_parse(*data_dev, v, &Structure_Synchronizer::applyModifyDevices, db_mng);
-        case STRUCT_TYPE_CHECKER_TYPES:
-            return Helpz::apply_parse(*data_dev, v, &Structure_Synchronizer::applyModifyCheckerTypes, db_mng);
-        case STRUCT_TYPE_DEVICE_ITEMS:
-            return Helpz::apply_parse(*data_dev, v, &Structure_Synchronizer::applyModifyDeviceItems, db_mng);
-        case STRUCT_TYPE_DEVICE_ITEM_TYPES:
-            return Helpz::apply_parse(*data_dev, v, &Structure_Synchronizer::applyModifyDeviceItemTypes, db_mng);
-        case STRUCT_TYPE_SECTIONS:
-            return Helpz::apply_parse(*data_dev, v, &Structure_Synchronizer::applyModifySections, db_mng);
-        case STRUCT_TYPE_GROUPS:
-            return Helpz::apply_parse(*data_dev, v, &Structure_Synchronizer::applyModifyGroups, db_mng);
-        case STRUCT_TYPE_GROUP_TYPES:
-            return Helpz::apply_parse(*data_dev, v, &Structure_Synchronizer::applyModifyGroupTypes, db_mng);
-        case STRUCT_TYPE_GROUP_PARAMS:
-            return Helpz::apply_parse(*data_dev, v, &Structure_Synchronizer::applyModifyGroupParams, db_mng);
-        case STRUCT_TYPE_GROUP_PARAM_TYPES:
-            return Helpz::apply_parse(*data_dev, v, &Structure_Synchronizer::applyModifyGroupParamTypes, db_mng);
-        case STRUCT_TYPE_GROUP_STATUSES:
-            return Helpz::apply_parse(*data_dev, v, &Structure_Synchronizer::applyModifyGroupStatuses, db_mng);
-        case STRUCT_TYPE_GROUP_STATUS_TYPE:
-            return Helpz::apply_parse(*data_dev, v, &Structure_Synchronizer::applyModifyGroupStatusTypes, db_mng);
-        case STRUCT_TYPE_SIGNS:
-            return Helpz::apply_parse(*data_dev, v, &Structure_Synchronizer::applyModifySigns, db_mng);
-        case STRUCT_TYPE_SCRIPTS:
-            return Helpz::apply_parse(*data_dev, v, &Structure_Synchronizer::applyModifyScripts, db_mng);
-
-        default: return false;
-        }
-    }
-    catch(const std::exception& e)
-    {
-        event.type_id = QtCriticalMsg;
-        event.text += " EXCEPTION: " + QString::fromStdString(e.what());
-    }
-    add_event_message(event);
-    return false;
-    */
+    process_modify_message(user_id, structType, data_dev);
 }
 
-void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice *data_dev, Helpz::Network::Protocol *protocol)
+void Structure_Synchronizer::send_modify_response(const QByteArray &buffer)
 {
-    Helpz::Network::Protocol_Sender helper = std::move(protocol->send_answer(Cmd::GET_PROJECT, msg_id));
+    if (protocol_ != nullptr)
+    {
+        protocol_->send(Cmd::GET_PROJECT).writeRawData(buffer.constData(), buffer.size());
+    }
+}
+
+void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice *data_dev)
+{
+    if (protocol_ == nullptr)
+    {
+        return;
+    }
+
+    Helpz::Network::Protocol_Sender helper = std::move(protocol_->send_answer(Cmd::GET_PROJECT, msg_id));
     helper << struct_type;
 
     std::unique_ptr<QDataStream> ds;
@@ -93,7 +62,7 @@ void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t
         buf.reset(new QBuffer{});
         buf->open(QIODevice::ReadWrite);
         ds.reset(new QDataStream{buf.get()});
-        ds->setVersion(protocol->DATASTREAM_VERSION);
+        ds->setVersion(protocol_->DATASTREAM_VERSION);
     }
     else
     {
@@ -126,7 +95,7 @@ void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t
         }
         else
         {
-            Helpz::apply_parse(*data_dev, protocol->DATASTREAM_VERSION, &Structure_Synchronizer::add_codes, this, ds.get());
+            Helpz::apply_parse(*data_dev, protocol_->DATASTREAM_VERSION, &Structure_Synchronizer::add_codes, this, ds.get());
             // qDebug(NetClientLog) << "code sended size:" << helper.device()->size();
         }
         break;
