@@ -179,6 +179,9 @@ private:
 
     std::map<quint32, std::pair<QVariant, QVariant>> waited_item_values;
     QTimer item_values_timer;
+
+//    template<typename T>
+//    bool applyModify(bool (Database::*db_func)(const QVector<T> &, QVector<T> &, const QVector<quint32>&), QDataStream *msg, quint8 structType);
 };
 
 typedef Helpz::Service::Impl<Worker> Service;

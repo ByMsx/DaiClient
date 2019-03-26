@@ -17,6 +17,9 @@
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <QGroupBox>
+
+#include "device_item_view.h"
 
 #include "device_item_view.h"
 

@@ -27,7 +27,7 @@ WebSockItem::WebSockItem(Worker *obj) :
     set_id(1);
     set_teams({1});
     connect(w, &Worker::modeChanged, this, &WebSockItem::modeChanged, Qt::QueuedConnection);
-    connect(this, &WebSockItem::applyStructModify, &w->structure_sync_, &Client::Structure_Synchronizer::modify, Qt::BlockingQueuedConnection);
+    connect(this, &WebSockItem::applyStructModify, &w->structure_sync_, &Client::Structure_Synchronizer::modify_client_structure, Qt::BlockingQueuedConnection);
 }
 
 WebSockItem::~WebSockItem() {
@@ -633,10 +633,90 @@ void Worker::setParamValues(uint32_t user_id, const ParamValuesPack &pack)
         dbg_msg += "\n " + QString::number(item.first) + ": \"" + item.second + "\"";
     }
 
+/*<<<<<<< HEAD
+
+template<typename T>
+bool Worker::applyModify(bool(Database::*db_func)(const QVector<T> &, QVector<T> &, const QVector<quint32> &), QDataStream *msg, quint8 structType)
+{
+    QVector<T> updList, insrtList;
+    QVector<quint32> delList;
+
+//    *msg >> updList >> insrtList >> delList;
+    Helpz::parse_out(*msg, updList, insrtList, delList);
+
+    if ((db_mng->*db_func)(updList, insrtList, delList))
+    {
+//        g_mng_th->ptr()->send(cmdStructModify) << true << updList << insrtList << delList;
+        auto sender = g_mng_th->ptr()->send(cmdStructModify);
+        sender << true << structType << updList << insrtList << delList;
+        QByteArray buffer = sender.pop_message();
+
+        QMetaObject::invokeMethod(g_mng_th->ptr(), "send_structure_changed", Qt::QueuedConnection, Q_ARG(QByteArray, buffer));
+        return true;
+    }
+    return false;
+}
+
+bool Worker::applyStructModify(quint8 structType, QDataStream *msg)
+{
+    using namespace Network;
+    qCDebug(Service::Log) << "applyStructModify" << (StructureType)structType;
+
+    try {
+
+        switch ((StructureType)structType) {
+        case stDevices:
+            return applyModify(&Database::applyModifyDevices, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyDevices, db_mng, *msg);
+        case stCheckerType:
+            return applyModify(&Database::applyModifyCheckerTypes, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyCheckerTypes, db_mng, *msg);
+        case stDeviceItems:
+            return applyModify(&Database::applyModifyDeviceItems, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyDeviceItems, db_mng, *msg);
+        case stDeviceItemTypes:
+            return applyModify(&Database::applyModifyDeviceItemTypes, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyDeviceItemTypes, db_mng, *msg);
+        case stSections:
+            return applyModify(&Database::applyModifySections, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifySections, db_mng, *msg);
+        case stGroups:
+            return applyModify(&Database::applyModifyGroups, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyGroups, db_mng, *msg);
+        case stGroupTypes:
+            return applyModify(&Database::applyModifyGroupTypes, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyGroupTypes, db_mng, *msg);
+        case stGroupParams:
+            return applyModify(&Database::applyModifyGroupParams, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyGroupParams, db_mng, *msg);
+        case stGroupParamTypes:
+            return applyModify(&Database::applyModifyGroupParamTypes, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyGroupParamTypes, db_mng, *msg);
+        case stGroupStatuses:
+            return applyModify(&Database::applyModifyGroupStatuses, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyGroupStatuses, db_mng, *msg);
+        case stGroupStatusTypes:
+            return applyModify(&Database::applyModifyGroupStatusTypes, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyGroupStatusTypes, db_mng, *msg);
+        case stSigns:
+            return applyModify(&Database::applyModifySigns, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifySigns, db_mng, *msg);
+        case stScripts:
+            return applyModify(&Database::applyModifyScripts, msg, structType);
+//            return Helpz::applyParse(&Database::applyModifyScripts, db_mng, *msg);
+
+        default: return false;
+        }
+    } catch(const std::exception& e) {
+        qCritical() << "EXCEPTION: applyStructModify" << (StructureType)structType << e.what();
+    }
+    return false;
+=======*/
     Log_Event_Item event {0, user_id, QtDebugMsg, 0, Service::Log().categoryName(), dbg_msg};
     add_event_message(event);
 
     emit paramValuesChanged(user_id, pack);
+//>>>>>>> feature/transmission_confirmation
 }
 
 void Worker::newValue(DeviceItem *item, uint32_t user_id)
