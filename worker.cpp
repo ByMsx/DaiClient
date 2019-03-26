@@ -86,6 +86,8 @@ using namespace std::placeholders;
 Worker::Worker(QObject *parent) :
     QObject(parent)
 {
+    qRegisterMetaType<uint32_t>("uint32_t");
+
     auto s = settings();
 
     int log_period = init_logging(s.get());
