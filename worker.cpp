@@ -645,7 +645,7 @@ void Worker::newValue(DeviceItem *item, uint32_t user_id)
     if (!item_values_timer.isActive())
         item_values_timer.start();
 
-    Log_Value_Item pack_item{0, user_id, item->id(), 0, item->raw_value(), item->value()};
+    Log_Value_Item pack_item{0, 0, user_id, item->id(), item->raw_value(), item->value()};
 
     bool immediately = prj->ptr()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saSaveImmediately;
     if (immediately && !db_mng->logChanges(pack_item))
