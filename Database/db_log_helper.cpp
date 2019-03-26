@@ -27,13 +27,13 @@ void Log_Helper::log_range(quint8 log_type, qint64 date_ms, std::function<void (
     }
     where += "ORDER BY date ASC LIMIT 10000;";
 
-    QString sql = db_->db()->select_query({log_table_name(log_type), {"id"}}, where, values.size());
+    Helpz::Database::Table table{log_table_name(log_type), {"id"}};
 
-    db_->add_query([sql, values, callback](Helpz::Database::Base* db)
+    db_->add_query([table, where, values, callback](Helpz::Database::Base* db)
     {
         uint32_t start = 0, end = 0, id;
 
-        QSqlQuery q = db->exec(sql, values);
+        QSqlQuery q = db->select(table, where, values);
         if (q.isActive())
         {
             while(q.next())
@@ -61,23 +61,15 @@ void Log_Helper::log_event_data(const QPair<quint32, quint32>& range, std::funct
     log_data(range, callback);
 }
 
-QString Log_Helper::get_log_range_sql(const Helpz::Database::Table& table, const QPair<quint32, quint32>& range)
-{
-    return db_->db()->select_query(table, QString("WHERE id >= %1 AND id <= %2").arg(range.first).arg(range.second));
-}
-
 template<typename T>
 void Log_Helper::log_data(const QPair<quint32, quint32>& range, std::function<void (const QVector<quint32>&, const QVector<T>&)>& callback)
 {
-    quint32 range_first = range.first;
-    QString sql = get_log_range_sql(Helpz::Database::db_table<T>(), range);
-
-    db_->add_query([sql, range_first, callback](Helpz::Database::Base* db)
+    db_->add_query([range, callback](Helpz::Database::Base* db)
     {
-        QSqlQuery q = db->exec(sql);
+        QSqlQuery q = db->select(Helpz::Database::db_table<T>(), QString("WHERE id >= %1 AND id <= %2").arg(range.first).arg(range.second));
         if (q.isActive())
         {
-            quint32 id, next_id = range_first;
+            quint32 id, next_id = range.first;
             QVector<quint32> not_found;
             QVector<T> data;
             while (q.next())

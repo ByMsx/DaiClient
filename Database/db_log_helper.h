@@ -23,8 +23,6 @@ public:
     void log_event_data(const QPair<quint32, quint32>& range, std::function<void (const QVector<quint32>&, const QVector<Log_Event_Item>&)> callback);
 
 private:
-    QString get_log_range_sql(const Helpz::Database::Table& table, const QPair<quint32, quint32>& range);
-
     template<typename T>
     void log_data(const QPair<quint32, quint32>& range, std::function<void (const QVector<quint32>&, const QVector<T>&)>& callback);
 

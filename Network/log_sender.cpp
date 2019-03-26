@@ -46,8 +46,6 @@ void Log_Sender::send_log_data(Log_Type_Wrapper log_type, QPair<quint32, quint32
     {
         db_helper_.log_value_data(range, [this, msg_id](const QVector<quint32>& not_found, const QVector<Log_Value_Item>& data_value)
         {
-            for (const Log_Value_Item& item: data_value)
-                qDebug() << "s_log" << int(item.value().type()) << item.value() << int(item.raw_value().type()) << item.raw_value();
             protocol_->send_answer(Cmd::LOG_DATA, msg_id) << uint8_t(LOG_VALUE) << not_found << data_value;
         });
     }
@@ -55,8 +53,6 @@ void Log_Sender::send_log_data(Log_Type_Wrapper log_type, QPair<quint32, quint32
     {
         db_helper_.log_event_data(range, [this, msg_id](const QVector<quint32>& not_found, const QVector<Log_Event_Item>& data_event)
         {
-            for (const Log_Event_Item& item: data_event)
-                std::cerr << "e_log " << item.who().toStdString() << std::endl;
             protocol_->send_answer(Cmd::LOG_DATA, msg_id) << uint8_t(LOG_EVENT) << not_found << data_event;
         });
     }
