@@ -112,7 +112,12 @@ ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleRe
     connect(this, &ScriptedProject::dayTimeChanged, &m_dayTime, &DayTimeHelper::init, Qt::QueuedConnection);
 
     if (consoleReader)
-        connect(consoleReader, &Helpz::ConsoleReader::textReceived, [this](const QString& text) { console(0, text); });
+    {
+        connect(consoleReader, &Helpz::ConsoleReader::textReceived, [this](const QString& text)
+        {
+            QMetaObject::invokeMethod(this, "console", Qt::QueuedConnection, Q_ARG(uint32_t, 0), Q_ARG(QString, text));
+        });
+    }
 }
 
 ScriptedProject::~ScriptedProject()
