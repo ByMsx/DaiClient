@@ -239,6 +239,7 @@ void Worker::init_network_client(QSettings* s)
     net_protocol_thread_.start();
     structure_sync_.moveToThread(&net_protocol_thread_);
     structure_sync_.set_project(prj->ptr());
+    structure_sync_.set_thread(db_pending_thread_.get());
 
     qRegisterMetaType<Log_Value_Item>("Log_Value_Item");
     qRegisterMetaType<Log_Event_Item>("Log_Event_Item");

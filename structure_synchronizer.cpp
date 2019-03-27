@@ -28,7 +28,7 @@ bool Structure_Synchronizer::modified() const
 
 void Structure_Synchronizer::modify_client_structure(uint32_t user_id, uint8_t structType, QIODevice* data_dev)
 {
-    qDebug() << "!!!" << user_id << structType;
+    qDebug().nospace() << user_id << "|modify " << static_cast<StructureType>(structType);
     modified_ = true;
     process_modify_message(user_id, structType, data_dev);
 }
