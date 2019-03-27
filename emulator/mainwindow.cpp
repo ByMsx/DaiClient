@@ -254,7 +254,7 @@ QElapsedTimer t;
 QByteArray buff;
 
 void Main_Window::proccessData()
-{
+{    
     if (!t.isValid())
         t.start();
 

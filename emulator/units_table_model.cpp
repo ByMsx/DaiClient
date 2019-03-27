@@ -19,10 +19,10 @@ Units_Table_Model::Units_Table_Model(Dai::Item_Type_Manager *mng, const QVector<
 {    
     for (auto *item_unit : *units_vector)
     {
-        if (item_unit->type_id() == Dai::Prt::itWindowState)
-            item_unit->setRawValue(Dai::Prt::wCalibrated | Dai::Prt::wExecuted | Dai::Prt::wClosed);
-        else
-            item_unit->setRawValue(mng->need_normalize(item_unit->type_id()) ? (qrand() % 100) + 240 : (qrand() % 3000) + 50);
+//        if (item_unit->type_id() == Dai::Prt::itWindowState)
+//            item_unit->setRawValue(Dai::Prt::wCalibrated | Dai::Prt::wExecuted | Dai::Prt::wClosed);
+//        else
+//            item_unit->setRawValue(mng->need_normalize(item_unit->type_id()) ? (qrand() % 100) + 240 : (qrand() % 3000) + 50);
 
         modbus_units_map_[static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->register_type(item_unit->type_id()))].push_back(item_unit);
     }
@@ -188,7 +188,7 @@ QVariant Units_Table_Model::data(const QModelIndex &index, int role) const
                             bool result = false;
                             if (!device_item->raw_value().isNull())
                             {
-                                result = (device_item->raw_value() > 0 && device_item->raw_value() <= 2);
+                                result = device_item->raw_value().toBool();//( > 0);// && device_item->raw_value() <= 2);
                             }
                             return static_cast<int>(result ? Qt::Checked : Qt::Unchecked);
                         }
@@ -355,14 +355,14 @@ QModelIndex Units_Table_Model::parent(const QModelIndex &child) const
 }
 
 void Units_Table_Model::update_table_values(QModbusDataUnit::RegisterType type, int address, int size) noexcept
-{
-//    qDebug() << "Update data" << type << address << size;
+{    
     for (int i = 0; i < size; ++i)
     {
         if (type == QModbusDataUnit::Coils || type == QModbusDataUnit::HoldingRegisters)
         {
             quint16 value;
             modbus_server_->data(type, address + i, &value);
+            //qDebug() << "Update data" << type << address << size << value;
 
             if (auto dev_item = modbus_units_map_.at(type).at(address + i))
             {
