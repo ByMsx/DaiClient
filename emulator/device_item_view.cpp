@@ -1,6 +1,7 @@
 #include "device_item_view.h"
 
 #include <Dai/deviceitem.h>
+#include <Dai/device.h>
 #include "units_table_model.h"
 //#include "units_table_delegate.h"
 
@@ -8,9 +9,9 @@
 #include <QTreeView>
 #include <QVBoxLayout>
 #include <QtWidgets/QHeaderView>
-#include "Dai/typemanager/typemanager.h"
+#include "Dai/type_managers.h"
 
-Device_Item_View::Device_Item_View(Dai::ItemTypeManager *mng, Dai::Device *dev, QModbusServer *modbus_server, QWidget *parent) : QWidget(parent), item_type_manager_(mng), device_(dev), modbus_server_(modbus_server)
+Device_Item_View::Device_Item_View(Dai::Item_Type_Manager *mng, Dai::Device *dev, QModbusServer *modbus_server, QWidget *parent) : QWidget(parent), item_type_manager_(mng), device_(dev), modbus_server_(modbus_server)
 {
     init();
 }

@@ -18,10 +18,12 @@ VER_MAJ = 1
 VER_MIN = 1
 include(../../../common.pri)
 
-SOURCES += modbusplugin.cpp
+SOURCES += modbusplugin.cpp \
+    modbus_file_writer.cpp
 
 HEADERS += modbusplugin.h\
-        modbusplugin_global.h
+        modbusplugin_global.h \
+    modbus_file_writer.h
 
 OTHER_FILES = checkerinfo.json
 

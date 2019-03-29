@@ -154,6 +154,11 @@ void Client::sendParamValues(const ParamValuesPack &pack)
     send(cmdSetParamValues) << pack;
 }
 
+void Client::send_structure_changed(const QByteArray &data)
+{
+    write(data);
+}
+
 void Client::setDevice(const QUuid &devive_uuid)
 {
     if (m_device != devive_uuid)
@@ -404,7 +409,16 @@ void Client::proccessMessage(quint16 cmd, QDataStream &msg)
         quint8 modifyType;
         Helpz::parse_out(msg, modifyType);
         qCDebug(NetClientLog) << "Received strucrure modify" << (StructureType)modifyType << "size" << msg.device()->size();
-        send(cmd) << structModify(modifyType, &msg);
+
+        if (structModify(modifyType, &msg))
+        {
+//            send(cmd) << quint8(true) << updList << insrtList << delList;
+        }
+        else
+        {
+            send(cmd) << quint8(false);
+        }
+//        send(cmd) << structModify(modifyType, &msg);
         break;
     }
 // <--------------------

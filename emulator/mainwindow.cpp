@@ -6,13 +6,20 @@
 
 #include <QHostAddress>
 #include <QInputDialog>
+#include <QGroupBox>
 
 #include <csignal>
 #include <iostream>
 
+#include <Helpz/settingshelper.h>
+
+#include <Dai/device.h>
+
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QGroupBox>
+
+#include "device_item_view.h"
 
 #include "device_item_view.h"
 
@@ -78,12 +85,23 @@ void Main_Window::init() noexcept
 void Main_Window::init_database() noexcept
 {
     QSettings dai_settings("DaiClient.conf", QSettings::NativeFormat);
-    dai_settings.beginGroup("Database");
-    qDebug() << "Open SQL is" << db_manager_.createConnection({
-                    dai_settings.value("Name", "dai_main").toString(),
-                    dai_settings.value("User", "DaiUser").toString(),
-                    dai_settings.value("Password", "?").toString() });
-    dai_settings.endGroup();
+
+    auto db_info = Helpz::SettingsHelper
+        #if (__cplusplus < 201402L) || (defined(__GNUC__) && (__GNUC__ < 7))
+            <Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<int>,Z::Param<QString>,Z::Param<QString>>
+        #endif
+            (
+                &dai_settings, "Database",
+                Helpz::Param<QString>{"Name", "deviceaccess_local"},
+                Helpz::Param<QString>{"User", "DaiUser"},
+                Helpz::Param<QString>{"Password", ""},
+                Helpz::Param<QString>{"Host", "localhost"},
+                Helpz::Param<int>{"Port", -1},
+                Helpz::Param<QString>{"Driver", "QMYSQL"},
+                Helpz::Param<QString>{"ConnectOptions", QString()}
+    ).obj<Helpz::Database::Connection_Info>();
+
+    qDebug() << "Open SQL is" << db_manager_.create_connection(db_info);
 }
 
 void Main_Window::fill_data() noexcept
@@ -92,7 +110,7 @@ void Main_Window::fill_data() noexcept
 
     for (GH::Device* dev: dai_project_.devices())
     {
-        if (dev->items().size() > 0 && dev->items().first()->type() != GH::Prt::itProcessor)
+        if (dev->items().size() > 0 && dev->items().first()->type_id() != GH::Prt::itProcessor)
         {
             Modbus_Device_Item modbus_device_item;
             modbus_device_item = create_socat();
@@ -121,7 +139,7 @@ void Main_Window::fill_data() noexcept
 
             connect(modbus_device_item.serial_port_, &QSerialPort::readyRead, this, &Main_Window::socketDataReady);
 
-            modbus_device_item.device_item_view_ = new Device_Item_View(&dai_project_.ItemTypeMng, dev, modbus_device_item.modbus_device_, ui_->content);
+            modbus_device_item.device_item_view_ = new Device_Item_View(&dai_project_.item_type_mng_, dev, modbus_device_item.modbus_device_, ui_->content);
             box->addWidget(modbus_device_item.device_item_view_);
 
             modbus_list_.emplace(dev->address(), modbus_device_item);
@@ -236,7 +254,7 @@ QElapsedTimer t;
 QByteArray buff;
 
 void Main_Window::proccessData()
-{
+{    
     if (!t.isValid())
         t.start();
 

@@ -6,42 +6,42 @@
 
 #include <memory>
 
-#include <Dai/project.h>
+#include <Helpz/db_table.h>
 
-#include "Network/n_client.h"
+#include <Dai/project.h>
+#include <Dai/log/log_type.h>
+
 #include "db_manager.h"
 
 namespace Dai {
 
-DBManager::DBManager(const Helpz::Database::ConnectionInfo &info, const QString &name) :
-    Database(info, name)
-{
-    qRegisterMetaType<Dai::DBManager::LogDataT>("Dai::DBManager::LogDataT");
-}
+using namespace Helpz::Database;
+//DBManager::DBManager(const Helpz::Database::Connection_Info& info, const QString &name) :
+//    Database(info, name) {}
 
 bool DBManager::setDayTime(uint id, const TimeRange &range)
 {
-    return update({"house_section", {"dayStart", "dayEnd"}},
+    return update({db_table_name<Section>(), {"dayStart", "dayEnd"}},
         {range.start(), range.end()}, "id=" + QString::number(id));
 }
 
-void DBManager::getListValues(const QVector<quint32>& ids, QVector<quint32> &found, QVector<ValuePackItem> &pack)
+void DBManager::getListValues(const QVector<quint32>& ids, QVector<quint32> &found, QVector<Log_Value_Item> &pack)
 {
-    QString sql("SELECT id, item_id, date, raw_value, value FROM house_logs WHERE id IN (");
+    QString suffix("WHERE id IN (");
 
     bool first = true;
     for (quint32 id: ids)
     {
         if (first) first = false;
         else
-            sql += ',';
-        sql += QString::number(id);
+            suffix += ',';
+        suffix += QString::number(id);
     }
-    sql += ')';
+    suffix += ')';
 
     pack.clear();
     quint32 id;
-    auto q = exec(sql);
+    auto q = select(db_table<Log_Value_Item>(), suffix);
     if (q.isActive())
     {
 //        DeviceItem::ValueType raw_val, val;
@@ -49,7 +49,7 @@ void DBManager::getListValues(const QVector<quint32>& ids, QVector<quint32> &fou
         while(q.next())
         {
             id = q.value(0).toUInt();
-            pack.push_back(ValuePackItem{ id, q.value(1).toUInt(), q.value(2).toDateTime().toMSecsSinceEpoch(), q.value(3), q.value(4)});
+            pack.push_back(Log_Value_Item{ id, q.value(1).toDateTime().toMSecsSinceEpoch(), q.value(2).toUInt(), q.value(3).toUInt(), q.value(4), q.value(5)});
             found.push_back(id);
         }
     }
@@ -59,92 +59,5 @@ void DBManager::saveCode(uint type, const QString &code)
 {
     update({"house_codes", {"text"}}, { code }, "id=" + QString::number(type));
 }
-
-// -----> Sync database
-
-DBManager::LogDataT DBManager::getLogData(quint8 log_type, const QPair<quint32, quint32> &range)
-{
-    LogDataT res;
-
-    auto getLogRangeValues = [&](const Helpz::Database::Table &table, std::function<void(const QSqlQuery&)> callback)
-    {
-        quint32 id, next_id = range.first;
-        auto q = select(table, QString("WHERE id >= %1 AND id <= %2").arg(range.first).arg(range.second));
-        if (q.isActive())
-            while(q.next())
-            {
-                id = q.value(0).toUInt();
-                while (next_id < id)
-                    res.not_found.push_back(next_id++);
-                ++next_id;
-
-                callback(q);
-            }
-    };
-
-    switch (log_type) {
-    case ValueLog: {
-        QVector<ValuePackItem> pack;
-        getLogRangeValues({"house_logs", {"id", "item_id", "date", "raw_value", "value"}}, [&pack](const QSqlQuery& q) {
-            pack.push_back(ValuePackItem{ q.value(0).toUInt(), q.value(1).toUInt(),
-                                     q.value(2).toDateTime().toMSecsSinceEpoch(), q.value(3), q.value(4)});
-        });
-#if (__cplusplus > 201402L) && (!defined(__GNUC__) || (__GNUC__ >= 7))
-        res.data = std::move(pack);
-#else
-        res.data_value = std::move(pack);
-#endif
-        break;
-    }
-    case EventLog: {
-        QVector<EventPackItem> pack;
-        getLogRangeValues({"house_eventlog", {"id", "type", "date", "who", "msg"}}, [&pack](const QSqlQuery& q) {
-            pack.push_back(EventPackItem{ q.value(0).toUInt(), q.value(1).toUInt(),
-                                     q.value(2).toDateTime().toMSecsSinceEpoch(), q.value(3).toString(), q.value(4).toString()});
-        });
-#if (__cplusplus > 201402L) && (!defined(__GNUC__) || (__GNUC__ >= 7))
-        res.data = std::move(pack);
-#else
-        res.data_event = std::move(pack);
-#endif
-        break;
-    }
-    default:
-        break;
-    }
-    return res;
-}
-
-QPair<quint32, quint32> DBManager::getLogRange(quint8 log_type, qint64 date_ms)
-{
-    QString tableName = logTableName(log_type);
-
-    QString where;
-    QVariantList values;
-
-    QDateTime date = QDateTime::fromMSecsSinceEpoch(date_ms);
-    if (date_ms > 0 && date.isValid()) {
-        where = "WHERE date > ? ";
-        values.push_back(date);
-    }
-    where += "ORDER BY date ASC LIMIT 10000;";
-
-    uint32_t start = 0, end = 0, id;
-
-    QSqlQuery q = select({tableName, {"id"}}, where, values);
-    if (q.isActive())
-        while(q.next()) {
-            id = q.value(0).value<uint32_t>();
-            if (start == 0)
-                start = end = id;
-            else if (id == (end + 1))
-                ++end;
-            else
-                break;
-        }
-    return {start, end};
-}
-
-// <--------------------
 
 } // namespace Dai

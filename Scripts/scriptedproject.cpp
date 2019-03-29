@@ -24,7 +24,7 @@
 
 Q_DECLARE_METATYPE(std::string)
 Q_DECLARE_METATYPE(Dai::SectionPtr)
-Q_DECLARE_METATYPE(Dai::TypeManagers*)
+Q_DECLARE_METATYPE(Dai::Type_Managers*)
 
 namespace Dai {
 
@@ -106,13 +106,18 @@ ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleRe
     connect(this, &T::statusAdded, worker, &Worker::statusAdded, Qt::QueuedConnection);
     connect(this, &T::statusRemoved, worker, &Worker::statusRemoved, Qt::QueuedConnection);
     connect(this, &T::sctItemChanged, worker, &Worker::newValue);
-    connect(this, &T::groupStatusChanged, worker, &Worker::groupStatusChanged, Qt::QueuedConnection);
+    connect(this, &T::add_event_message, worker, &Worker::add_event_message, Qt::QueuedConnection);
 //    connect(worker, &Worker::dumpSectionsInfo, this, &T::dumpInfo, Qt::BlockingQueuedConnection);
 
     connect(this, &ScriptedProject::dayTimeChanged, &m_dayTime, &DayTimeHelper::init, Qt::QueuedConnection);
 
     if (consoleReader)
-        connect(consoleReader, &Helpz::ConsoleReader::textReceived, this, &T::console);
+    {
+        connect(consoleReader, &Helpz::ConsoleReader::textReceived, [this](const QString& text)
+        {
+            QMetaObject::invokeMethod(this, "console", Qt::QueuedConnection, Q_ARG(uint32_t, 0), Q_ARG(QString, text));
+        });
+    }
 }
 
 ScriptedProject::~ScriptedProject()
@@ -124,7 +129,7 @@ void ScriptedProject::setSSHHost(const QString &value) { if (ssh_host != value) 
 
 qint64 ScriptedProject::uptime() const { return m_uptime; }
 
-void ScriptedProject::reinitialization(const Helpz::Database::ConnectionInfo& db_info)
+void ScriptedProject::reinitialization(const Helpz::Database::Connection_Info& db_info)
 {
     m_script_engine->popContext();
     QScriptContext* ctx = m_script_engine->pushContext();
@@ -132,7 +137,7 @@ void ScriptedProject::reinitialization(const Helpz::Database::ConnectionInfo& db
 
     m_func.resize(fAutomation);
 
-    std::unique_ptr<Database> db(new Database(db_info, "ProjectManager_" + QString::number((quintptr)this)));
+    std::unique_ptr<Database::Helper> db(new Database::Helper(db_info, "ProjectManager_" + QString::number((quintptr)this)));
     db->fillTypes(this);
     scriptsInitialization();
 
@@ -170,9 +175,7 @@ void ScriptedProject::reinitialization(const Helpz::Database::ConnectionInfo& db
     for(Section* sct: sections())
         for (ItemGroup* group: sct->groups())
         {
-            connect(group, &ItemGroup::getStatus, this, &ScriptedProject::groupStatus);
             connect(group, &ItemGroup::checkValue, this, &ScriptedProject::checkValue);
-            connect(group, &ItemGroup::statusChanged, this, &ScriptedProject::statusChanged);
             connect(group, &ItemGroup::itemChanged, this, &ScriptedProject::itemChanged);
             connect(group, &ItemGroup::itemChanged, this, &ScriptedProject::sctItemChanged);
             connect(group, &ItemGroup::modeChanged, this, &ScriptedProject::groupModeChanged);
@@ -211,8 +214,8 @@ void ScriptedProject::registerTypes()
     addTypeN<PIDHelper, ItemGroup*, uint>();
     addTypeN<InfoRegisterHelper, ItemGroup*, uint, uint>();
 
-    addTypeN<Section, TypeManagers*, quint32, QString, TimeRange, QObject*>();
-    addTypeN<ItemGroup, uint, uint, Section*>();
+    addTypeN<Section, uint32_t, QString, uint32_t, uint32_t>();
+    addTypeN<ItemGroup, uint32_t, uint32_t, uint32_t, uint32_t>();
 
     qRegisterMetaType<Sections>("Sections");
     qScriptRegisterSequenceMetaType<Sections>(m_script_engine);
@@ -245,12 +248,14 @@ void ScriptedProject::registerTypes()
 }
 
 template<typename T>
-void initTypes(QScriptValue& parent, const QString& prop_name, BaseTypeManager<T>& type_mng) {
+void initTypes(QScriptValue& parent, const QString& prop_name, Database::Base_Type_Manager<T>& type_mng)
+{
     QScriptValue deprecated_types_node = parent.engine()->currentContext()->activationObject().property("api");
 
     QScriptValue types_obj = parent.property(prop_name);
     QString name;
-    for (const T& type: type_mng.types()) {
+    for (const T& type: type_mng.types())
+    {
         name = type.name();
         if (!name.isEmpty()) {
             types_obj.setProperty(name, type.id());
@@ -289,18 +294,18 @@ void ScriptedProject::scriptsInitialization()
 
     QScriptValue statuses = api.property("status");
 
-    std::map<uint, std::vector<GroupStatus*>> statusMap;
-    for (GroupStatus& type: *StatusMng.getTypes())
+    std::map<uint, std::vector<Status_Info*>> statusMap;
+    for (Status_Info& type: *status_mng_.get_types())
         statusMap[type.groupType_id].push_back(&type);
 
     QString status_name;
     for (auto it: statusMap)
     {
-        status_name = GroupTypeMng.name(it.first);
+        status_name = group_type_mng_.name(it.first);
         statuses.setProperty(status_name, m_script_engine->newObject());
         auto statusGroup = statuses.property(status_name);
         quint32 multiVal = ItemGroup::valUser;
-        for (GroupStatus* type: it.second)
+        for (Status_Info* type: it.second)
         {
             if (!type->isMultiValue)
                 statusGroup.setProperty(type->name(), type->value);
@@ -313,16 +318,16 @@ void ScriptedProject::scriptsInitialization()
     }
 
     QScriptValue types = api.property("type");
-    initTypes(types, "item", ItemTypeMng);
-    initTypes(types, "group", GroupTypeMng);
-    initTypes(types, "mode", ModeTypeMng);
-    initTypes(types, "param", ParamMng);
+    initTypes(types, "item", item_type_mng_);
+    initTypes(types, "group", group_type_mng_);
+    initTypes(types, "mode", mode_type_mng_);
+    initTypes(types, "param", param_mng_);
 
     QString code, func_name;
     QMetaEnum metaEnum = QMetaEnum::fromType<ScriptFunction>();
     for (uint i = fOtherScripts; i < fAutomation; ++i)
     {
-        code = CodeMng.type( i ).text;
+        code = code_mng_.type( i ).text;
         if (!code.isEmpty())
         {
             func_name = metaEnum.valueToKey(static_cast<ScriptFunction>(i));
@@ -330,11 +335,11 @@ void ScriptedProject::scriptsInitialization()
         }
     }
 
-    for (const ItemGroupType& type: GroupTypeMng.types())
+    for (const Item_Group_Type& type: group_type_mng_.types())
     {
-        if (type.code)
+        if (type.code_id)
         {
-            code = CodeMng.type( type.code ).text;
+            code = code_mng_.type( type.code_id ).text;
             if (!code.isEmpty())
                 check_error( type.name(), code );
             else
@@ -379,9 +384,9 @@ void ScriptedProject::scriptsInitialization()
     }
 }
 
-Section *ScriptedProject::addSection(quint32 id, const QString &name, const TimeRange &dayTime)
+Section *ScriptedProject::addSection(quint32 id, const QString &name, quint32 day_start_secs, quint32 day_end_secs)
 {
-    auto sct = Project::addSection(id, name, dayTime);
+    auto sct = Project::addSection(id, name, day_start_secs, day_end_secs);
     connect(sct, &Section::groupInitialized, this, &ScriptedProject::groupInitialized);
 //    connect(sct, SIGNAL(autoChanged(uint,bool)), SLOT(autoChanged(uint,bool)));
 //    connect(sct, SIGNAL(itemChanged(DeviceItem*)), SLOT(itemChanged(DeviceItem*)));
@@ -425,7 +430,7 @@ void ScriptedProject::log(const QString &msg, uint type)
     }
 }
 
-void ScriptedProject::console(const QString &cmd)
+void ScriptedProject::console(uint32_t user_id, const QString &cmd)
 {
     QString script = cmd.trimmed();
     if (script.isEmpty() || !m_script_engine->canEvaluate(script))
@@ -453,8 +458,9 @@ void ScriptedProject::console(const QString &cmd)
             is_error = true;
         }
     }
-
-    (is_error ? qCritical(ScriptLog) : qInfo(ScriptLog)).noquote() << "CONSOLE ["<< script << "] >" << res.toString();
+    Log_Event_Item event{0, 0, user_id, is_error ? QtCriticalMsg : QtInfoMsg, Service::Log().categoryName(), "CONSOLE [" + script + "] >" + res.toString()};
+    std::cerr << event.msg().toStdString() << std::endl;
+    add_event_message(event);
 }
 
 //void ScriptedProject::evaluateFile(const QString& fileName)
@@ -483,26 +489,26 @@ QScriptValue ScriptedProject::callFunction(uint func_idx, const QScriptValueList
     return QScriptValue();
 }
 
-void ScriptedProject::run_automation(ItemGroup* group, const QScriptValue& groupObj, const QScriptValue &itemObj)
+void ScriptedProject::run_automation(ItemGroup* group, const QScriptValue& groupObj, const QScriptValue &itemObj, uint32_t user_id)
 {
-    auto automation = m_automation.find(group->type());
+    auto automation = m_automation.find(group->type_id());
     if (automation != m_automation.cend())
-        callFunction(automation->second, { (groupObj.isValid() ? groupObj : m_script_engine->newQObject(group)), itemObj });
+        callFunction(automation->second, { (groupObj.isValid() ? groupObj : m_script_engine->newQObject(group)), itemObj, user_id });
 }
 
-void ScriptedProject::groupModeChanged(uint mode, quint32 /*group_id*/)
+void ScriptedProject::groupModeChanged(uint32_t user_id, uint32_t mode, uint32_t /*group_id*/)
 {
     auto group = static_cast<ItemGroup*>(sender());
     if (!group)
         return;
     QScriptValue groupObj = m_script_engine->newQObject(group);
 
-    callFunction(fModeChanged, { groupObj, mode });
-    run_automation(group, groupObj);
+    callFunction(fModeChanged, { groupObj, mode, user_id });
+    run_automation(group, groupObj, QScriptValue(), user_id);
 }
 
 QElapsedTimer t;
-void ScriptedProject::itemChanged(DeviceItem *item)
+void ScriptedProject::itemChanged(DeviceItem *item, uint32_t user_id)
 {
     t.restart();
 
@@ -511,14 +517,14 @@ void ScriptedProject::itemChanged(DeviceItem *item)
     QScriptValue groupObj = m_script_engine->newQObject(group);
     QScriptValue itemObj = m_script_engine->newQObject(item);
 
-    callFunction(fItemChanged, { groupObj, itemObj });
+    callFunction(fItemChanged, { groupObj, itemObj, user_id });
 
     if (item->isControl())
-        callFunction(fControlChanged, { groupObj, itemObj });
+        callFunction(fControlChanged, { groupObj, itemObj, user_id });
     else
-        callFunction(fSensorChanged, { groupObj, itemObj });
+        callFunction(fSensorChanged, { groupObj, itemObj, user_id });
 
-    run_automation(group, groupObj, itemObj);
+    run_automation(group, groupObj, itemObj, user_id);
 
 //    eng->collectGarbage();
 
@@ -526,11 +532,6 @@ void ScriptedProject::itemChanged(DeviceItem *item)
         qCWarning(ProjectLog) << "itemChanged timeout" << t.elapsed();
 
     t.invalidate();
-}
-
-void ScriptedProject::statusChanged(quint32 status)
-{
-    groupStatusChanged(static_cast<ItemGroup*>(sender())->id(), status);
 }
 
 void ScriptedProject::afterAllInitialization()
@@ -576,7 +577,7 @@ QVariantMap ScriptedProject::run_command(const QString &programm, const QVariant
 
 void ScriptedProject::groupInitialized(ItemGroup* group)
 {
-    QString func_name = GroupTypeMng.name(group->type()) + "Initialized";
+    QString func_name = group_type_mng_.name(group->type_id()) + "Initialized";
     auto func = m_script_engine->currentContext()->activationObject().property(func_name);
     if (func.isFunction())
     {
@@ -584,7 +585,7 @@ void ScriptedProject::groupInitialized(ItemGroup* group)
         check_error( func.property("name").toString(), ret);
     }
     else
-        qCDebug(ScriptLog) << "Group type" << group->type() << GroupTypeMng.name(group->type()) << "havent init function" << func_name;
+        qCDebug(ScriptLog) << "Group type" << group->type_id() << group_type_mng_.name(group->type_id()) << "havent init function" << func_name;
 }
 
 QVariant ScriptedProject::normalize(const QVariant &val)
@@ -592,24 +593,18 @@ QVariant ScriptedProject::normalize(const QVariant &val)
     return callFunction(fNormalize, { m_script_engine->newQObject(sender()), valueFromVariant(val) }).toVariant();
 }
 
-bool ScriptedProject::controlChangeCheck(DeviceItem *item, const QVariant &raw_data)
+bool ScriptedProject::controlChangeCheck(DeviceItem *item, const QVariant &raw_data, uint32_t user_id)
 {
-    auto ret = callFunction(fControlChangeCheck, { m_script_engine->newQObject(sender()), m_script_engine->newQObject(item), valueFromVariant(raw_data) });
+    auto ret = callFunction(fControlChangeCheck, { m_script_engine->newQObject(sender()), m_script_engine->newQObject(item), valueFromVariant(raw_data), user_id });
     return ret.isBool() && ret.toBool();
 }
 
 bool ScriptedProject::checkValue(DeviceItem* item) const
 {
     auto ret = callFunction(fCheckValue, { m_script_engine->newQObject(sender()),
-                                           valueFromVariant(item->getValue()),
+                                           valueFromVariant(item->value()),
                                            m_script_engine->newQObject(item) });
     return ret.isBool() && ret.toBool();
-}
-
-quint32 ScriptedProject::groupStatus(ItemGroup::ValueType val) const
-{
-    auto ret = callFunction(fGroupStatus, { m_script_engine->newQObject(sender()), m_script_engine->toScriptValue(val) });
-    return ret.isNumber() ? ret.toUInt32() : val->status();
 }
 
 void ScriptedProject::handlerException(const QScriptValue &exception)

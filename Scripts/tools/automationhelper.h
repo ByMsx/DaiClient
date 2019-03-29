@@ -26,8 +26,7 @@ public:
 public slots:
     virtual void init() {}
     void setType(uint type);
-    void setControlState(const QVariant &raw_data, uint mode = 2);
-    void toggleDevice(const QVariant &raw_data, uint mode = 2);
+    void writeToControl(const QVariant &raw_data, uint mode = 2);
 private:
     ItemGroup* m_group;
     uint m_type;

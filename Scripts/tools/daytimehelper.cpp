@@ -39,8 +39,8 @@ void DayTimeHelper::init()
 
     for (Section* sct: prj->sections())
     {
-        day_secs = zero_secs + sct->dayTime()->start();
-        night_secs = zero_secs + sct->dayTime()->end();
+        day_secs = zero_secs + sct->day_time()->start();
+        night_secs = zero_secs + sct->day_time()->end();
 
         if (current_secs >= night_secs)
             night_secs += 24 * 60 * 60;
@@ -83,10 +83,10 @@ void DayTimeHelper::onTimer()
 
     for (Section* sct: prj->sections())
     {
-        if (checkDayPartChanged(sct->dayTime()->start()))
+        if (checkDayPartChanged(sct->day_time()->start()))
             emit onDayPartChanged(sct, true);
 
-        if (checkDayPartChanged(sct->dayTime()->end()))
+        if (checkDayPartChanged(sct->day_time()->end()))
             emit onDayPartChanged(sct, false);
     }
 
