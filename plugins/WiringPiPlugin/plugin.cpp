@@ -6,6 +6,7 @@
 
 #include <Helpz/settingshelper.h>
 #include <Dai/deviceitem.h>
+#include <Dai/device.h>
 
 #include "plugin.h"
 
@@ -50,10 +51,18 @@ bool WiringPiPlugin::check(Device* dev)
 {
     const QVector<DeviceItem *> &items = dev->items();
     bool state;
-    for (DeviceItem * item: items) {
-        state = digitalRead(item->unit().toUInt()) ? true : false;
-        if (!item->isConnected() || item->getRawValue().toBool() != state)
-            QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, state));
+    for (DeviceItem * item: items)
+    {
+        auto it = item->extra().find("unit");
+        if (it != item->extra().cend())
+        {
+            state = digitalRead(it->toUInt()) ? true : false;
+            if (!item->isConnected() || item->raw_value().toBool() != state)
+            {
+                QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, state));
+            }
+
+        }
     }
 
     return true;
@@ -61,8 +70,13 @@ bool WiringPiPlugin::check(Device* dev)
 
 void WiringPiPlugin::stop() {}
 
-void WiringPiPlugin::write(DeviceItem *item, const QVariant &raw_data, uint32_t user_id) {
-    digitalWrite(item->unit().toUInt(), raw_data.toBool() ? HIGH : LOW);
+void WiringPiPlugin::write(DeviceItem *item, const QVariant &raw_data, uint32_t user_id)
+{
+    auto it = item->extra().find("unit");
+    if (it != item->extra().cend())
+    {
+        digitalWrite(it->toUInt(), raw_data.toBool() ? HIGH : LOW);
+    }
 }
 
 } // namespace Modbus

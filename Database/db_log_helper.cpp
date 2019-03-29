@@ -69,7 +69,7 @@ void Log_Helper::log_data(const QPair<quint32, quint32>& range, std::function<vo
         QSqlQuery q = db->select(Helpz::Database::db_table<T>(), QString("WHERE id >= %1 AND id <= %2").arg(range.first).arg(range.second));
         if (q.isActive())
         {
-            quint32 id, next_id = range.first;
+            quint32 id = 0, next_id = range.first;
             QVector<quint32> not_found;
             QVector<T> data;
             while (q.next())
