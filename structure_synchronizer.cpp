@@ -1,5 +1,6 @@
 #include <Dai/commands.h>
 
+#include "worker.h"
 #include "structure_synchronizer.h"
 
 namespace Dai {
@@ -7,7 +8,7 @@ namespace Client {
 
 Structure_Synchronizer::Structure_Synchronizer() :
     QObject(),
-    modified_(false)
+    protocol_(nullptr)
 {
 }
 
@@ -16,28 +17,16 @@ void Structure_Synchronizer::set_project(Project *project)
     prj_ = project;
 }
 
-void Structure_Synchronizer::set_protocol(Helpz::Network::Protocol* protocol)
+void Structure_Synchronizer::set_protocol(Protocol* protocol)
 {
     protocol_ = protocol;
-}
-
-bool Structure_Synchronizer::modified() const
-{
-    return modified_;
-}
-
-void Structure_Synchronizer::modify_client_structure(uint32_t user_id, uint8_t structType, QIODevice* data_dev)
-{
-    qDebug().nospace() << user_id << "|modify " << static_cast<StructureType>(structType);
-    modified_ = true;
-    process_modify_message(user_id, structType, data_dev);
 }
 
 void Structure_Synchronizer::send_modify_response(const QByteArray &buffer)
 {
     if (protocol_ != nullptr)
     {
-        protocol_->send(Cmd::GET_PROJECT).writeRawData(buffer.constData(), buffer.size());
+        protocol_->send(Cmd::MODIFY_PROJECT).writeRawData(buffer.constData(), buffer.size());
     }
 }
 

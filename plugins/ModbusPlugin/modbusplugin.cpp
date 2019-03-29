@@ -8,9 +8,12 @@
 #endif
 
 #include <Helpz/settingshelper.h>
+
+#include <Dai/db/item_type.h>
 #include <Dai/deviceitem.h>
 #include <Dai/device.h>
 
+#include "modbus_file_writer.h"
 #include "modbusplugin.h"
 
 namespace Dai {
@@ -241,16 +244,22 @@ bool ModbusPlugin::check(Device* dev)
 void ModbusPlugin::stop() {
     b_break = true;
 
-    if (wait.isRunning())
-        wait.exit(1);
+    if (wait_.isRunning())
+        wait_.exit(1);
 }
 
 void ModbusPlugin::write(DeviceItem *item, const QVariant &raw_data, uint32_t user_id)
 {
     if (!checkConnect())
         return;
+    uint8_t item_register_type = item->register_type();
+    if (item_register_type == Item_Type::rtFile)
+    {
+        File_Writer file_writer(this, item, raw_data, user_id);
+        return;
+    }
 
-    auto regType = static_cast<QModbusDataUnit::RegisterType>( item->register_type() );
+    auto regType = static_cast<QModbusDataUnit::RegisterType>( item_register_type );
     if (regType != QModbusDataUnit::Coils && regType != QModbusDataUnit::HoldingRegisters)
     {
         qCWarning(ModbusLog).noquote().nospace() << user_id << "|ERROR: Try to toggle not supported item.";
@@ -274,6 +283,7 @@ void ModbusPlugin::write(DeviceItem *item, const QVariant &raw_data, uint32_t us
 
     if (auto *reply = sendWriteRequest(writeUnit, item->device()->address()))
     {
+
         if (!reply->isFinished())
         {
             connect(reply, &QModbusReply::finished, &wait, &QEventLoop::quit);
@@ -295,68 +305,6 @@ void ModbusPlugin::write(DeviceItem *item, const QVariant &raw_data, uint32_t us
         reply->deleteLater();
     } else
         qCCritical(ModbusLog).noquote() << QString::number(user_id) + tr("|Write error: ") + this->errorString();
-}
-
-void ModbusPlugin::writeFile(uint serverAddress, const QString &fileName)
-{
-    QFile file(fileName);
-    if (!file.open(QIODevice::ReadOnly))
-    {
-        qCCritical(ModbusLog).noquote() << "Fail write file" << file.errorString();
-        return;
-    }
-
-    char requestHeaders[] = {
-        0x06,       // Reference Type
-        0x00, 0x01, // File Number
-        0x00, 0x00, // Record Number
-        0x00, 0x00  // Record length
-    };
-
-    QEventLoop wait;
-
-    std::function<void()> writeFilePart = [&]() {
-        requestHeaders[3] = file.pos() & 0xFF;
-        requestHeaders[4] = file.pos() >> 8;
-
-        QByteArray data = file.read(253 - sizeof(requestHeaders));
-
-        if (data.size() % 2 != 0)
-            data.resize(data.size() + 1);
-
-        quint16 recordLength = data.size() / 2;
-
-        requestHeaders[5] = recordLength & 0xFF;
-        requestHeaders[6] = recordLength >> 8;
-
-        if (auto *reply = sendRawRequest(QModbusRequest(QModbusPdu::WriteFileRecord, QByteArray(requestHeaders, sizeof(requestHeaders)) + data), serverAddress))
-        {
-            if (!reply->isFinished())
-            {
-                connect(reply, &QModbusReply::finished, &wait, &QEventLoop::quit);
-                wait.exec(QEventLoop::EventLoopExec);
-            }
-
-            if (reply->error() == NoError)
-            {
-                if (file.atEnd())
-                {
-
-                }
-                else
-                    writeFilePart();
-            }
-            else
-                qCWarning(ModbusLog).noquote() << tr("Write file response error: %1 Device address: %2 (%3)")
-                              .arg(reply->errorString()) .arg(serverAddress) .arg(reply->error() == ProtocolError ?
-                                       tr("Mobus exception: 0x%1").arg(reply->rawResult().exceptionCode(), -1, 16) :
-                                       tr("code: 0x%1").arg(reply->error(), -1, 16));
-
-            reply->deleteLater();
-        }
-    };
-
-    writeFilePart();
 }
 
 QVariantList ModbusPlugin::read(int serverAddress, uchar regType,
@@ -409,8 +357,8 @@ QVariantList ModbusPlugin::read(int serverAddress, uchar regType,
         // broadcast replies return immediately
         if (!reply->isFinished())
         {
-            wait.connect(reply.get(), &QModbusReply::finished, &wait, &QEventLoop::quit);
-            wait.exec(QEventLoop::EventLoopExec);
+            wait_.connect(reply.get(), &QModbusReply::finished, &wait_, &QEventLoop::quit);
+            wait_.exec(QEventLoop::EventLoopExec);
         }
 
         if (!reply->isFinished())
@@ -468,11 +416,6 @@ QVariantList ModbusPlugin::read(int serverAddress, uchar regType,
         }
     }
     return values;
-}
-
-void ModbusPlugin::writeFilePart()
-{
-//    sendRawRequest()
 }
 
 bool ModbusPlugin::checkConnect()

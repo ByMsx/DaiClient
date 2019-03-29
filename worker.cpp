@@ -27,7 +27,6 @@ WebSockItem::WebSockItem(Worker *obj) :
     set_id(1);
     set_teams({1});
     connect(w, &Worker::modeChanged, this, &WebSockItem::modeChanged, Qt::QueuedConnection);
-    connect(this, &WebSockItem::applyStructModify, &w->structure_sync_, &Client::Structure_Synchronizer::modify_client_structure, Qt::BlockingQueuedConnection);
 }
 
 WebSockItem::~WebSockItem() {
@@ -65,7 +64,7 @@ void WebSockItem::procCommand(uint32_t user_id, quint32 user_team_id, quint32 pr
         case wsWriteToDevItem:      Helpz::apply_parse(ds, &Worker::writeToItem, w); break;
         case wsChangeGroupMode:     Helpz::apply_parse(ds, &Worker::setMode, w); break;
         case wsChangeParamValues:   Helpz::apply_parse(ds, &Worker::setParamValues, w); break;
-        case wsStructModify:        Helpz::apply_parse(ds, &WebSockItem::applyStructModify, this, ds.device()); break;
+        case wsStructModify:        Helpz::apply_parse(ds, &Client::Structure_Synchronizer::process_modify_message, &w->structure_sync_, ds.device(), w->db_pending(), QString()); break;
         case wsExecScript:          Helpz::apply_parse(ds, &ScriptedProject::console, w->prj->ptr()); break;
 
         default:
@@ -239,7 +238,6 @@ void Worker::init_network_client(QSettings* s)
     net_protocol_thread_.start();
     structure_sync_.moveToThread(&net_protocol_thread_);
     structure_sync_.set_project(prj->ptr());
-    structure_sync_.set_thread(db_pending_thread_.get());
 
     qRegisterMetaType<Log_Value_Item>("Log_Value_Item");
     qRegisterMetaType<Log_Event_Item>("Log_Event_Item");
@@ -599,8 +597,23 @@ bool Worker::setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs)
 void Worker::writeToItem(uint32_t user_id, uint32_t item_id, const QVariant &raw_data)
 {
     if (DeviceItem* item = prj->ptr()->itemById( item_id ))
+    {
+        if (item->register_type() == Item_Type::rtFile)
+        {
+            last_file_item_id_ = item_id;
+        }
         QMetaObject::invokeMethod(item->group(), "writeToControl", Qt::QueuedConnection,
                                   Q_ARG(DeviceItem*, item), Q_ARG(QVariant, raw_data), Q_ARG(uint32_t, 0), Q_ARG(uint32_t, user_id) );
+    }
+}
+
+void Worker::write_to_item_file(const QString& file_name)
+{
+    if (DeviceItem* item = prj->ptr()->itemById( last_file_item_id_ ))
+    {
+        QMetaObject::invokeMethod(item->group(), "writeToControl", Qt::QueuedConnection,
+                                  Q_ARG(DeviceItem*, item), Q_ARG(QVariant, file_name));
+    }
 }
 
 bool Worker::setMode(uint32_t user_id, uint32_t mode_id, uint32_t group_id)

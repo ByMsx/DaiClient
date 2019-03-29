@@ -11,8 +11,9 @@
 
 #include <memory>
 
-#include "modbusplugin_global.h"
 #include <Dai/checkerinterface.h>
+
+#include "modbusplugin_global.h"
 
 namespace Dai {
 namespace Modbus {
@@ -83,7 +84,7 @@ public slots:
     QVariantList read(int serverAddress, uchar regType = QModbusDataUnit::InputRegisters,
                       int startAddress = 0, quint16 unitCount = 1, bool clearCache = true);
 private:
-    void writeFilePart();
+
     bool checkConnect();
 
     int32_t unit(DeviceItem* item) const;
@@ -94,7 +95,7 @@ private:
     typedef std::map<std::pair<int, QModbusDataUnit::RegisterType>, QModbusDevice::Error> StatusCacheMap;
     StatusCacheMap devStatusCache;
 
-    QEventLoop wait;
+    QEventLoop wait_;
     bool b_break;
 };
 

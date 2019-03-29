@@ -32,6 +32,8 @@ private:
     void process_message(uint8_t msg_id, uint16_t cmd, QIODevice& data_dev) override;
     void process_answer_message(uint8_t msg_id, uint16_t cmd, QIODevice& data_dev) override;
 
+    void process_item_file(QIODevice &data_dev);
+
     void start_authentication();
     void send_version(uint8_t msg_id);
     void send_time_info(uint8_t msg_id);

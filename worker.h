@@ -31,7 +31,6 @@ public:
 
 signals:
     void send(const Project_Info &proj, const QByteArray& data) const;
-    bool applyStructModify(uint32_t user_id, uint8_t structType, QIODevice* data_dev);
 public slots:
     void send_event_message(const Log_Event_Item& event);
 
@@ -137,6 +136,7 @@ public slots:
     bool setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs);
 
     void writeToItem(uint32_t user_id, uint32_t item_id, const QVariant &raw_data);
+    void write_to_item_file(const QString& file_name);
     bool setMode(uint32_t user_id, uint32_t mode_id, uint32_t group_id);
 
     void setParamValues(uint32_t user_id, const ParamValuesPack& pack);
@@ -180,6 +180,7 @@ private:
     std::map<quint32, std::pair<QVariant, QVariant>> waited_item_values;
     QTimer item_values_timer;
 
+    uint32_t last_file_item_id_;
 //    template<typename T>
 //    bool applyModify(bool (Database::*db_func)(const QVector<T> &, QVector<T> &, const QVector<quint32>&), QDataStream *msg, quint8 structType);
 };

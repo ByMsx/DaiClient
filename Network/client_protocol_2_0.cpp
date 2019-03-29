@@ -1,3 +1,4 @@
+#include <QTemporaryFile>
 
 #include <Helpz/dtls_version.h>
 #include <Helpz/net_version.h>
@@ -77,12 +78,13 @@ void Protocol_2_0::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data
 
     case Cmd::RESTART:              apply_parse(data_dev, &Protocol_2_0::restart);              break;
     case Cmd::WRITE_TO_ITEM:        apply_parse(data_dev, &Protocol_2_0::write_to_item);        break;
+    case Cmd::WRITE_TO_ITEM_FILE:   process_item_file(data_dev);
     case Cmd::SET_MODE:             apply_parse(data_dev, &Protocol_2_0::set_mode);             break;
     case Cmd::SET_PARAM_VALUES:     apply_parse(data_dev, &Protocol_2_0::set_param_values);     break;
     case Cmd::EXEC_SCRIPT_COMMAND:  apply_parse(data_dev, &Protocol_2_0::exec_script_command);  break;
 
     case Cmd::GET_PROJECT:          Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::send_project_structure, structure_sync_, msg_id, &data_dev); break;
-    case Cmd::MODIFY_PROJECT:       Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::modify_client_structure, structure_sync_, &data_dev); break;
+    case Cmd::MODIFY_PROJECT:       Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::process_modify_message, structure_sync_, &data_dev, worker()->db_pending(), QString()); break;
 
     default:
         if (cmd >= Helpz::Network::Cmd::USER_COMMAND)
@@ -96,6 +98,35 @@ void Protocol_2_0::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data
 void Protocol_2_0::process_answer_message(uint8_t msg_id, uint16_t cmd, QIODevice& data_dev)
 {
     qCWarning(NetClientLog) << "unprocess answer" << int(msg_id) << cmd;
+}
+
+void Protocol_2_0::process_item_file(QIODevice& data_dev)
+{
+    QString file_name;
+    auto file = dynamic_cast<QTemporaryFile*>(&data_dev);
+    if (file)
+    {
+        file->setAutoRemove(false);
+        file_name = file->fileName();
+        file->close();
+    }
+    else
+    {
+        QTemporaryFile t_file;
+        if (t_file.open())
+        {
+            t_file.setAutoRemove(false);
+            file_name = file->fileName();
+
+            while (!data_dev.atEnd())
+            {
+                t_file.write(data_dev.read(MAX_UDP_PACKET_SIZE));
+            }
+        }
+    }
+
+    if (file_name.isEmpty())
+        QMetaObject::invokeMethod(worker(), "write_to_item_file", Qt::QueuedConnection, Q_ARG(QString, file_name));
 }
 
 void Protocol_2_0::start_authentication()
