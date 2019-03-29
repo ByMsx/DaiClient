@@ -67,7 +67,6 @@ private:
 
     std::shared_ptr<WebSockItem> websock_item;
     void initWebSocketManager(QSettings *s);
-//    std::shared_ptr<dai::project::base> proj_in_team_by_id(uint32_t team_id, uint32_t proj_id);
 signals:
     void serviceRestart();
 
@@ -83,7 +82,6 @@ signals:
     void paramValuesChanged(uint32_t user_id, const ParamValuesPack& pack);
 
     void event_message(const Log_Event_Item&);
-//    std::shared_ptr<Dai::Prt::ServerInfo> dumpSectionsInfo() const;
 public slots:
     void restart_service_object(uint32_t user_id);
     void logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QString &str);
@@ -97,42 +95,7 @@ public slots:
     void clearServerConfig();
     void saveServerAuthData(const QString& login, const QString& password);
     void saveServerData(const QUuid &devive_uuid, const QString& login, const QString& password);
-/*
-    QByteArray sections()
-    {
-        while (!prj->ptr() && !prj->wait(5));
 
-        QByteArray buff;
-        {
-            QDataStream ds(&buff, QIODevice::WriteOnly);
-            ds.setVersion(QDataStream::Qt_5_7);
-            prj->ptr()->dumpInfoToStream(&ds);
-        }
-        return buff;
-
-        //    std::shared_ptr<Prt::ServerInfo> info = prj->ptr()->dumpInfoToStream();
-        //    return serialize( info.get() );
-    }
-
-    bool setCode(const Code_Item &item)
-    {
-        if (!item.id()) {
-            qCWarning(Service::Log) << "Attempt to save zero code";
-            return false;
-        }
-
-        CodeManager& CodeMng = prj->ptr()->CodeMng;
-        Code_Item* code = CodeMng.getType(item.id());
-
-        qDebug() << "SetCode" << item.id() << item.text.length() << code->id();
-        if (code->id())
-            *code = item;
-        else
-            CodeMng.add(item);
-        return db_mng->setCodes(&CodeMng);
-    }
-
-    */
     bool setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs);
 
     void writeToItem(uint32_t user_id, uint32_t item_id, const QVariant &raw_data);
@@ -141,21 +104,14 @@ public slots:
 
     void setParamValues(uint32_t user_id, const ParamValuesPack& pack);
 
-//    bool setSettings(uchar stType, google::protobuf::Message* msg);
 public slots:
     void newValue(DeviceItem* item, uint32_t user_id = 0);
-
-//    std::shared_ptr<Prt::ServerInfo> serverInfo() const;
-
-//    void sendLostValues(const QVector<quint32> &ids);
 private:
     std::unique_ptr<Helpz::Database::Connection_Info> db_info_;
     DBManager* db_mng;
 
     friend class Client::Protocol_2_0;
     friend class Client::Protocol;
-//    using NetworkClientThread = Helpz::SettingsThreadHelper<Network::Client, Worker*, QString, quint16, QString, QString, QUuid, int>;
-//    NetworkClientThread::Type* g_mng_th;
     std::shared_ptr<Helpz::DTLS::Client_Thread> net_thread_;
     std::unique_ptr<Helpz::Database::Thread> db_pending_thread_;
     QThread net_protocol_thread_;
@@ -181,8 +137,6 @@ private:
     QTimer item_values_timer;
 
     uint32_t last_file_item_id_;
-//    template<typename T>
-//    bool applyModify(bool (Database::*db_func)(const QVector<T> &, QVector<T> &, const QVector<quint32>&), QDataStream *msg, quint8 structType);
 };
 
 typedef Helpz::Service::Impl<Worker> Service;
