@@ -15,6 +15,7 @@ class Protocol_2_0 : public Protocol
     Q_OBJECT
 public:
     Protocol_2_0(Worker* worker, Structure_Synchronizer* structure_synchronizer, const Authentication_Info &auth_info);
+    ~Protocol_2_0();
 
 signals:
     void restart(uint32_t user_id);
@@ -39,8 +40,8 @@ private:
     void send_time_info(uint8_t msg_id);
 
     void send_mode(uint32_t user_id, uint mode_id, quint32 group_id);
-    void send_status_added(quint32 group_id, quint32 info_id, const QStringList& args);
-    void send_status_removed(quint32 group_id, quint32 info_id);
+    void send_status_added(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t);
+    void send_status_removed(quint32 group_id, quint32 info_id, uint32_t);
     void send_param_values(uint32_t user_id, const ParamValuesPack& pack);
 
     Project* prj_;

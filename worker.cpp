@@ -15,6 +15,7 @@
 
 #include <Dai/commands.h>
 #include <Dai/checkerinterface.h>
+#include <Dai/db/group_status_item.h>
 
 #include "worker.h"
 
@@ -202,9 +203,12 @@ void Worker::init_Database(QSettings* s)
 
     db_pending_thread_.reset(new Helpz::Database::Thread{Helpz::Database::Connection_Info(*db_info_)});
 
+    qRegisterMetaType<QVector<Group_Status_Item>>("QVector<Group_Status_Item>");
+    qRegisterMetaType<QVector<View>>("QVector<View>");
+    qRegisterMetaType<QVector<View_Item>>("QVector<View_Item>");
     db_mng = new DBManager(*db_info_, "Worker_" + QString::number((quintptr)this));
-    connect(this, &Worker::statusAdded, db_mng, &DBManager::addStatus, Qt::QueuedConnection);
-    connect(this, &Worker::statusRemoved, db_mng, &DBManager::removeStatus, Qt::QueuedConnection);
+    connect(this, &Worker::status_added, this, &Worker::add_status, Qt::QueuedConnection);
+    connect(this, &Worker::status_removed, this, &Worker::remove_status, Qt::QueuedConnection);
 }
 
 void Worker::init_Project(QSettings* s)
@@ -269,9 +273,11 @@ void Worker::init_network_client(QSettings* s)
                 Z::Param<uint32_t>{"ReconnectSeconds",       15}
             }();
 
-    Helpz::DTLS::Create_Client_Protocol_Func_T func = [this, auth_info](const std::string& app_protocol) -> std::shared_ptr<Helpz::Network::Protocol>
+    Helpz::DTLS::Create_Client_Protocol_Func_T func = [this, auth_info](const std::string& /*app_protocol*/) -> std::shared_ptr<Helpz::Network::Protocol>
     {
-        return std::shared_ptr<Helpz::Network::Protocol>(new Client::Protocol_2_0{this, &structure_sync_, auth_info});
+        std::shared_ptr<Client::Protocol_2_0> ptr(new Client::Protocol_2_0{this, &structure_sync_, auth_info});
+        QMetaObject::invokeMethod(&structure_sync_, "set_protocol", Qt::BlockingQueuedConnection, Q_ARG(std::shared_ptr<Client::Protocol_2_0>, ptr));
+        return std::static_pointer_cast<Helpz::Network::Protocol>(ptr);
     };
 
     Helpz::DTLS::Client_Thread_Config conf{ tls_policy_file.toStdString(), host.toStdString(), port.toStdString(),
@@ -377,7 +383,6 @@ void Worker::initWebSocketManager(QSettings *s)
     while (!webSock_th->ptr() && !webSock_th->wait(5));
     connect(webSock_th->ptr(), &Network::WebSocket::checkAuth,
                      django_th->ptr(), &DjangoHelper::checkToken, Qt::BlockingQueuedConnection);
-
 
     websock_item.reset(new WebSockItem(this));
     connect(this, &Worker::event_message, websock_item.get(), &WebSockItem::send_event_message, Qt::DirectConnection);
@@ -637,6 +642,60 @@ void Worker::setParamValues(uint32_t user_id, const ParamValuesPack &pack)
     add_event_message(event);
 
     emit paramValuesChanged(user_id, pack);
+}
+
+QVariant db_get_group_status_item_id(Helpz::Database::Base* db, const QString& table_name, quint32 group_id, quint32 info_id)
+{
+    auto q = db->select({table_name, {"id"}}, QString("WHERE group_id = %1 AND status_id = %2").arg(group_id).arg(info_id));
+    if (q.next())
+    {
+        return q.value(0);
+    }
+    return {};
+}
+
+void Worker::add_status(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t user_id)
+{
+    db_pending_thread_->add_query([=](Helpz::Database::Base* db)
+    {
+        auto table = Helpz::Database::db_table<Group_Status_Item>();
+
+        QVariant id_value = db_get_group_status_item_id(db, table.name_, group_id, info_id);
+        Group_Status_Item item{id_value.toUInt(), group_id, info_id, args};
+
+        if (id_value.isValid())
+        {
+            if (db->update({table.name_, {"args"}}, {args.join(';')}, "id=" + id_value.toString()))
+            {
+                structure_sync_.send_status_update(user_id, item);
+            }
+        }
+        else
+        {
+            table.field_names_.removeFirst(); // remove id
+            if (db->insert(table, {group_id, info_id, args.join(';')}, &id_value))
+            {
+                item.set_id(id_value.toUInt());
+                structure_sync_.send_status_insert(user_id, item);
+            }
+        }
+    });
+}
+
+void Worker::remove_status(quint32 group_id, quint32 info_id, uint32_t user_id)
+{
+    db_pending_thread_->add_query([=](Helpz::Database::Base* db)
+    {
+        auto table_name = Helpz::Database::db_table_name<Group_Status_Item>();
+        QVariant id_value = db_get_group_status_item_id(db, table_name, group_id, info_id);
+        if (id_value.isValid())
+        {
+            if (db->del(table_name, QString("group_id = %1 AND status_id = %2").arg(group_id).arg(info_id)).numRowsAffected())
+            {
+                structure_sync_.send_status_delete(user_id, id_value.toUInt());
+            }
+        }
+    });
 }
 
 void Worker::newValue(DeviceItem *item, uint32_t user_id)

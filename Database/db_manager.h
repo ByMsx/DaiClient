@@ -10,6 +10,8 @@
 #include <QVector>
 
 #include <Dai/log/log_pack.h>
+#include <Dai/db/group_status_item.h>
+#include <Dai/db/view.h>
 #include <plus/dai/database.h>
 
 namespace Dai {
@@ -25,6 +27,10 @@ public:
     void getListValues(const QVector<quint32> &ids, QVector<quint32> &found, QVector<Log_Value_Item> &pack);
 
     void saveCode(uint type, const QString& code);
+public slots:
+    QVector<Group_Status_Item> get_group_status_items();
+    QVector<View> get_views();
+    QVector<View_Item> get_view_items();
 };
 
 } // namespace Dai

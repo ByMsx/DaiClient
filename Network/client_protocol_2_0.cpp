@@ -21,7 +21,11 @@ Protocol_2_0::Protocol_2_0(Worker *worker, Structure_Synchronizer *structure_syn
     structure_sync_(structure_synchronizer)
 {
     connect_worker_signals();
-    structure_sync_->set_protocol(this);
+}
+
+Protocol_2_0::~Protocol_2_0()
+{
+    QMetaObject::invokeMethod(structure_sync_, "set_protocol", Qt::QueuedConnection);
 }
 
 void Protocol_2_0::connect_worker_signals()
@@ -38,8 +42,8 @@ void Protocol_2_0::connect_worker_signals()
     connect(this, &Protocol_2_0::exec_script_command, worker()->prj->ptr(), &ScriptedProject::console, Qt::QueuedConnection);
 
     connect(worker(), &Worker::modeChanged, this, &Protocol_2_0::send_mode, Qt::QueuedConnection);
-    connect(worker(), &Worker::statusAdded, this, &Protocol_2_0::send_status_added, Qt::QueuedConnection);
-    connect(worker(), &Worker::statusRemoved, this, &Protocol_2_0::send_status_removed, Qt::QueuedConnection);
+    connect(worker(), &Worker::status_added, this, &Protocol_2_0::send_status_added, Qt::QueuedConnection);
+    connect(worker(), &Worker::status_removed, this, &Protocol_2_0::send_status_removed, Qt::QueuedConnection);
     connect(worker(), &Worker::paramValuesChanged, this, &Protocol_2_0::send_param_values, Qt::QueuedConnection);
 
     /*
@@ -78,7 +82,7 @@ void Protocol_2_0::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data
 
     case Cmd::RESTART:              apply_parse(data_dev, &Protocol_2_0::restart);              break;
     case Cmd::WRITE_TO_ITEM:        apply_parse(data_dev, &Protocol_2_0::write_to_item);        break;
-    case Cmd::WRITE_TO_ITEM_FILE:   process_item_file(data_dev);
+    case Cmd::WRITE_TO_ITEM_FILE:   process_item_file(data_dev);                                break;
     case Cmd::SET_MODE:             apply_parse(data_dev, &Protocol_2_0::set_mode);             break;
     case Cmd::SET_PARAM_VALUES:     apply_parse(data_dev, &Protocol_2_0::set_param_values);     break;
     case Cmd::EXEC_SCRIPT_COMMAND:  apply_parse(data_dev, &Protocol_2_0::exec_script_command);  break;
@@ -95,7 +99,7 @@ void Protocol_2_0::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data
     }
 }
 
-void Protocol_2_0::process_answer_message(uint8_t msg_id, uint16_t cmd, QIODevice& data_dev)
+void Protocol_2_0::process_answer_message(uint8_t msg_id, uint16_t cmd, QIODevice& /*data_dev*/)
 {
     qCWarning(NetClientLog) << "unprocess answer" << int(msg_id) << cmd;
 }
@@ -163,12 +167,12 @@ void Protocol_2_0::send_mode(uint32_t user_id, uint mode_id, quint32 group_id)
     send(Cmd::SET_MODE) << user_id << mode_id << group_id;
 }
 
-void Protocol_2_0::send_status_added(quint32 group_id, quint32 info_id, const QStringList& args)
+void Protocol_2_0::send_status_added(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t)
 {
     send(Cmd::ADD_STATUS) << group_id << info_id << args;
 }
 
-void Protocol_2_0::send_status_removed(quint32 group_id, quint32 info_id)
+void Protocol_2_0::send_status_removed(quint32 group_id, quint32 info_id, uint32_t)
 {
     send(Cmd::REMOVE_STATUS) << group_id << info_id;
 }

@@ -64,8 +64,8 @@ public:
 signals:
     void sctItemChanged(DeviceItem*, uint32_t user_id);
 
-    void statusAdded(quint32 group_id, quint32 info_id, const QStringList& args);
-    void statusRemoved(quint32 group_id, quint32 info_id);
+    void status_added(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t user_id);
+    void status_removed(quint32 group_id, quint32 info_id, uint32_t user_id);
 
     void modbusStop();
     void modbusStart();

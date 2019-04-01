@@ -7,6 +7,7 @@
 #include <memory>
 
 #include <Helpz/db_table.h>
+#include <Helpz/db_builder.h>
 
 #include <Dai/project.h>
 #include <Dai/log/log_type.h>
@@ -58,6 +59,21 @@ void DBManager::getListValues(const QVector<quint32>& ids, QVector<quint32> &fou
 void DBManager::saveCode(uint type, const QString &code)
 {
     update({"house_codes", {"text"}}, { code }, "id=" + QString::number(type));
+}
+
+QVector<Group_Status_Item> DBManager::get_group_status_items()
+{
+    return Helpz::Database::db_build_list<Group_Status_Item>(*this);
+}
+
+QVector<View> DBManager::get_views()
+{
+    return Helpz::Database::db_build_list<View>(*this);
+}
+
+QVector<View_Item> DBManager::get_view_items()
+{
+    return Helpz::Database::db_build_list<View_Item>(*this);
 }
 
 } // namespace Dai
