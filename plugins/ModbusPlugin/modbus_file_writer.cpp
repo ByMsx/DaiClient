@@ -77,7 +77,7 @@ File_Writer::File_Writer(QModbusRtuSerialMaster* modbus, DeviceItem* item, const
 
     if (hash.result() != item->raw_value().toByteArray())
     {
-        qCritical(ModbusLog).nospace().noquote() << user_id << "| " << QObject::tr("diffrent hash for file:") << ' ' << file_path << ' '
+        qCritical(ModbusLog).nospace().noquote() << user_id << "| " << item->toString() << ' ' << QObject::tr("diffrent hash for file:") << ' ' << file_path << ' '
                                                  << hash.result().toHex() << ' ' << item->raw_value().toByteArray().toHex();
         return;
     }
@@ -127,9 +127,9 @@ void File_Writer::write_file_part()
     data[9] = firmware_part_size;
     data[0] = data.size() - 1;
 
-//    qCDebug(ModbusLog).nospace() << "Header: 0x" << data.left(header_size).toHex().toUpper();
-//    qCDebug(ModbusLog).nospace() << "Firmware: 0x" << data.right(firmware_part_size).toHex().toUpper();
-//    qCDebug(ModbusLog).nospace() << "Application-level packet total " << data.size() << " bytes";
+    qCDebug(ModbusLog).nospace() << "Header: 0x" << data.left(header_size).toHex().toUpper();
+    qCDebug(ModbusLog).nospace() << "Firmware: 0x" << data.right(firmware_part_size).toHex().toUpper();
+    qCDebug(ModbusLog).nospace() << "Application-level packet total " << data.size() << " bytes";
 
     auto *reply = modbus_->sendRawRequest(QModbusRequest(QModbusPdu::WriteFileRecord, data), address_);
     process_reply(reply);

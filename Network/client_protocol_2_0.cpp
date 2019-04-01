@@ -106,6 +106,15 @@ void Protocol_2_0::process_answer_message(uint8_t msg_id, uint16_t cmd, QIODevic
 
 void Protocol_2_0::process_item_file(QIODevice& data_dev)
 {
+    if (!data_dev.isOpen())
+    {
+        if (!data_dev.open(QIODevice::ReadOnly))
+        {
+            qCCritical(NetClientLog) << "Fail to open data_dev in process_item_file";
+            return;
+        }
+    }
+
     QString file_name;
     auto file = dynamic_cast<QTemporaryFile*>(&data_dev);
     if (file)
@@ -120,16 +129,18 @@ void Protocol_2_0::process_item_file(QIODevice& data_dev)
         if (t_file.open())
         {
             t_file.setAutoRemove(false);
-            file_name = file->fileName();
+            file_name = t_file.fileName();
 
-            while (!data_dev.atEnd())
-            {
-                t_file.write(data_dev.read(MAX_UDP_PACKET_SIZE));
-            }
+            char buffer[1024];
+            int length;
+            while ((length = data_dev.read(buffer, sizeof(buffer))) > 0)
+                t_file.write(buffer, length);
+            t_file.close();
         }
     }
 
-    if (file_name.isEmpty())
+    qDebug() << file_name << data_dev.size();
+    if (!file_name.isEmpty())
         QMetaObject::invokeMethod(worker(), "write_to_item_file", Qt::QueuedConnection, Q_ARG(QString, file_name));
 }
 

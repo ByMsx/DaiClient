@@ -199,7 +199,8 @@ void Checker::writeCache()
 
 void Checker::writeItem(DeviceItem* item, const QVariant& raw_data, uint32_t user_id)
 {
-    QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data), Q_ARG(bool, false), Q_ARG(uint32_t, user_id));
+    if (item->register_type() != Item_Type::rtFile)
+        QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data), Q_ARG(bool, false), Q_ARG(uint32_t, user_id));
 
     Plugin_Type* chk_type = item->device()->checker_type();
     if (chk_type && chk_type->id() && chk_type->checker)
