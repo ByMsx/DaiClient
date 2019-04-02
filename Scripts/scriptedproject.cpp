@@ -302,19 +302,12 @@ void ScriptedProject::scriptsInitialization()
     for (auto it: statusMap)
     {
         status_name = group_type_mng_.name(it.first);
-        statuses.setProperty(status_name, m_script_engine->newObject());
-        auto statusGroup = statuses.property(status_name);
-        quint32 multiVal = ItemGroup::valUser;
+        auto statusGroup = m_script_engine->newObject();
         for (Status_Info* type: it.second)
         {
-            if (!type->isMultiValue)
-                statusGroup.setProperty(type->name(), type->value);
-            else
-            {
-                statusGroup.setProperty(type->name(), multiVal);
-                multiVal <<= 1;
-            }
+            statusGroup.setProperty(type->name(), type->id());
         }
+        statuses.setProperty(status_name, statusGroup);
     }
 
     QScriptValue types = api.property("type");
