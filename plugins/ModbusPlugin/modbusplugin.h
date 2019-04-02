@@ -14,53 +14,12 @@
 #include <Dai/checkerinterface.h>
 
 #include "modbusplugin_global.h"
+#include "config.h"
 
 namespace Dai {
 namespace Modbus {
 
 Q_DECLARE_LOGGING_CATEGORY(ModbusLog)
-
-struct Conf {
-    Conf& operator=(const Conf&) = default;
-    Conf(const Conf&) = default;
-    Conf(Conf&&) = default;
-    Conf(const QString& portName = QString(),
-         QSerialPort::BaudRate speed = QSerialPort::Baud115200,
-         QSerialPort::DataBits bits_num = QSerialPort::Data8,
-         QSerialPort::Parity parity = QSerialPort::NoParity,
-         QSerialPort::StopBits stopBits = QSerialPort::OneStop,
-         QSerialPort::FlowControl flowControl = QSerialPort::NoFlowControl,
-         int modbusTimeout = 200, int modbusNumberOfRetries = 5, int frameDelayMicroseconds = 0) :
-        name(portName),
-        baudRate(speed),
-        dataBits(bits_num),
-        parity(parity),
-        stopBits(stopBits),
-        flowControl(flowControl),
-
-        modbusTimeout(modbusTimeout),
-        modbusNumberOfRetries(modbusNumberOfRetries),
-        frameDelayMicroseconds(frameDelayMicroseconds)
-    {
-    }
-
-    /*static QString firstPort() {
-        return QSerialPortInfo::availablePorts().count() ? QSerialPortInfo::availablePorts().first().portName() : QString();
-    }*/
-
-    static QString getUSBSerial();
-
-    QString name;
-    int baudRate;   ///< Скорость. По умолчанию 115200
-    QSerialPort::DataBits   dataBits;       ///< Количество бит. По умолчанию 8
-    QSerialPort::Parity     parity;         ///< Паритет. По умолчанию нет
-    QSerialPort::StopBits   stopBits;       ///< Стоп бит. По умолчанию 1
-    QSerialPort::FlowControl flowControl;   ///< Управление потоком. По умолчанию нет
-
-    int modbusTimeout;
-    int modbusNumberOfRetries;
-    int frameDelayMicroseconds;
-};
 
 class MODBUSPLUGINSHARED_EXPORT ModbusPlugin : public QModbusRtuSerialMaster, public CheckerInterface
 {
@@ -89,7 +48,8 @@ private:
 
     int32_t unit(DeviceItem* item) const;
 
-    std::unique_ptr<Conf> conf;
+    std::unique_ptr<Config> conf_;
+    struct { int part_size_, part_interval_; } firmware_;
 
     typedef std::map<int, DeviceItem*> DevItems;
     typedef std::map<std::pair<int, QModbusDataUnit::RegisterType>, QModbusDevice::Error> StatusCacheMap;

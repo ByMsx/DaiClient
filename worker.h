@@ -138,7 +138,7 @@ private:
     std::map<quint32, std::pair<QVariant, QVariant>> waited_item_values;
     QTimer item_values_timer;
 
-    uint32_t last_file_item_id_;
+    std::pair<uint32_t,uint32_t> last_file_item_and_user_id_;
 };
 
 typedef Helpz::Service::Impl<Worker> Service;

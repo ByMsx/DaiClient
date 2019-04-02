@@ -139,7 +139,6 @@ void Protocol_2_0::process_item_file(QIODevice& data_dev)
         }
     }
 
-    qDebug() << file_name << data_dev.size();
     if (!file_name.isEmpty())
         QMetaObject::invokeMethod(worker(), "write_to_item_file", Qt::QueuedConnection, Q_ARG(QString, file_name));
 }

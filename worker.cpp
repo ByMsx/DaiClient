@@ -593,19 +593,27 @@ void Worker::writeToItem(uint32_t user_id, uint32_t item_id, const QVariant &raw
     {
         if (item->register_type() == Item_Type::rtFile)
         {
-            last_file_item_id_ = item_id;
+            last_file_item_and_user_id_ = std::make_pair(item_id, user_id);
         }
         QMetaObject::invokeMethod(item->group(), "writeToControl", Qt::QueuedConnection,
                                   Q_ARG(DeviceItem*, item), Q_ARG(QVariant, raw_data), Q_ARG(uint32_t, 0), Q_ARG(uint32_t, user_id) );
+    }
+    else
+    {
+        qCWarning(Service::Log).nospace() << user_id << "| item for write not found. item_id: " << item_id;
     }
 }
 
 void Worker::write_to_item_file(const QString& file_name)
 {
-    if (DeviceItem* item = prj->ptr()->itemById( last_file_item_id_ ))
+    if (DeviceItem* item = prj->ptr()->itemById( last_file_item_and_user_id_.first ))
     {
         QMetaObject::invokeMethod(item->group(), "writeToControl", Qt::QueuedConnection,
-                                  Q_ARG(DeviceItem*, item), Q_ARG(QVariant, file_name));
+                                  Q_ARG(DeviceItem*, item), Q_ARG(QVariant, file_name), Q_ARG(uint32_t, 0), Q_ARG(uint32_t, last_file_item_and_user_id_.second));
+    }
+    else
+    {
+        qCWarning(Service::Log).nospace() << last_file_item_and_user_id_.second << "| item for write file not found. item_id: " << last_file_item_and_user_id_.first;
     }
 }
 

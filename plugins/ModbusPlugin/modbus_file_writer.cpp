@@ -1,5 +1,6 @@
 #include <QDebug>
 #include <QThread>
+#include <QTimer>
 #include <QCryptographicHash>
 
 #include <Dai/device.h>
@@ -49,45 +50,66 @@ quint16 calculateCRC(const char *data, qint32 len)
     return (crc >> 8) | (crc << 8); // swap bytes
 }
 
-File_Writer::File_Writer(QModbusRtuSerialMaster* modbus, DeviceItem* item, const QVariant& raw_data, uint32_t user_id, int interval, int part_size) :
+File_Writer::File_Writer(Config&& config, DeviceItem* item, const QVariant& raw_data, uint32_t user_id, int interval, int part_size) :
     user_id_(user_id), address_(item->device() ? item->device()->address() : 0),
-    interval_(interval), part_size_(part_size), modbus_(modbus), item_(item)
+    interval_(std::max(interval, 0)), part_size_(part_size), item_(item)
 {
-    if (raw_data.type() != QVariant::String)
+    if (raw_data.type() == QVariant::String)
     {
-        qCritical(ModbusLog).nospace().noquote() << user_id << "| " << QObject::tr("filed file path:") << ' ' << raw_data;
-        return;
-    }
+        QString file_path = raw_data.toString();
+        file_.setFileName(file_path);
 
-    QString file_path = raw_data.toString();
-    file_.setFileName(file_path);
-
-    if (!file_.open(QIODevice::ReadOnly))
-    {
-        qCritical(ModbusLog).nospace().noquote() << user_id << "| " << QObject::tr("filed write file:") << ' ' << file_path << ' ' << file_.errorString();
-        return;
+        if (file_.open(QIODevice::ReadOnly))
+        {
+            QCryptographicHash hash(QCryptographicHash::Sha1);
+            if (hash.addData(&file_))
+            {
+                if (hash.result() == item->raw_value().toByteArray())
+                {
+                    config.modbusTimeout *= 4;
+                    config.modbusNumberOfRetries = 3;
+                    Config::set(config, this);
+                    QMetaObject::invokeMethod(this, "start", Qt::QueuedConnection);
+                    return;
+                }
+                else
+                    qCCritical(ModbusLog).nospace().noquote() << user_id << "| " << item->toString() << ' ' << QObject::tr("diffrent hash for file:") << ' '
+                                                             << file_path << ' ' << hash.result().toHex() << ' ' << item->raw_value().toByteArray().toHex();
+            }
+            else
+                qCCritical(ModbusLog).nospace().noquote() << user_id << "| " << QObject::tr("filed check hash for file:") << ' ' << file_path;
+        }
+        else
+            qCCritical(ModbusLog).nospace().noquote() << user_id << "| " << QObject::tr("filed write file:") << ' ' << file_path << ' ' << file_.errorString();
     }
+    else
+        qCCritical(ModbusLog).nospace().noquote() << user_id << "| " << QObject::tr("filed file path:") << ' ' << raw_data;
 
-    QCryptographicHash hash(QCryptographicHash::Sha1);
-    if (!hash.addData(&file_))
-    {
-        qCritical(ModbusLog).nospace().noquote() << user_id << "| " << QObject::tr("filed check hash for file:") << ' ' << file_path;
-        return;
-    }
+    thread()->quit();
+}
 
-    if (hash.result() != item->raw_value().toByteArray())
-    {
-        qCritical(ModbusLog).nospace().noquote() << user_id << "| " << item->toString() << ' ' << QObject::tr("diffrent hash for file:") << ' ' << file_path << ' '
-                                                 << hash.result().toHex() << ' ' << item->raw_value().toByteArray().toHex();
-        return;
-    }
+void File_Writer::start()
+{
+    connect(this, &QModbusClient::errorOccurred, this, &File_Writer::modbus_error);
+    connectDevice();
 
     file_.seek(0);
     write_file_part();
 }
 
+void File_Writer::modbus_error(QModbusDevice::Error e)
+{
+    if (e != QModbusDevice::NoError)
+    {
+        if (e == QModbusDevice::ConnectionError)
+            thread()->quit();
+    }
+}
+
 void File_Writer::write_file_part()
 {
+    qCDebug(ModbusLog).nospace() << "Flash firmware " << (file_.pos() / (file_.size() / 100)) << "% (" << file_.pos() << ", " << file_.size() << ')';
+
     QByteArray data(header_size, Qt::Uninitialized);
     int firmware_size = file_.size() + 2; // +CRC
     data[1] = (firmware_size >> 24) & 0xFF;
@@ -127,50 +149,63 @@ void File_Writer::write_file_part()
     data[9] = firmware_part_size;
     data[0] = data.size() - 1;
 
-    qCDebug(ModbusLog).nospace() << "Header: 0x" << data.left(header_size).toHex().toUpper();
-    qCDebug(ModbusLog).nospace() << "Firmware: 0x" << data.right(firmware_part_size).toHex().toUpper();
-    qCDebug(ModbusLog).nospace() << "Application-level packet total " << data.size() << " bytes";
+//    qCDebug(ModbusLog).nospace() << "Header: 0x" << data.left(header_size).toHex().toUpper();
+//    qCDebug(ModbusLog).nospace() << "Firmware: 0x" << data.right(firmware_part_size).toHex().toUpper();
+//    qCDebug(ModbusLog).nospace() << "Application-level packet total " << data.size() << " bytes";
 
-    auto *reply = modbus_->sendRawRequest(QModbusRequest(QModbusPdu::WriteFileRecord, data), address_);
+    auto *reply = sendRawRequest(QModbusRequest(QModbusPdu::WriteFileRecord, data), address_);
     process_reply(reply);
 }
 
 void File_Writer::process_reply(QModbusReply* reply)
 {
-    if (!reply)
+    if (reply)
     {
-        qCCritical(ModbusLog).nospace() << user_id_ << "| " << QObject::tr("Failed to write file request") << ' ' << modbus_->errorString();
-        return;
+        if (reply->isFinished())
+        {
+            reply_finish(reply);
+        }
+        else
+        {
+            connect(reply, &QModbusReply::finished, [this, reply]()
+            {
+                reply_finish(reply);
+            });
+        }
     }
-
-    if (!reply->isFinished())
+    else
     {
-        QObject::connect(reply, &QModbusReply::finished, &wait_, &QEventLoop::quit);
-        wait_.exec(QEventLoop::EventLoopExec);
+        qCCritical(ModbusLog).nospace() << user_id_ << "| " << QObject::tr("Failed to write file request") << ' ' << errorString();
+        thread()->quit();
     }
+}
 
+void File_Writer::reply_finish(QModbusReply* reply)
+{
     if (reply->error() != QModbusDevice::NoError)
     {
-        qCWarning(ModbusLog).noquote().nospace()
+        qCDebug(ModbusLog).noquote().nospace()
                 << user_id_ << "| " << QObject::tr("Write file response error: %1 Device address: %2 (%3)")
                    .arg(reply->errorString())
                    .arg(address_)
                    .arg(reply->error() == QModbusDevice::ProtocolError ?
                         QObject::tr("Mobus exception: 0x%1").arg(reply->rawResult().exceptionCode(), -1, 16) :
                         QObject::tr("code: 0x%1").arg(reply->error(), -1, 16));
+        thread()->quit();
     }
     else
     {
         if (file_.atEnd())
         {
             qCInfo(ModbusLog).nospace().noquote() << user_id_ << "| " << QObject::tr("File sucessful sended.");
+            thread()->quit();
         }
         else
         {
-            QThread::msleep(interval_);
-            write_file_part();
+            QTimer::singleShot(interval_, this, SLOT(write_file_part()));
         }
     }
+
     reply->deleteLater();
 }
 

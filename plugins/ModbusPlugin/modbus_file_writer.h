@@ -3,34 +3,34 @@
 
 #include <QFile>
 #include <QEventLoop>
+#include <QModbusRtuSerialMaster>
 
 #include <Dai/deviceitem.h>
 
-QT_FORWARD_DECLARE_CLASS(QModbusRtuSerialMaster)
-QT_FORWARD_DECLARE_CLASS(QModbusReply)
+#include "config.h"
 
 namespace Dai {
 namespace Modbus {
 
-struct FlashInfo {
-};
-
-class File_Writer
+class File_Writer : public QModbusRtuSerialMaster
 {
+    Q_OBJECT
+
     static const int header_size;
 public:
-    File_Writer(QModbusRtuSerialMaster* modbus, DeviceItem* item, const QVariant& raw_data, uint32_t user_id, int interval = 200, int part_size = 240);
-private:
+    File_Writer(Config&& config, DeviceItem* item, const QVariant& raw_data, uint32_t user_id, int interval = 200, int part_size = 240);
+private slots:
+    void start();
+    void modbus_error(QModbusDevice::Error e);
     void write_file_part();
+private:
     void process_reply(QModbusReply* reply);
+    void reply_finish(QModbusReply* reply);
 
     int32_t user_id_, address_, interval_, part_size_;
-    QModbusRtuSerialMaster* modbus_;
     DeviceItem* item_;
 
     QFile file_;
-
-    QEventLoop wait_;
 };
 
 } // namespace Modbus
