@@ -88,6 +88,14 @@ File_Writer::File_Writer(Config&& config, DeviceItem* item, const QVariant& raw_
     thread()->quit();
 }
 
+File_Writer::~File_Writer()
+{
+    if (file_.isOpen())
+        file_.close();
+    if (file_.exists())
+        file_.remove();
+}
+
 void File_Writer::start()
 {
     connect(this, &QModbusClient::errorOccurred, this, &File_Writer::modbus_error);

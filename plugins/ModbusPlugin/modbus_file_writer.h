@@ -19,6 +19,7 @@ class File_Writer : public QModbusRtuSerialMaster
     static const int header_size;
 public:
     File_Writer(Config&& config, DeviceItem* item, const QVariant& raw_data, uint32_t user_id, int interval = 200, int part_size = 240);
+    ~File_Writer();
 private slots:
     void start();
     void modbus_error(QModbusDevice::Error e);
