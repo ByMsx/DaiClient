@@ -30,8 +30,9 @@ WebSockItem::WebSockItem(Worker *obj) :
     connect(w, &Worker::modeChanged, this, &WebSockItem::modeChanged, Qt::QueuedConnection);
 }
 
-WebSockItem::~WebSockItem() {
-    disconnect(this);
+WebSockItem::~WebSockItem()
+{
+    disconnect(this, 0, 0, 0);
 }
 
 void WebSockItem::send_event_message(const Log_Event_Item& event)
@@ -106,44 +107,40 @@ Worker::Worker(QObject *parent) :
 //    QTimer::singleShot(15000, thread(), SLOT(quit())); // check delete error
 }
 
+template<typename T>
+void stop_thread(T** thread_ptr)
+{
+    if (*thread_ptr)
+    {
+        QThread* thread = *thread_ptr;
+        thread->quit();
+        if (!thread->wait(15000))
+            thread->terminate();
+        delete *thread_ptr;
+        *thread_ptr = nullptr;
+    }
+}
+
 Worker::~Worker()
 {
-    if (webSock_th)
-        webSock_th->quit();
-    django_th->quit();
+    blockSignals(true);
+    QObject::disconnect(this, 0, 0, 0);
+
+    websock_item.reset();
+    stop_thread(&webSock_th);
+    stop_thread(&django_th);
 
     logTimer.stop();
+    item_values_timer.stop();
 
-    checker_th->ptr()->breakChecking();
-    checker_th->quit();
-
-    prj->quit();
-
-    net_protocol_thread_.quit();
     net_thread_.reset();
-    if (db_pending_thread_)
-    {
-        db_pending_thread_->stop();
-    }
+    net_protocol_thread_.quit(); net_protocol_thread_.wait();
+    stop_thread(&checker_th);
+    stop_thread(&prj);
 
-    if (webSock_th && !webSock_th->wait(15000))
-        webSock_th->terminate();
-    if (!django_th->wait(15000))
-        django_th->terminate();
-    if (!checker_th->wait(15000))
-        checker_th->terminate();
-    if (!prj->wait(15000))
-        prj->terminate();
-
-    net_protocol_thread_.wait();
-
-    if (webSock_th)
-        delete webSock_th;
-    delete django_th;
-    delete checker_th;
-    delete prj;
-
-    delete db_mng;
+    if (db_mng)
+        delete db_mng;
+    db_pending_thread_.reset();
 }
 
 DBManager* Worker::database() const { return db_mng; }
@@ -291,16 +288,15 @@ void Worker::init_LogTimer(int period)
 {
     connect(&item_values_timer, &QTimer::timeout, [this]()
     {
-        std::map<quint32, std::pair<QVariant, QVariant>> values = std::move(waited_item_values);
-        for (auto it: values)
+        for (auto it: waited_item_values)
             if (!db_mng->setDevItemValue(it.first, it.second.first, it.second.second))
             {
                 // TODO: Do something
             }
+        waited_item_values.clear();
     });
     item_values_timer.setInterval(5000);
     item_values_timer.setSingleShot(true);
-    item_values_timer.start();
 
     connect(&logTimer, &QTimer::timeout, [this, period]()
     {
@@ -364,7 +360,6 @@ void Worker::initDjango(QSettings *s)
     django_th = DjangoThread()(s, "Django",
                              Helpz::Param<QString>{"manage", "/var/www/dai/manage.py"});
     django_th->start();
-    while (!django_th->ptr() && !django_th->wait(5));
 }
 
 void Worker::initWebSocketManager(QSettings *s)
@@ -381,6 +376,7 @@ void Worker::initWebSocketManager(QSettings *s)
     webSock_th->start();
 
     while (!webSock_th->ptr() && !webSock_th->wait(5));
+    while (!django_th->ptr() && !django_th->wait(5));
     connect(webSock_th->ptr(), &Network::WebSocket::checkAuth,
                      django_th->ptr(), &DjangoHelper::checkToken, Qt::BlockingQueuedConnection);
 
@@ -724,7 +720,8 @@ void Worker::newValue(DeviceItem *item, uint32_t user_id)
 
     emit change(pack_item, immediately);
 
-    if (webSock_th) {
+    if (webSock_th)
+    {
         QVector<Log_Value_Item> pack{pack_item};
         QMetaObject::invokeMethod(webSock_th->ptr(), "sendDeviceItemValues", Qt::QueuedConnection,
                                   Q_ARG(Project_Info, websock_item.get()), Q_ARG(QVector<Log_Value_Item>, pack));
