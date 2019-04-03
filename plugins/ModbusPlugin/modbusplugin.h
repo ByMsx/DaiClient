@@ -31,14 +31,14 @@ public:
     ModbusPlugin();
     ~ModbusPlugin();
 
+    const Config& config() const;
+
     // CheckerInterface interface
 public:
-    void configure(QSettings* settings, Project*) override;
-    bool check(Device *dev) override;
-    void stop() override;
-    void write(DeviceItem* item, const QVariant& raw_data, uint32_t user_id) override;
-
-    void writeFile(uint serverAddress, const QString& fileName);
+    virtual void configure(QSettings* settings, Project*) override;
+    virtual bool check(Device *dev) override;
+    virtual void stop() override;
+    virtual void write(DeviceItem* item, const QVariant& raw_data, uint32_t user_id) override;
 public slots:
     QVariantList read(int serverAddress, uchar regType = QModbusDataUnit::InputRegisters,
                       int startAddress = 0, quint16 unitCount = 1, bool clearCache = true);
@@ -48,7 +48,7 @@ private:
 
     int32_t unit(DeviceItem* item) const;
 
-    std::unique_ptr<Config> conf_;
+    Config config_;
     struct { int part_size_, part_interval_; } firmware_;
 
     typedef std::map<int, DeviceItem*> DevItems;

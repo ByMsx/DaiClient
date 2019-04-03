@@ -25,19 +25,22 @@ ModbusPlugin::ModbusPlugin() :
     QModbusRtuSerialMaster(),
     b_break(false)
 {
-    qDebug() << "ModbusPlugin" << this;
 }
 
 ModbusPlugin::~ModbusPlugin()
 {
-    qDebug() << "~ModbusPlugin" << this;
+}
+
+const Config&ModbusPlugin::config() const
+{
+    return config_;
 }
 
 void ModbusPlugin::configure(QSettings *settings, Project *)
 {
     using Helpz::Param;
 
-    conf_ = Helpz::SettingsHelper
+    config_ = Helpz::SettingsHelper
         #if (__cplusplus < 201402L) || (defined(__GNUC__) && (__GNUC__ < 7))
             <Param<QString>,Param<QSerialPort::BaudRate>,Param<QSerialPort::DataBits>,
                             Param<QSerialPort::Parity>,Param<QSerialPort::StopBits>,Param<QSerialPort::FlowControl>,Param<int>,Param<int>,Param<int>>
@@ -53,7 +56,7 @@ void ModbusPlugin::configure(QSettings *settings, Project *)
                 Param<int>{"ModbusTimeout", timeout()},
                 Param<int>{"ModbusNumberOfRetries", numberOfRetries()},
                 Param<int>{"InterFrameDelay", interFrameDelay()}
-    ).unique_ptr<Config>();
+    ).obj<Config>();
 
     auto firmware_tuple = Helpz::SettingsHelper
         #if (__cplusplus < 201402L) || (defined(__GNUC__) && (__GNUC__ < 7))
@@ -75,20 +78,20 @@ void ModbusPlugin::configure(QSettings *settings, Project *)
         {
             QDBusReply<QString> tty_path = iface.call("ttyPath");
             if (tty_path.isValid())
-                conf_->name = tty_path.value(); // "/dev/ttyUSB0";
+                config_.name = tty_path.value(); // "/dev/ttyUSB0";
         }
         else
         {
             QString overTCP = "/home/kirill/vmodem0";
-            conf_->name = QFile::exists(overTCP) ? overTCP : "";//"/dev/pts/10";
+            config_.name = QFile::exists(overTCP) ? overTCP : "";//"/dev/pts/10";
         }
     }
 #endif
 
-    if (conf_->name.isEmpty())
-        conf_->name = Config::getUSBSerial();
+    if (config_.name.isEmpty())
+        config_.name = Config::getUSBSerial();
 
-    qCDebug(ModbusLog) << "Used as serial port:" << conf_->name;
+    qCDebug(ModbusLog) << "Used as serial port:" << config_.name;
 
     connect(this, &QModbusClient::errorOccurred, [this](Error e)
     {
@@ -97,7 +100,7 @@ void ModbusPlugin::configure(QSettings *settings, Project *)
             disconnectDevice();
     });
 
-    Config::set(*conf_, this);
+    Config::set(config_, this);
 }
 
 bool ModbusPlugin::check(Device* dev)
@@ -228,7 +231,7 @@ void ModbusPlugin::write(DeviceItem *item, const QVariant &raw_data, uint32_t us
 
         using File_Writer_Thread = Helpz::ParamThread<File_Writer, Config, DeviceItem*, const QVariant&, uint32_t, int, int>;
 
-        File_Writer_Thread file_writer_thread(*conf_, item, raw_data, user_id, firmware_.part_interval_, firmware_.part_size_);
+        File_Writer_Thread file_writer_thread(config_, item, raw_data, user_id, firmware_.part_interval_, firmware_.part_size_);
         file_writer_thread.start(QThread::HighestPriority);
         file_writer_thread.wait();
 
@@ -315,14 +318,14 @@ QVariantList ModbusPlugin::read(int serverAddress, uchar regType,
         {
             disconnectDevice();
 
-            conf_->name = Config::getUSBSerial();
-            if (conf_->name.isEmpty())
+            config_.name = Config::getUSBSerial();
+            if (config_.name.isEmpty())
                 throw ReadException{ ConnectionError, "USB Serial not found" };
 
-            setConnectionParameter(SerialPortNameParameter, conf_->name);
+            setConnectionParameter(SerialPortNameParameter, config_.name);
 
             if (!connectDevice())
-                throw ReadException{ error(), tr("Connect to port %1 fail: %2").arg(conf_->name).arg(errorString()) };
+                throw ReadException{ error(), tr("Connect to port %1 fail: %2").arg(config_.name).arg(errorString()) };
         }
 
         QModbusDataUnit request(registerType, startAddress, unitCount);
