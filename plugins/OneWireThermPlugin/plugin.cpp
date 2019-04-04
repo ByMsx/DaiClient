@@ -1,6 +1,7 @@
 #include <QDebug>
 #include <QSettings>
 #include <QFile>
+#include <QDir>
 
 #include <Helpz/settingshelper.h>
 #include <Dai/deviceitem.h>
@@ -40,13 +41,25 @@ void OneWireThermPlugin::configure(QSettings *settings, Project *)
                 Param<QString>{"Port", "ttyUSB0"},
     ).unique_ptr<Conf>();
     */
+    obtain_device_list();
+}
+
+void OneWireThermPlugin::obtain_device_list() noexcept
+{
+    devices_map_.clear();
+    QDir devices_dir("/sys/bus/w1/devices");
+    QStringList devices = devices_dir.entryList(QStringList() << "28-*", QDir::Dirs);
+    for (int i = 0; i < devices.length(); ++i)
+    {
+        devices_map_.emplace(i + 1, devices.at(i) + "/w1_slave");
+    }
 }
 
 bool OneWireThermPlugin::check(Device* dev)
 {
     const QVector<DeviceItem *> &items = dev->items();
     QVariant value;
-    QString unit;
+    int unit;
     QList<QByteArray> data_lines;
     int idx;
     double t;
@@ -54,15 +67,17 @@ bool OneWireThermPlugin::check(Device* dev)
 
     for (DeviceItem * item: items)
     {
-        unit = item->param("unit").toString();
-        if (unit.isEmpty())
+        unit = item->param("unit").toInt();
+        if (unit < 1)
+        {
             continue;
+        }
         value.clear();
-        file_.setFileName(QString("/sys/bus/w1/devices/28-%1/w1_slave").arg(unit));
-        if (!file_.open(QIODevice::ReadOnly))
+
+        if (!check_and_open_file(unit))
         {
             if (item->isConnected())
-                qCWarning(OneWireThermLog) << "Read failed" << file_.fileName() << file_.errorString();
+                qCWarning(OneWireThermLog) << "Read failed" << "unit: " << unit << file_.fileName() << file_.errorString();
         }
         else
         {
@@ -86,6 +101,50 @@ bool OneWireThermPlugin::check(Device* dev)
         }
     }
 
+    return true;
+}
+
+bool OneWireThermPlugin::check_and_open_file(int unit) noexcept
+{
+    QString path;
+    if (get_device_file_path(unit, path))
+    {
+        if (!try_open_file(path))
+        {
+            obtain_device_list();
+            if (!get_device_file_path(unit, path) || !try_open_file(path))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+bool OneWireThermPlugin::get_device_file_path(int unit, QString &path_out) noexcept
+{
+    auto path_it = devices_map_.find(unit);
+    if (path_it == devices_map_.cend())
+    {
+        obtain_device_list();
+        path_it = devices_map_.find(unit);
+        if (path_it == devices_map_.cend())
+        {
+            return false;
+        }
+    }
+    path_out = path_it->second;
+    return true;
+}
+
+bool OneWireThermPlugin::try_open_file(const QString &path) noexcept
+{
+    file_.setFileName(path);
+    if (!file_.open(QIODevice::ReadOnly))
+    {
+        return false;
+    }
     return true;
 }
 

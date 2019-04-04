@@ -8,6 +8,7 @@
 
 #include "plugin_global.h"
 #include <Dai/checkerinterface.h>
+#include <map>
 
 namespace Dai {
 namespace OneWireTherm {
@@ -32,6 +33,11 @@ public:
     void write(std::vector<Write_Cache_Item>& items) override;
 private:
     QFile file_;
+    std::map<int, QString> devices_map_;
+    void obtain_device_list() noexcept;
+    bool get_device_file_path(int unit, QString &path_out) noexcept;
+    bool try_open_file(const QString &path) noexcept;
+    bool check_and_open_file(int unit) noexcept;
 };
 
 } // namespace OneWireTherm
