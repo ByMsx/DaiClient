@@ -10,8 +10,8 @@
 
 int unit(const Dai::DeviceItem *a)
 {
-    auto it = a->extra().find("unit");
-    return it != a->extra().cend() ? it.value().toInt() : 0;
+    QVariant val = a->param("unit");
+    return val.isValid() ? val.toInt() : 0;
 }
 
 Units_Table_Model::Units_Table_Model(Dai::Item_Type_Manager *mng, const QVector<Dai::DeviceItem *> *units_vector, QModbusServer *modbus_server, QObject *parent)

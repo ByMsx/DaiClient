@@ -21,7 +21,7 @@ void Device_Item_View::init() noexcept
     QVBoxLayout* center_layout = new QVBoxLayout(this);
     setLayout(center_layout);
 
-    device_group_box_ = new QGroupBox(QString::number(device_->address()), this);
+    device_group_box_ = new QGroupBox(device_->param("address").toString(), this);
     device_group_box_->setTitle(device_->name());
     device_group_box_->setCheckable(true);
     device_group_box_->setChecked(true);

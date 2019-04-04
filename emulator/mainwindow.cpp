@@ -107,11 +107,13 @@ void Main_Window::init_database() noexcept
 void Main_Window::fill_data() noexcept
 {
     auto box = static_cast<QGridLayout*>(ui_->content->layout());
+    int dev_address;
 
     for (GH::Device* dev: dai_project_.devices())
     {
         if (dev->items().size() > 0 && dev->items().first()->type_id() != GH::Prt::itProcessor)
         {
+            dev_address = dev->param("address").toInt();
             Modbus_Device_Item modbus_device_item;
             modbus_device_item = create_socat();
             modbus_device_item.modbus_device_ = new QModbusRtuSerialSlave(this);
@@ -120,7 +122,7 @@ void Main_Window::fill_data() noexcept
             modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialBaudRateParameter, config_.baud_rate_);
             modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialDataBitsParameter, config_.data_bits_);
             modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialStopBitsParameter, config_.stop_bits_);
-            modbus_device_item.modbus_device_->setServerAddress(dev->address());
+            modbus_device_item.modbus_device_->setServerAddress(dev_address);
 
     //        connect(modbusDevice, &QModbusServer::stateChanged,
     //                this, &MainWindow::onStateChanged);
@@ -142,7 +144,7 @@ void Main_Window::fill_data() noexcept
             modbus_device_item.device_item_view_ = new Device_Item_View(&dai_project_.item_type_mng_, dev, modbus_device_item.modbus_device_, ui_->content);
             box->addWidget(modbus_device_item.device_item_view_);
 
-            modbus_list_.emplace(dev->address(), modbus_device_item);
+            modbus_list_.emplace(dev_address, modbus_device_item);
         }
     }
 }

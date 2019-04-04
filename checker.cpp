@@ -115,12 +115,18 @@ void Checker::loadPlugins(const QStringList &allowed_plugins)
                         if (meta_data.constFind("param") != meta_data.constEnd())
                         {
                             QJsonObject param = meta_data["param"].toObject();
-                            QStringList names = qJsonArray_to_qStringList(param["device"].toArray());
+                            QStringList dev_names = qJsonArray_to_qStringList(param["device"].toArray());
+                            QStringList dev_item_names = qJsonArray_to_qStringList(param["device_item"].toArray());
 
-//                            QVariantList variants;
-//                            qCopy(strings.begin(), strings.end(), variants.begin());
+                            if (pl_type->param_names_device() != dev_names)
+                            {
+                                pl_type->set_param_names_device(dev_names);
+                            }
 
-//                            .toVariantList().takeAt()
+                            if (pl_type->param_names_device_item() != dev_item_names)
+                            {
+                                pl_type->set_param_names_device_item(dev_item_names);
+                            }
                         }
 
                         if (!settings)
