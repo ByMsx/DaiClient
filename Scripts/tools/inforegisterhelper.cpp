@@ -35,8 +35,8 @@ void InfoRegisterHelper::init(InfoRegisterHelper* other)
     {
         for (auto item: infos)
         {
-            if (    it.first->device()->address() == item->device()->address() &&
-                    it.first->extra() == item->extra() )
+            if (    it.first->device()->params() == item->device()->params() &&
+                    it.first->params() == item->params() )
             {
                 it.second = item;
                 break;

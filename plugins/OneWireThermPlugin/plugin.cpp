@@ -40,7 +40,6 @@ void OneWireThermPlugin::configure(QSettings *settings, Project *)
                 Param<QString>{"Port", "ttyUSB0"},
     ).unique_ptr<Conf>();
     */
-
 }
 
 bool OneWireThermPlugin::check(Device* dev)
@@ -53,20 +52,26 @@ bool OneWireThermPlugin::check(Device* dev)
     double t;
     bool ok;
 
-    for (DeviceItem * item: items) {
-        unit = item->extra().find("unit").value().toString();
+    for (DeviceItem * item: items)
+    {
+        unit = item->param("unit").toString();
         if (unit.isEmpty())
             continue;
         value.clear();
         file_.setFileName(QString("/sys/bus/w1/devices/28-%1/w1_slave").arg(unit));
-        if (!file_.open(QIODevice::ReadOnly)) {
+        if (!file_.open(QIODevice::ReadOnly))
+        {
             if (item->isConnected())
                 qCWarning(OneWireThermLog) << "Read failed" << file_.fileName() << file_.errorString();
-        } else {
+        }
+        else
+        {
             data_lines = file_.readAll().split('\n');
-            if (data_lines.size() >= 2 && data_lines.at(0).right(3).toUpper() == "YES") {
+            if (data_lines.size() >= 2 && data_lines.at(0).right(3).toUpper() == "YES")
+            {
                 idx = data_lines.at(1).indexOf("t=");
-                if (idx != -1) {
+                if (idx != -1)
+                {
                     t = data_lines.at(1).mid(idx + 2).toInt(&ok) / 1000.;
                     if (ok)
                         value = t;
@@ -75,7 +80,8 @@ bool OneWireThermPlugin::check(Device* dev)
             file_.close();
         }
 
-        if (item->raw_value() != value) {
+        if (item->raw_value() != value)
+        {
             QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, value));
         }
     }
@@ -84,10 +90,7 @@ bool OneWireThermPlugin::check(Device* dev)
 }
 
 void OneWireThermPlugin::stop() {}
-
-void OneWireThermPlugin::write(DeviceItem *item, const QVariant &raw_data, uint32_t user_id) {
-//    digitalWrite(item->unit(), raw_data.toBool() ? HIGH : LOW);
-}
+void OneWireThermPlugin::write(std::vector<Write_Cache_Item>& /*items*/) {}
 
 } // namespace Modbus
 } // namespace Dai

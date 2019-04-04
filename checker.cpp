@@ -4,6 +4,8 @@
 #include <QDir>
 #include <QFile>
 
+#include <QJsonArray>
+
 #include <iostream>
 
 #include "worker.h"
@@ -61,29 +63,40 @@ void Checker::loadPlugins(const QStringList &allowed_plugins)
     QString type;
     QObject *plugin;
     Plugin_Type* pl_type;
-    CheckerInterface *checkerInterface;
+    Checker_Interface *checker_interface;
+    QJsonObject meta_data;
 
     QDir pluginsDir(qApp->applicationDirPath());
     pluginsDir.cd("plugins");
 
     std::unique_ptr<QSettings> settings;
 
-    bool finded;
+    auto check_is_allowed = [&allowed_plugins](const QString& fileName) -> bool
+    {
+        for (const QString& plugin_name: allowed_plugins)
+            if (fileName.startsWith("lib" + plugin_name.trimmed()))
+                return true;
+        return false;
+    };
+
+    auto qJsonArray_to_qStringList = [](const QJsonArray& arr) -> QStringList
+    {
+        QStringList names;
+        for (const QJsonValue& val: arr)
+            names.push_back(val.toString());
+        return names;
+    };
+
     for (const QString& fileName: pluginsDir.entryList(QDir::Files))
     {
-        finded = false;
-        for (const QString& plugin_name: allowed_plugins)
-            if (fileName.startsWith("lib" + plugin_name.trimmed())) {
-                finded = true;
-                break;
-            }
-        if (!finded)
+        if (!check_is_allowed(fileName))
             continue;
 
         std::shared_ptr<QPluginLoader> loader = std::make_shared<QPluginLoader>(pluginsDir.absoluteFilePath(fileName));
         if (loader->load() || loader->isLoaded())
         {
-            type = loader->metaData()["MetaData"].toObject()["type"].toString();
+            meta_data = loader->metaData()["MetaData"].toObject();
+            type = meta_data["type"].toString();
 
             if (!type.isEmpty() && type.length() < 128)
             {
@@ -93,11 +106,22 @@ void Checker::loadPlugins(const QStringList &allowed_plugins)
                     qDebug(CheckerLog) << "Load plugin:" << fileName << type;
 
                     plugin = loader->instance();
-                    checkerInterface = qobject_cast<CheckerInterface *>(plugin);
-                    if (checkerInterface)
+                    checker_interface = qobject_cast<Checker_Interface *>(plugin);
+                    if (checker_interface)
                     {
                         pl_type->loader = loader;
-                        pl_type->checker = checkerInterface;
+                        pl_type->checker = checker_interface;
+
+                        if (meta_data.constFind("param") != meta_data.constEnd())
+                        {
+                            QJsonObject param = meta_data["param"].toObject();
+                            QStringList names = qJsonArray_to_qStringList(param["device"].toArray());
+
+//                            QVariantList variants;
+//                            qCopy(strings.begin(), strings.end(), variants.begin());
+
+//                            .toVariantList().takeAt()
+                        }
 
                         if (!settings)
                             settings = Worker::settings();
@@ -170,14 +194,19 @@ void Checker::checkDevices()
 
 void Checker::write_data(DeviceItem *item, const QVariant &raw_data, uint32_t user_id)
 {
-    auto it = std::find(write_cache_.begin(), write_cache_.end(), item);
-    if (it == write_cache_.end())
+    if (!item || !item->device())
+        return;
+
+    std::vector<Write_Cache_Item>& cache = write_cache_[item->device()->checker_type()];
+
+    auto it = std::find(cache.begin(), cache.end(), item);
+    if (it == cache.end())
     {
-        write_cache_.push_back({user_id, item, raw_data});
+        cache.push_back({user_id, item, raw_data});
     }
-    else if (it->raw_value != raw_data)
+    else if (it->raw_value_ != raw_data)
     {
-        it->raw_value = raw_data;
+        it->raw_value_ = raw_data;
     }
 
     if (!b_break)
@@ -191,21 +220,23 @@ void Checker::writeCache()
 
     while (write_cache_.size())
     {
-        Write_Cache_Item cache_item = std::move(write_cache_.front());
+        write_items(write_cache_.begin()->first, write_cache_.begin()->second);
         write_cache_.erase(write_cache_.begin());
-        writeItem(cache_item.dev_item, cache_item.raw_value, cache_item.user_id);
     }
 }
 
-void Checker::writeItem(DeviceItem* item, const QVariant& raw_data, uint32_t user_id)
+void Checker::write_items(Plugin_Type* plugin, std::vector<Write_Cache_Item>& items)
 {
-    if (item->register_type() != Item_Type::rtFile)
-        QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data), Q_ARG(bool, false), Q_ARG(uint32_t, user_id));
-
-    Plugin_Type* chk_type = item->device()->checker_type();
-    if (chk_type && chk_type->id() && chk_type->checker)
+    if (plugin && plugin->id() && plugin->checker)
     {
-        chk_type->checker->write(item, raw_data, user_id);
+        plugin->checker->write(items);
+    }
+    else
+    {
+        for (const Write_Cache_Item& item: items)
+        {
+            QMetaObject::invokeMethod(item.dev_item_, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, item.raw_value_), Q_ARG(bool, false), Q_ARG(uint32_t, item.user_id_));
+        }
     }
 }
 

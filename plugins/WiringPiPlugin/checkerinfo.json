@@ -1,3 +1,7 @@
 {
-    "type": "WiringPi"
+    "type": "WiringPi",
+    "param": {
+        "device": [],
+        "device_item": ["pin"]
+    }
 }

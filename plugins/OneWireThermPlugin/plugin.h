@@ -14,11 +14,11 @@ namespace OneWireTherm {
 
 Q_DECLARE_LOGGING_CATEGORY(OneWireThermLog)
 
-class ONEWIRETHERMPLUGINSHARED_EXPORT OneWireThermPlugin : public QObject, public CheckerInterface
+class ONEWIRETHERMPLUGINSHARED_EXPORT OneWireThermPlugin : public QObject, public Checker_Interface
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID DaiCheckerInterface_iid FILE "checkerinfo.json")
-    Q_INTERFACES(Dai::CheckerInterface)
+    Q_INTERFACES(Dai::Checker_Interface)
 
 public:
     OneWireThermPlugin();
@@ -29,7 +29,7 @@ public:
     void configure(QSettings* settings, Project*) override;
     bool check(Device *dev) override;
     void stop() override;
-    void write(DeviceItem* item, const QVariant& raw_data, uint32_t user_id) override;
+    void write(std::vector<Write_Cache_Item>& items) override;
 private:
     QFile file_;
 };

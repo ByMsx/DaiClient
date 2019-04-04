@@ -58,9 +58,14 @@ bool RandomPlugin::check(Device* dev)
 
 void RandomPlugin::stop() {}
 
-void RandomPlugin::write(DeviceItem *item, const QVariant &raw_data, uint32_t user_id)
+void RandomPlugin::write(std::vector<Write_Cache_Item>& items)
 {
-    writed_list_.insert(item->id());
+    for (const Write_Cache_Item& item: items)
+    {
+        QMetaObject::invokeMethod(item.dev_item_, "setRawValue", Qt::QueuedConnection,
+                                  Q_ARG(const QVariant&, item.raw_value_), Q_ARG(bool, false), Q_ARG(uint32_t, item.user_id_));
+        writed_list_.insert(item.dev_item_->id());
+    }
 }
 
 int RandomPlugin::random(int min, int max) const {
