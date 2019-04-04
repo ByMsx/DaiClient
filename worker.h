@@ -106,6 +106,8 @@ public slots:
 
     void add_status(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t user_id);
     void remove_status(quint32 group_id, quint32 info_id, uint32_t user_id);
+
+    void update_plugin_param_names(const QVector<Plugin_Type>& plugins);
 public slots:
     void newValue(DeviceItem* item, uint32_t user_id = 0);
 private:

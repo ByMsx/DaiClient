@@ -377,9 +377,9 @@ void ScriptedProject::scriptsInitialization()
     }
 }
 
-Section *ScriptedProject::addSection(quint32 id, const QString &name, quint32 day_start_secs, quint32 day_end_secs)
+Section *ScriptedProject::add_section(Section&& section)
 {
-    auto sct = Project::addSection(id, name, day_start_secs, day_end_secs);
+    auto sct = Project::add_section(std::move(section));
     connect(sct, &Section::groupInitialized, this, &ScriptedProject::groupInitialized);
 //    connect(sct, SIGNAL(autoChanged(uint,bool)), SLOT(autoChanged(uint,bool)));
 //    connect(sct, SIGNAL(itemChanged(DeviceItem*)), SLOT(itemChanged(DeviceItem*)));

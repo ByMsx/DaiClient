@@ -25,7 +25,7 @@ Checker::Checker(Worker *worker, int interval, const QString &pluginstr, QObject
     prj = worker->prj->ptr();
 
     plugin_type_mng_ = prj->plugin_type_mng_;
-    loadPlugins(pluginstr.split(','));
+    loadPlugins(pluginstr.split(','), worker);
 
     connect(prj, &Project::controlStateChanged, this, &Checker::write_data, Qt::QueuedConnection);
 
@@ -57,12 +57,14 @@ Checker::~Checker()
             qWarning(CheckerLog) << "Unload fail" << plugin.loader->fileName() << plugin.loader->errorString();
 }
 
-void Checker::loadPlugins(const QStringList &allowed_plugins)
+void Checker::loadPlugins(const QStringList &allowed_plugins, Worker *worker)
 {
     //    pluginLoader.emplace("modbus", nullptr);
     QString type;
     QObject *plugin;
     Plugin_Type* pl_type;
+    QVector<Plugin_Type> plugins_update_vect;
+    bool plugin_updated;
     Checker_Interface *checker_interface;
     QJsonObject meta_data;
 
@@ -114,19 +116,25 @@ void Checker::loadPlugins(const QStringList &allowed_plugins)
 
                         if (meta_data.constFind("param") != meta_data.constEnd())
                         {
+                            plugin_updated = false;
                             QJsonObject param = meta_data["param"].toObject();
-                            QStringList dev_names = qJsonArray_to_qStringList(param["device"].toArray());
-                            QStringList dev_item_names = qJsonArray_to_qStringList(param["device_item"].toArray());
 
+                            QStringList dev_names = qJsonArray_to_qStringList(param["device"].toArray());
                             if (pl_type->param_names_device() != dev_names)
                             {
                                 pl_type->set_param_names_device(dev_names);
+                                plugin_updated = true;
                             }
 
+                            QStringList dev_item_names = qJsonArray_to_qStringList(param["device_item"].toArray());
                             if (pl_type->param_names_device_item() != dev_item_names)
                             {
                                 pl_type->set_param_names_device_item(dev_item_names);
+                                if (!plugin_updated) plugin_updated = true;
                             }
+
+                            if (plugin_updated)
+                                plugins_update_vect.push_back(*pl_type);
                         }
 
                         if (!settings)
@@ -145,6 +153,11 @@ void Checker::loadPlugins(const QStringList &allowed_plugins)
         }
         else
             qWarning(CheckerLog) << "Fail to load plugin" << fileName << loader->errorString();
+    }
+
+    if (plugins_update_vect.size())
+    {
+        worker->update_plugin_param_names(plugins_update_vect);
     }
 }
 
