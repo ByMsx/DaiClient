@@ -122,6 +122,7 @@ void Checker::loadPlugins(const QStringList &allowed_plugins, Worker *worker)
                             QStringList dev_names = qJsonArray_to_qStringList(param["device"].toArray());
                             if (pl_type->param_names_device() != dev_names)
                             {
+                                qCDebug(CheckerLog) << "Plugin" << pl_type->name() << "dev_names" << pl_type->param_names_device() << dev_names;
                                 pl_type->set_param_names_device(dev_names);
                                 plugin_updated = true;
                             }
@@ -129,6 +130,7 @@ void Checker::loadPlugins(const QStringList &allowed_plugins, Worker *worker)
                             QStringList dev_item_names = qJsonArray_to_qStringList(param["device_item"].toArray());
                             if (pl_type->param_names_device_item() != dev_item_names)
                             {
+                                qCDebug(CheckerLog) << "Plugin" << pl_type->name() << "dev_item_names" << pl_type->param_names_device_item() << dev_item_names;
                                 pl_type->set_param_names_device_item(dev_item_names);
                                 if (!plugin_updated) plugin_updated = true;
                             }
@@ -237,10 +239,13 @@ void Checker::writeCache()
     if (!check_timer.isActive() && check_timer.interval() >= MINIMAL_WRITE_INTERVAL)
         return;
 
-    while (write_cache_.size())
+    std::map<Plugin_Type*, std::vector<Write_Cache_Item>> cache(std::move(write_cache_));
+    write_cache_.clear();
+
+    while (cache.size())
     {
-        write_items(write_cache_.begin()->first, write_cache_.begin()->second);
-        write_cache_.erase(write_cache_.begin());
+        write_items(cache.begin()->first, cache.begin()->second);
+        cache.erase(cache.begin());
     }
 }
 

@@ -233,7 +233,6 @@ void Modbus_Plugin_Base::write_multi_item(int server_address, QModbusDataUnit::R
 
     if (auto *reply = sendWriteRequest(write_unit, server_address))
     {
-
         if (!reply->isFinished())
         {
             connect(reply, &QModbusReply::finished, &wait, &QEventLoop::quit);
