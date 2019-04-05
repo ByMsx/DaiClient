@@ -19,12 +19,6 @@ Q_LOGGING_CATEGORY(OneWireThermLog, "OneWireTherm")
 OneWireThermPlugin::OneWireThermPlugin() :
     QObject()
 {
-    qCDebug(OneWireThermLog) << "init" << this;
-}
-
-OneWireThermPlugin::~OneWireThermPlugin()
-{
-    qCDebug(OneWireThermLog) << "free" << this;
 }
 
 void OneWireThermPlugin::configure(QSettings *settings, Project *)

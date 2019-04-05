@@ -23,7 +23,6 @@ class ONEWIRETHERMPLUGINSHARED_EXPORT OneWireThermPlugin : public QObject, publi
 
 public:
     OneWireThermPlugin();
-    ~OneWireThermPlugin();
 
     // CheckerInterface interface
 public:
