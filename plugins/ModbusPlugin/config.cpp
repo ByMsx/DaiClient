@@ -31,6 +31,14 @@ Config::Config(const QString& portName, QSerialPort::BaudRate speed, QSerialPort
     }
 }
 
+QStringList Config::available_ports()
+{
+    QStringList ports;
+    for (auto&& port: QSerialPortInfo::availablePorts())
+        ports << port.portName();
+    return ports;
+}
+
 void Config::set(const Config& config, QModbusRtuSerialMaster* device)
 {
     device->setConnectionParameter(QModbusDevice::SerialPortNameParameter, config.name);

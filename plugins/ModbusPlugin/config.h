@@ -24,6 +24,8 @@ struct Config {
         return QSerialPortInfo::availablePorts().count() ? QSerialPortInfo::availablePorts().first().portName() : QString();
     }*/
 
+    static QStringList available_ports();
+
     static void set(const Config& config, QModbusRtuSerialMaster* device);
 
     static QString getUSBSerial();

@@ -88,9 +88,10 @@ void PIDHelper::onPWM()
         m_pwm_timer->setInterval(interval * 1000);
     }
 
-    bool change_flag, new_state;
+    bool change_flag = false, new_state;
     if ( (m_pwm_on > m_pid->min() && m_pwm_on < m_pid->period()) ||
-         ((m_pwm_on == m_pid->min()) == state) ) {
+         ((m_pwm_on == m_pid->min()) == state) )
+    {
         change_flag = true;
         new_state = !state;
     }

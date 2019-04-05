@@ -10,7 +10,8 @@
 
 #include <Helpz/simplethread.h>
 
-#include "Dai/project.h"
+#include <Dai/project.h>
+#include <Dai/write_cache_item.h>
 
 namespace Dai {
 
@@ -19,24 +20,13 @@ Q_DECLARE_LOGGING_CATEGORY(CheckerLog)
 class Worker;
 typedef std::map<DeviceItem*, QVariant> ChangesList;
 
-struct Write_Cache_Item {
-    uint32_t user_id;
-    DeviceItem* dev_item;
-    QVariant raw_value;
-
-    bool operator ==(DeviceItem* other_dev_item)
-    {
-        return dev_item == other_dev_item;
-    }
-};
-
 class Checker : public QObject
 {
     Q_OBJECT
 public:
     explicit Checker(Worker* worker, int interval = 1500, const QString& pluginstr = {}, QObject *parent = 0);
     ~Checker();
-    void loadPlugins(const QStringList& allowed_plugins);
+    void loadPlugins(const QStringList& allowed_plugins, Worker* worker);
 
     void breakChecking();
 public slots:
@@ -48,19 +38,16 @@ private slots:
     void write_data(DeviceItem* item, const QVariant& raw_data, uint32_t user_id = 0);
     void writeCache();
 private:
-    void writeItem(DeviceItem* item, const QVariant& raw_data, uint32_t user_id = 0);
+    void write_items(Plugin_Type* plugin, std::vector<Write_Cache_Item>& items);
 
     QTimer check_timer, write_timer;
 
     Project* prj;
-//    SerialPort::Manager sp_mng;
-    std::vector<Write_Cache_Item> write_cache_;
+    std::map<Plugin_Type*, std::vector<Write_Cache_Item>> write_cache_;
 
     bool b_break;
 
     std::shared_ptr<Plugin_Type_Manager> plugin_type_mng_;
-//    friend class ModbusThread;
-//    friend struct ModbusReadHelper;
 };
 
 } // namespace Dai

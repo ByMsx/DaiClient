@@ -1,3 +1,7 @@
 {
-    "type": "OneWireTherm"
+    "type": "OneWireTherm",
+    "param": {
+        "device": [],
+        "device_item": ["unit"]
+    }
 }

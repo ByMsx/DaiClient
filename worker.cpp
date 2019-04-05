@@ -147,7 +147,7 @@ DBManager* Worker::database() const { return db_mng; }
 Helpz::Database::Thread* Worker::db_pending() { return db_pending_thread_.get(); }
 const Helpz::Database::Connection_Info& Worker::database_info() const { return *db_info_; }
 
-std::unique_ptr<QSettings> Worker::settings()
+/*static*/ std::unique_ptr<QSettings> Worker::settings()
 {
     QString configFileName = QCoreApplication::applicationDirPath() + QDir::separator() + QCoreApplication::applicationName() + ".conf";
     return std::unique_ptr<QSettings>(new QSettings(configFileName, QSettings::NativeFormat));
@@ -700,6 +700,31 @@ void Worker::remove_status(quint32 group_id, quint32 info_id, uint32_t user_id)
             }
         }
     });
+}
+
+void Worker::update_plugin_param_names(const QVector<Plugin_Type>& plugins)
+{
+    QByteArray data;
+    QDataStream ds(&data, QIODevice::ReadWrite);
+    ds << plugins << uint32_t(0) << uint32_t(0);
+    ds.device()->seek(0);
+    structure_sync_.process_modify_message(0, STRUCT_TYPE_CHECKER_TYPES, ds.device(), db_pending());
+
+    for (Device* dev: prj->ptr()->devices())
+    {
+        for (const Plugin_Type& plugin: plugins)
+        {
+            if (plugin.id() == dev->checker_id())
+            {
+                dev->set_param_name_list(plugin.param_names_device());
+                for (DeviceItem *item: dev->items())
+                {
+                    item->set_param_name_list(plugin.param_names_device_item());
+                }
+                break;
+            }
+        }
+    }
 }
 
 void Worker::newValue(DeviceItem *item, uint32_t user_id)

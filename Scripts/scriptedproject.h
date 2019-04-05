@@ -28,7 +28,7 @@ class DBManager;
 class AutomationHelper;
 class DayTimeHelper;
 
-class ScriptedProject : public Project
+class ScriptedProject final : public Project
 {
     Q_OBJECT
     Q_PROPERTY(qint64 uptime READ uptime)
@@ -58,7 +58,7 @@ public:
     void setSSHHost(const QString &value);
 
     qint64 uptime() const;
-    Section *addSection(quint32 id, const QString &name, quint32 day_start_secs, quint32 day_end_secs) override;
+    Section *add_section(Section&& section) override;
 
     QScriptValue valueFromVariant(const QVariant& data) const;
 signals:

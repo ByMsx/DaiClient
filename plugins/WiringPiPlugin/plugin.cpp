@@ -51,12 +51,13 @@ bool WiringPiPlugin::check(Device* dev)
 {
     const QVector<DeviceItem *> &items = dev->items();
     bool state;
+    QVariant pin;
     for (DeviceItem * item: items)
     {
-        auto it = item->extra().find("unit");
-        if (it != item->extra().cend())
+        pin = item->param("pin");
+        if (pin.isValid())
         {
-            state = digitalRead(it->toUInt()) ? true : false;
+            state = digitalRead(pin.toUInt()) ? true : false;
             if (!item->isConnected() || item->raw_value().toBool() != state)
             {
                 QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, state));
@@ -70,12 +71,16 @@ bool WiringPiPlugin::check(Device* dev)
 
 void WiringPiPlugin::stop() {}
 
-void WiringPiPlugin::write(DeviceItem *item, const QVariant &raw_data, uint32_t user_id)
+void WiringPiPlugin::write(std::vector<Write_Cache_Item>& items)
 {
-    auto it = item->extra().find("unit");
-    if (it != item->extra().cend())
+    QVariant pin;
+    for (const Write_Cache_Item& item: items)
     {
-        digitalWrite(it->toUInt(), raw_data.toBool() ? HIGH : LOW);
+        pin = item.dev_item_->param("pin");
+        if (pin.isValid())
+        {
+            digitalWrite(pin.toUInt(), item.raw_value_.toBool() ? HIGH : LOW);
+        }
     }
 }
 
