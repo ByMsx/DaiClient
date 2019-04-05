@@ -41,6 +41,8 @@ public:
 public slots:
     QVariantList read(int serverAddress, uchar regType = QModbusDataUnit::InputRegisters,
                       int startAddress = 0, quint16 unitCount = 1, bool clearCache = true);
+
+    QStringList available_ports() const;
 protected:
     typedef std::map<int, DeviceItem*> DevItems;
     void proccessRegister(Device* dev, QModbusDataUnit::RegisterType registerType, const DevItems& itemMap);

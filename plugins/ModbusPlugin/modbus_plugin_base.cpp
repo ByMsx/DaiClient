@@ -368,6 +368,11 @@ QVariantList Modbus_Plugin_Base::read(int serverAddress, uchar regType,
     return values;
 }
 
+QStringList Modbus_Plugin_Base::available_ports() const
+{
+    return Config::available_ports();
+}
+
 void Modbus_Plugin_Base::proccessRegister(Device *dev, QModbusDataUnit::RegisterType registerType, const DevItems& itemMap)
 {
     int32_t dev_address = address(dev);

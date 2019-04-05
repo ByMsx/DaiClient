@@ -47,11 +47,12 @@ void OneWireThermPlugin::configure(QSettings *settings, Project *)
 void OneWireThermPlugin::obtain_device_list() noexcept
 {
     devices_map_.clear();
-    QDir devices_dir("/sys/bus/w1/devices");
+    QString devices_path = "/sys/bus/w1/devices/";
+    QDir devices_dir(devices_path);
     QStringList devices = devices_dir.entryList(QStringList() << "28-*", QDir::Dirs);
     for (int i = 0; i < devices.length(); ++i)
     {
-        devices_map_.emplace(i + 1, devices.at(i) + "/w1_slave");
+        devices_map_.emplace(i + 1, devices_path + devices.at(i) + "/w1_slave");
     }
 }
 
