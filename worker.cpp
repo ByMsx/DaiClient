@@ -169,7 +169,7 @@ void Worker::init_Checker(QSettings* s)
 {
     qRegisterMetaType<Device*>("Device*");
 
-    checker_th = CheckerThread()(s, "Checker", this, Z::Param<int>{"Interval", 1500}, Z::Param<QString>{"Plugins", "ModbusPlugin,WiringPiPlugin"} );
+    checker_th = CheckerThread()(s, "Checker", this, Z::Param<int>{"Interval", 1500}, Z::Param<QStringList>{"Plugins", QStringList{"ModbusPlugin","WiringPiPlugin"}} );
     checker_th->start();
 }
 
