@@ -76,4 +76,14 @@ QVector<View_Item> DBManager::get_view_items()
     return Helpz::Database::db_build_list<View_Item>(*this);
 }
 
+QVector<Device_Item_Value> DBManager::get_device_item_values()
+{
+    return Helpz::Database::db_build_list<Device_Item_Value>(*this);
+}
+
+QVector<Group_Mode> DBManager::get_group_modes()
+{
+    return Helpz::Database::db_build_list<Group_Mode>(*this);
+}
+
 } // namespace Dai

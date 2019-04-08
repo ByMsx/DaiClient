@@ -33,6 +33,8 @@ private:
     void add_device_items(QDataStream& ds);
     void add_groups(QDataStream& ds);
     void add_group_status_items(QDataStream& ds);
+    void add_device_item_values(QDataStream& ds);
+    void add_group_mode(QDataStream& ds);
     void add_views(QDataStream& ds);
     void add_view_itemss(QDataStream& ds);
     void add_codes(const QVector<uint32_t>& ids, QDataStream* ds);

@@ -81,16 +81,13 @@ void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t
     case STRUCT_TYPE_DEVICES:           *ds << prj_->devices();         break;
     case STRUCT_TYPE_CHECKER_TYPES:     add_checker_types(*ds);         break;
     case STRUCT_TYPE_DEVICE_ITEMS:      add_device_items(*ds);          break;
-    case STRUCT_TYPE_DEVICE_ITEM_VALUES:break;
     case STRUCT_TYPE_DEVICE_ITEM_TYPES: *ds << prj_->item_type_mng_;    break;
     case STRUCT_TYPE_SAVE_TIMERS:       *ds << prj_->save_timers_;      break;
     case STRUCT_TYPE_SECTIONS:          *ds << prj_->sections();        break;
     case STRUCT_TYPE_GROUPS:            add_groups(*ds);                break;
     case STRUCT_TYPE_GROUP_TYPES:       *ds << prj_->group_type_mng_;   break;
     case STRUCT_TYPE_GROUP_MODE_TYPES:  *ds << prj_->mode_type_mng_;    break;
-    case STRUCT_TYPE_GROUP_PARAMS:      *ds << prj_->get_param_items(); break;
     case STRUCT_TYPE_GROUP_PARAM_TYPES: *ds << prj_->param_mng_;        break;
-    case STRUCT_TYPE_GROUP_STATUS:      add_group_status_items(*ds);    break;
     case STRUCT_TYPE_GROUP_STATUS_INFO: *ds << prj_->status_mng_;       break;
     case STRUCT_TYPE_GROUP_STATUS_TYPE: *ds << prj_->status_type_mng_;  break;
     case STRUCT_TYPE_SIGNS:             *ds << prj_->sign_mng_;         break;
@@ -112,6 +109,11 @@ void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t
         }
         break;
     }
+
+    case STRUCT_TYPE_DEVICE_ITEM_VALUES:add_device_item_values(*ds);    break;
+    case STRUCT_TYPE_GROUP_MODE:        add_group_mode(*ds);            break;
+    case STRUCT_TYPE_GROUP_STATUS:      add_group_status_items(*ds);    break;
+    case STRUCT_TYPE_GROUP_PARAMS:      *ds << prj_->get_param_items(); break;
     default:
         helper.release();
         break;
@@ -189,6 +191,26 @@ void Structure_Synchronizer::add_group_status_items(QDataStream& ds)
 
     QVector<Group_Status_Item> items;
     QMetaObject::invokeMethod(protocol_->worker()->database(), "get_group_status_items", Qt::BlockingQueuedConnection, Q_RETURN_ARG(QVector<Group_Status_Item>, items));
+    ds << items;
+}
+
+void Structure_Synchronizer::add_device_item_values(QDataStream& ds)
+{
+    if (!protocol_)
+        return;
+
+    QVector<Device_Item_Value> items;
+    QMetaObject::invokeMethod(protocol_->worker()->database(), "get_device_item_values", Qt::BlockingQueuedConnection, Q_RETURN_ARG(QVector<Device_Item_Value>, items));
+    ds << items;
+}
+
+void Structure_Synchronizer::add_group_mode(QDataStream& ds)
+{
+    if (!protocol_)
+        return;
+
+    QVector<Group_Mode> items;
+    QMetaObject::invokeMethod(protocol_->worker()->database(), "get_group_modes", Qt::BlockingQueuedConnection, Q_RETURN_ARG(QVector<Group_Mode>, items));
     ds << items;
 }
 

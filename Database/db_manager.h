@@ -12,6 +12,8 @@
 #include <Dai/log/log_pack.h>
 #include <Dai/db/group_status_item.h>
 #include <Dai/db/view.h>
+#include <Dai/db/device_item_value.h>
+#include <Dai/db/group_mode.h>
 #include <plus/dai/database.h>
 
 namespace Dai {
@@ -31,6 +33,8 @@ public slots:
     QVector<Group_Status_Item> get_group_status_items();
     QVector<View> get_views();
     QVector<View_Item> get_view_items();
+    QVector<Device_Item_Value> get_device_item_values();
+    QVector<Group_Mode> get_group_modes();
 };
 
 } // namespace Dai
