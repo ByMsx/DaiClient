@@ -17,7 +17,7 @@ Q_LOGGING_CATEGORY(CheckerLog, "checker")
 
 #define MINIMAL_WRITE_INTERVAL    50
 
-Checker::Checker(Worker *worker, int interval, const QString &pluginstr, QObject *parent) :
+Checker::Checker(Worker *worker, int interval, const QStringList &plugins, QObject *parent) :
     QObject(parent),
     b_break(false)
 {
@@ -25,7 +25,7 @@ Checker::Checker(Worker *worker, int interval, const QString &pluginstr, QObject
     prj = worker->prj->ptr();
 
     plugin_type_mng_ = prj->plugin_type_mng_;
-    loadPlugins(pluginstr.split(','), worker);
+    loadPlugins(plugins, worker);
 
     connect(prj, &Project::controlStateChanged, this, &Checker::write_data, Qt::QueuedConnection);
 
