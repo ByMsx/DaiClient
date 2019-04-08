@@ -1,5 +1,3 @@
-#include <QCoreApplication>
-
 #include "worker.h"
 //#include "version.h"
 

@@ -32,7 +32,6 @@ void Protocol_2_0::connect_worker_signals()
 {
     qRegisterMetaType<ParamValuesPack>("ParamValuesPack");
 
-    while (!worker()->prj->ptr() && !worker()->prj->wait(5));
     prj_ = worker()->prj->ptr();
 
     connect(this, &Protocol_2_0::restart, worker(), &Worker::restart_service_object, Qt::QueuedConnection);

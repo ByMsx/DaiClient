@@ -1,5 +1,4 @@
 QT += core network sql websockets
-QT -= gui
 
 QT += script
 #QT += qml
@@ -33,7 +32,9 @@ SOURCES += main.cpp \
     Network/client_protocol_2_0.cpp \
     Network/log_sender.cpp \
     structure_synchronizer.cpp \
-    Database/db_log_helper.cpp
+    Database/db_log_helper.cpp \
+    websocket_item.cpp \
+    log_value_save_timer.cpp
 
 HEADERS  += \
     worker.h \
@@ -53,7 +54,9 @@ HEADERS  += \
     Network/client_protocol_2_0.h \
     Network/log_sender.h \
     structure_synchronizer.h \
-    Database/db_log_helper.h
+    Database/db_log_helper.h \
+    websocket_item.h \
+    log_value_save_timer.h
 
 #Target version
 VER_MAJ = 1

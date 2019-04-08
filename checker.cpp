@@ -21,7 +21,6 @@ Checker::Checker(Worker *worker, int interval, const QString &pluginstr, QObject
     QObject(parent),
     b_break(false)
 {
-    while (!worker->prj->ptr() && !worker->prj->wait(5));
     prj = worker->prj->ptr();
 
     plugin_type_mng_ = prj->plugin_type_mng_;

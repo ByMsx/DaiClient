@@ -85,15 +85,11 @@ void ScriptedProject::addType()
 }
 
 ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleReader, const QString &sshHost, bool allow_shell) :
-    Project(), //(worker->database()->clone<DBManager>("ScriptSql")),
+    Project(),
     m_func(fAutomation), m_dayTime(this),
     m_uptime(QDateTime::currentMSecsSinceEpoch()),
     ssh_host(sshHost), allow_shell_(allow_shell)
 {
-//    qDebug() << "Copy scr " << db()->db().databaseName() << db()->db().password() << worker->database()->db().password();
-
-//    db()->createConnection();
-//    db()->setTypeManager(this);
     registerTypes();
 
     m_script_engine->pushContext();

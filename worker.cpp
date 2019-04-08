@@ -17,69 +17,10 @@
 #include <Dai/checkerinterface.h>
 #include <Dai/db/group_status_item.h>
 
+#include "websocket_item.h"
 #include "worker.h"
 
 namespace Dai {
-
-WebSockItem::WebSockItem(Worker *obj) :
-    QObject(), Project_Info(),
-    w(obj)
-{
-    set_id(1);
-    set_teams({1});
-    connect(w, &Worker::modeChanged, this, &WebSockItem::modeChanged, Qt::QueuedConnection);
-}
-
-WebSockItem::~WebSockItem()
-{
-    disconnect(this, 0, 0, 0);
-}
-
-void WebSockItem::send_event_message(const Log_Event_Item& event)
-{
-    QMetaObject::invokeMethod(w->webSock_th->ptr(), "sendEventMessage", Qt::QueuedConnection,
-                              Q_ARG(Project_Info, this), Q_ARG(QVector<Log_Event_Item>, QVector<Log_Event_Item>{event}));
-}
-
-void WebSockItem::modeChanged(uint mode_id, uint group_id) {
-
-    QMetaObject::invokeMethod(w->webSock_th->ptr(), "sendModeChanged", Qt::QueuedConnection,
-                              Q_ARG(Project_Info, this), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id));
-}
-
-void WebSockItem::procCommand(uint32_t user_id, quint32 user_team_id, quint32 proj_id, quint8 cmd, const QByteArray &raw_data)
-{
-    QByteArray data(4, Qt::Uninitialized);
-    data += raw_data;
-    QDataStream ds(&data, QIODevice::ReadWrite);
-    ds.setVersion(Helpz::Network::Protocol::DATASTREAM_VERSION);
-    ds << user_id;
-    ds.device()->seek(0);
-
-    try {
-        switch (cmd) {
-        case wsConnectInfo:
-            send(this, w->webSock_th->ptr()->prepare_connect_state_message(id(), "127.0.0.1", QDateTime::currentDateTime().timeZone(), 0));
-            break;
-
-        case wsRestart:             Helpz::apply_parse(ds, &Worker::restart_service_object, w); break;
-        case wsWriteToDevItem:      Helpz::apply_parse(ds, &Worker::writeToItem, w); break;
-        case wsChangeGroupMode:     Helpz::apply_parse(ds, &Worker::setMode, w); break;
-        case wsChangeParamValues:   Helpz::apply_parse(ds, &Worker::setParamValues, w); break;
-        case wsStructModify:        Helpz::apply_parse(ds, &Client::Structure_Synchronizer::process_modify_message, &w->structure_sync_, ds.device(), w->db_pending(), QString()); break;
-        case wsExecScript:          Helpz::apply_parse(ds, &ScriptedProject::console, w->prj->ptr()); break;
-
-        default:
-            qWarning() << "Unknown WebSocket Message:" << (WebSockCmd)cmd;
-    //        pClient->sendBinaryMessage(message);
-            break;
-        }
-    } catch(const std::exception& e) {
-        qCritical() << "WebSock:" << e.what();
-    } catch(...) {
-        qCritical() << "WebSock unknown exception";
-    }
-}
 
 namespace Z = Helpz;
 using namespace std::placeholders;
@@ -130,7 +71,7 @@ Worker::~Worker()
     stop_thread(&webSock_th);
     stop_thread(&django_th);
 
-    logTimer.stop();
+    log_timer_.stop();
     item_values_timer.stop();
 
     net_thread_.reset();
@@ -222,7 +163,6 @@ void Worker::init_Project(QSettings* s)
                           Z::Param<bool>{"AllowShell", false}
                           );
     prj->start(QThread::HighPriority);
-//    while (!prj->ptr() && !prj->wait(5));
 }
 
 void Worker::init_Checker(QSettings* s)
@@ -235,7 +175,6 @@ void Worker::init_Checker(QSettings* s)
 
 void Worker::init_network_client(QSettings* s)
 {
-    while (!prj->ptr() && !prj->wait(5));
     net_protocol_thread_.start();
     structure_sync_.moveToThread(&net_protocol_thread_);
     structure_sync_.set_project(prj->ptr());
@@ -298,61 +237,8 @@ void Worker::init_LogTimer(int period)
     item_values_timer.setInterval(5000);
     item_values_timer.setSingleShot(true);
 
-    connect(&logTimer, &QTimer::timeout, [this, period]()
-    {
-        if (logTimer.interval() != period * 1000)
-            logTimer.setInterval(  period * 1000 );
-
-        Log_Value_Item pack_item;
-        {
-            QDateTime cur_date = QDateTime::currentDateTime().toUTC();
-            cur_date.setTime(QTime(cur_date.time().hour(), cur_date.time().minute(), 0));
-            pack_item.set_time_msecs(cur_date.toMSecsSinceEpoch());
-        }
-
-        Item_Type_Manager* typeMng = &prj->ptr()->item_type_mng_;
-
-        static std::map<quint32, QVariant> cachedValues;
-
-        for (Device* dev: prj->ptr()->devices())
-            for (DeviceItem* dev_item: dev->items())
-            {
-                if (typeMng->save_algorithm(dev_item->type_id()) != Item_Type::saSaveByTimer)
-                    continue;
-
-                auto val_it = cachedValues.find(dev_item->id());
-
-                if (val_it == cachedValues.cend())
-                    cachedValues.emplace(dev_item->id(), dev_item->raw_value());
-                else if (val_it->second != dev_item->raw_value())
-                    val_it->second = dev_item->raw_value();
-                else
-                    continue;
-
-                pack_item.set_id(0);
-                pack_item.set_item_id(dev_item->id());
-                pack_item.set_raw_value(dev_item->raw_value());
-                pack_item.set_value(dev_item->value());
-
-                if (db_mng->logChanges(pack_item))
-                {
-                    emit change(pack_item, false);
-                }
-                else
-                {
-                    // TODO: Error event
-                    qCWarning(Service::Log) << "Failed change log with device item" << dev_item->id() << dev_item->value();
-                }
-            }
-    });
-
-    const auto cur_time = QDateTime::currentDateTime();
-    const uint need2add = period - (cur_time.toTime_t() % period);
-    uint interval = cur_time.secsTo(cur_time.addSecs(need2add));
-
-    logTimer.setInterval(interval * 1000);
-    logTimer.setTimerType(Qt::VeryCoarseTimer);
-    logTimer.start();
+    connect(&log_timer_, &Log_Value_Save_Timer::change, this, &Worker::change, Qt::QueuedConnection);
+    log_timer_.start(period, prj->ptr(), db_pending());
 }
 
 void Worker::initDjango(QSettings *s)
@@ -375,18 +261,14 @@ void Worker::initWebSocketManager(QSettings *s)
                 Helpz::Param<QString>{"KeyPath", QString()});
     webSock_th->start();
 
-    while (!webSock_th->ptr() && !webSock_th->wait(5));
-    while (!django_th->ptr() && !django_th->wait(5));
     connect(webSock_th->ptr(), &Network::WebSocket::checkAuth,
                      django_th->ptr(), &DjangoHelper::checkToken, Qt::BlockingQueuedConnection);
 
-    websock_item.reset(new WebSockItem(this));
-    connect(this, &Worker::event_message, websock_item.get(), &WebSockItem::send_event_message, Qt::DirectConnection);
+    websock_item.reset(new Websocket_Item(this));
+    connect(this, &Worker::event_message, websock_item.get(), &Websocket_Item::send_event_message, Qt::DirectConnection);
     connect(webSock_th->ptr(), &Network::WebSocket::throughCommand,
-            websock_item.get(), &WebSockItem::procCommand, Qt::BlockingQueuedConnection);
-    connect(websock_item.get(), &WebSockItem::send, webSock_th->ptr(), &Network::WebSocket::send, Qt::QueuedConnection);
-//    webSock_th->ptr()->get_proj_in_team_by_id.connect(
-    //                std::bind(&Worker::proj_in_team_by_id, this, std::placeholders::_1, std::placeholders::_2));
+            websock_item.get(), &Websocket_Item::procCommand, Qt::BlockingQueuedConnection);
+    connect(websock_item.get(), &Websocket_Item::send, webSock_th->ptr(), &Network::WebSocket::send, Qt::QueuedConnection);
 }
 
 void Worker::restart_service_object(uint32_t user_id)
@@ -621,16 +503,6 @@ bool Worker::setMode(uint32_t user_id, uint32_t mode_id, uint32_t group_id)
     return res;
 }
 
-struct ServiceRestarter {
-    ServiceRestarter(Worker* worker) : w(worker) {}
-    Worker* w;
-    bool isOk = true;
-    ~ServiceRestarter() {
-        if (isOk)
-            QTimer::singleShot(500, w, SIGNAL(serviceRestart()));
-    }
-};
-
 void Worker::setParamValues(uint32_t user_id, const ParamValuesPack &pack)
 {
     QMetaObject::invokeMethod(prj->ptr(), "setParamValues", Qt::QueuedConnection, Q_ARG(uint32_t, user_id), Q_ARG(ParamValuesPack, pack));
@@ -736,7 +608,7 @@ void Worker::newValue(DeviceItem *item, uint32_t user_id)
     Log_Value_Item pack_item{0, 0, user_id, item->id(), item->raw_value(), item->value()};
 
     bool immediately = prj->ptr()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saSaveImmediately;
-    if (immediately && !db_mng->logChanges(pack_item))
+    if (immediately && !Database::Helper::save_log_changes(db_mng, pack_item))
     {
         qWarning(Service::Log).nospace() << user_id << "|Упущенное значение:" << item->toString() << item->value().toString();
         // TODO: Error event

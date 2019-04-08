@@ -1,7 +1,7 @@
-#ifndef WORKER_H
-#define WORKER_H
+#ifndef DAI_CLIENT_WORKER_H
+#define DAI_CLIENT_WORKER_H
 
-#include <QTimer>
+#include <QGuiApplication>
 
 #include <Helpz/service.h>
 #include <Helpz/settingshelper.h>
@@ -18,27 +18,11 @@
 #include "plus/dai/proj_info.h"
 
 #include "structure_synchronizer.h"
+#include "log_value_save_timer.h"
 
 namespace Dai {
-class Worker;
 
-class WebSockItem : public QObject, public Project_Info
-{
-    Q_OBJECT
-public:
-    WebSockItem(Worker* obj);
-    ~WebSockItem();
-
-signals:
-    void send(const Project_Info &proj, const QByteArray& data) const;
-public slots:
-    void send_event_message(const Log_Event_Item& event);
-
-    void modeChanged(uint mode_id, uint group_id);
-    void procCommand(uint32_t user_id, quint32 user_team_id, quint32 proj_id, quint8 cmd, const QByteArray& raw_data);
-private:
-    Worker* w;
-};
+class Websocket_Item;
 
 class Worker final : public QObject
 {
@@ -65,7 +49,7 @@ private:
 
     void initDjango(QSettings *s);
 
-    std::shared_ptr<WebSockItem> websock_item;
+    std::shared_ptr<Websocket_Item> websock_item;
     void initWebSocketManager(QSettings *s);
 signals:
     void serviceRestart();
@@ -126,16 +110,16 @@ private:
 
     friend class Checker;
     using CheckerThread = Helpz::SettingsThreadHelper<Checker, Worker*, int, QString>;
-    CheckerThread::Type* checker_th;
+    CheckerThread::Type* checker_th = nullptr;
 
     using DjangoThread = Helpz::SettingsThreadHelper<DjangoHelper, QString>;
     DjangoThread::Type* django_th = nullptr;
 
     using WebSocketThread = Helpz::SettingsThreadHelper<Network::WebSocket, quint16, QString, QString>;
     WebSocketThread::Type* webSock_th = nullptr;
-    friend class WebSockItem;
+    friend class Websocket_Item;
 
-    QTimer logTimer;
+    Log_Value_Save_Timer log_timer_;
 
     std::map<quint32, std::pair<QVariant, QVariant>> waited_item_values;
     QTimer item_values_timer;
@@ -143,8 +127,8 @@ private:
     std::pair<uint32_t,uint32_t> last_file_item_and_user_id_;
 };
 
-typedef Helpz::Service::Impl<Worker> Service;
+typedef Helpz::Service::Impl<Worker, QGuiApplication> Service;
 
 } // namespace Dai
 
-#endif // WORKER_H
+#endif // DAI_CLIENT_WORKER_H
