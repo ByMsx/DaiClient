@@ -194,37 +194,7 @@ void Protocol_2_0::send_param_values(uint32_t user_id, const ParamValuesPack& pa
 // -----------------------
 
 #if 0
-#include <QDebug>
-#include <QCryptographicHash>
-#include <QDataStream>
-#include <QTimeZone>
-
 #include <botan/parsing.h>
-
-#include <Dai/project.h>
-
-#include "worker.h"
-#include "Database/db_manager.h"
-
-#include <QDateTime>
-#include <QTimer>
-
-#include <Helpz/simplethread.h>
-#include <Helpz/dtls_client.h>
-#include <Helpz/waithelper.h>
-
-#include <Dai/typemanager/typemanager.h>
-#include <Dai/param/paramgroup.h>
-#include <Dai/deviceitem.h>
-#include <plus/dai/network.h>
-
-QT_BEGIN_NAMESPACE
-class QSettings;
-QT_END_NAMESPACE
-
-
-#include "lib.h"
-//#include "version.h"
 
 class Client : public QObject, public Helpz::Network::Protocol
 {
@@ -239,17 +209,6 @@ public:
         if (canConnect())
             init_client();
     }
-
-    //static void packValue(Prt::ValuesPack *pack, uint item_id, const DeviceItem::ValueType &raw,
-    //                                  const DeviceItem::ValueType &val, uint time, uint db_id)
-    //{
-    //    auto p_item = pack->add_item();
-    //    p_item->set_id(item_id);
-    //    p_item->mutable_raw_value()->CopyFrom(raw);
-    //    p_item->mutable_value()->CopyFrom(val);
-    //    p_item->set_time(time);
-    //    p_item->set_dbid(db_id);
-    //}
     const QUuid& device() const { return m_device; }
     const QString& username() const { return m_login; }
 
@@ -307,15 +266,6 @@ public slots:
 
         return {};
     }
-
-    //void setId(int id) { m_id = id; }
-
-    //void sendLostValues(const QVector<Log_Value_Item> &valuesPack) {
-    //    send(cmdGetLostValues) << valuesPack;
-    //}
-    //void sendNotFoundIds(const QVector<quint32> &ids) {
-    //    send(cmdIdsNotFound) << ids;
-    //}
 
     QVector<QPair<QUuid, QString>> getUserDevices()
     {
@@ -381,44 +331,9 @@ protected:
                 wait_it->second->finish();
             break;
         }
-        case cmdGetServerInfo:
-        {
-            break;
-
-            //        QByteArray dateData;
-            //        {
-            //            QDataStream ds(&dateData, QIODevice::WriteOnly);
-            //            ds << QDateTime::currentDateTime();
-            //        }
-
-            //        info->set_datedata(dateData.constData(), dateData.size());
-            //        sendMessage(this, cmdServerInfo, info.get());
-
-            //        auto&& helper = send(cmdServerInfo);
-            //        auto dt = QDateTime::currentDateTime();
-            //        helper << dt << dt.timeZone();
-            //        emit getServerInfo(&helper.dataStream());
-            //        break;
-        }
-            //    case cmdGetLostValues:
-            //        apply_parse(msg, &Client::lostValues);
-            //        break;
-
-        case cmdSetCode:
-            send(cmd) << apply_parse(data_dev, &Client::setCode);
-            break;
-
-        case cmdGetCode:
-            send(cmd) << Helpz::apply_parse(data_dev, static_cast<<QDataStream::Version>(DATASTREAM_VERSION), &CodeManager::type, &prj->CodeMng);
-            break;
-
         }
     }
 private:
-    void sendLogData(uint8_t log_type, const QPair<quint32, quint32>& range)
-    {
-    }
-
     bool m_import_config;
 
     Helpz::Network::WaiterMap wait_map;

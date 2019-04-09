@@ -195,10 +195,10 @@ void Modbus_Plugin_Base::write_item_pack(Device* dev, QModbusDataUnit::RegisterT
         unit_id = unit(item->dev_item_);
         if (unit_id >= 0)
         {
-            if (item->raw_value_.type() == QVariant::Bool)
-                write_data = item->raw_value_.toBool() ? 1 : 0;
+            if (item->raw_data_.type() == QVariant::Bool)
+                write_data = item->raw_data_.toBool() ? 1 : 0;
             else
-                write_data = item->raw_value_.toUInt();
+                write_data = item->raw_data_.toUInt();
 
             it = item_units.find(unit_id);
             if (it != item_units.end())

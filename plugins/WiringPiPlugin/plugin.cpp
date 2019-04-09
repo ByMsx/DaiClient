@@ -62,7 +62,6 @@ bool WiringPiPlugin::check(Device* dev)
             {
                 QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, state));
             }
-
         }
     }
 
@@ -79,7 +78,7 @@ void WiringPiPlugin::write(std::vector<Write_Cache_Item>& items)
         pin = item.dev_item_->param("pin");
         if (pin.isValid())
         {
-            digitalWrite(pin.toUInt(), item.raw_value_.toBool() ? HIGH : LOW);
+            digitalWrite(pin.toUInt(), item.raw_data_.toBool() ? HIGH : LOW);
         }
     }
 }

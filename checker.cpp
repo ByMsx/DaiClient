@@ -224,9 +224,9 @@ void Checker::write_data(DeviceItem *item, const QVariant &raw_data, uint32_t us
     {
         cache.push_back({user_id, item, raw_data});
     }
-    else if (it->raw_value_ != raw_data)
+    else if (it->raw_data_ != raw_data)
     {
-        it->raw_value_ = raw_data;
+        it->raw_data_ = raw_data;
     }
 
     if (!b_break)
@@ -258,7 +258,7 @@ void Checker::write_items(Plugin_Type* plugin, std::vector<Write_Cache_Item>& it
     {
         for (const Write_Cache_Item& item: items)
         {
-            QMetaObject::invokeMethod(item.dev_item_, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, item.raw_value_), Q_ARG(bool, false), Q_ARG(uint32_t, item.user_id_));
+            QMetaObject::invokeMethod(item.dev_item_, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, item.raw_data_), Q_ARG(bool, false), Q_ARG(uint32_t, item.user_id_));
         }
     }
 }
