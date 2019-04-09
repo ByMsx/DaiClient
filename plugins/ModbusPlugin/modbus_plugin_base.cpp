@@ -97,7 +97,7 @@ void Modbus_Plugin_Base::configure(QSettings *settings, Project *)
     if (config_.name.isEmpty())
         config_.name = Config::getUSBSerial();
 
-    qCDebug(ModbusLog) << "Used as serial port:" << config_.name;
+    qCDebug(ModbusLog).noquote() << "Used as serial port:" << config_.name << "available:" << config_.available_ports().join(", ");
 
     connect(this, &QModbusClient::errorOccurred, [this](Error e)
     {

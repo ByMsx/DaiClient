@@ -16,6 +16,7 @@ Log_Sender::Log_Sender(Protocol* protocol) :
     moveToThread(protocol->thread());
     timer_.moveToThread(protocol->thread());
 
+    connect(protocol->thread(), &QThread::finished, &timer_, &QTimer::stop, Qt::DirectConnection);
     connect(&timer_, &QTimer::timeout, this, &Log_Sender::send_log_packs);
     timer_.setSingleShot(true);
 

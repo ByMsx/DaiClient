@@ -55,7 +55,7 @@ void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t
         return;
     }
 
-    Helpz::Network::Protocol_Sender helper = std::move(protocol_->send_answer(Cmd::GET_PROJECT, msg_id));
+    Helpz::Network::Protocol_Sender helper = protocol_->send_answer(Cmd::GET_PROJECT, msg_id);
     helper << struct_type;
 
     std::unique_ptr<QDataStream> ds;

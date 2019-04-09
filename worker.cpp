@@ -74,8 +74,8 @@ Worker::~Worker()
     log_timer_.stop();
     item_values_timer.stop();
 
-    net_thread_.reset();
     net_protocol_thread_.quit(); net_protocol_thread_.wait();
+    net_thread_.reset();
     stop_thread(&checker_th);
     stop_thread(&prj);
 
@@ -280,12 +280,12 @@ void Worker::restart_service_object(uint32_t user_id)
 
 void Worker::logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QString &str)
 {
-    if (qstrcmp(ctx->category, Helpz::Network::DetailLog().categoryName()) == 0 ||
-            qstrncmp(ctx->category, "net", 3) == 0)
+    if (ctx.category().startsWith("net"))
     {
         return;
     }
-    Log_Event_Item event{0, 0, 0, type, ctx->category, str};
+
+    Log_Event_Item event{0, 0, 0, type, ctx.category(), str};
 
     static QRegularExpression re("^(\\d+)\\|");
     QRegularExpressionMatch match = re.match(str);

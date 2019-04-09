@@ -1,16 +1,14 @@
 #include <QModbusRtuSerialMaster>
 #include <QSerialPortInfo>
 #include <QVariant>
-#include <QLoggingCategory>
 
 #include "config.h"
-
-Q_LOGGING_CATEGORY(ModbusLog, "modbus")
 
 namespace Dai {
 namespace Modbus {
 
-Config::Config(const QString& portName, QSerialPort::BaudRate speed, QSerialPort::DataBits bits_num, QSerialPort::Parity parity, QSerialPort::StopBits stopBits, QSerialPort::FlowControl flowControl, int modbusTimeout, int modbusNumberOfRetries, int frameDelayMicroseconds) :
+Config::Config(const QString& portName, QSerialPort::BaudRate speed, QSerialPort::DataBits bits_num, QSerialPort::Parity parity,
+               QSerialPort::StopBits stopBits, QSerialPort::FlowControl flowControl, int modbusTimeout, int modbusNumberOfRetries, int frameDelayMicroseconds) :
     name(portName),
     baudRate(speed),
     dataBits(bits_num),
@@ -22,13 +20,6 @@ Config::Config(const QString& portName, QSerialPort::BaudRate speed, QSerialPort
     modbusNumberOfRetries(modbusNumberOfRetries),
     frameDelayMicroseconds(frameDelayMicroseconds)
 {
-    if (ModbusLog().isDebugEnabled())
-    {
-        auto dbg = QMessageLogger(QT_MESSAGELOG_FILE, QT_MESSAGELOG_LINE, QT_MESSAGELOG_FUNC, ModbusLog().categoryName()).debug()
-                << "Available port list:";
-        for (auto&& port: QSerialPortInfo::availablePorts())
-            dbg << port.portName();
-    }
 }
 
 QStringList Config::available_ports()
