@@ -211,7 +211,7 @@ void ScriptedProject::registerTypes()
     addTypeN<InfoRegisterHelper, ItemGroup*, uint, uint>();
 
     addTypeN<Section, uint32_t, QString, uint32_t, uint32_t>();
-    addTypeN<ItemGroup, uint32_t, uint32_t, uint32_t, uint32_t>();
+    addTypeN<ItemGroup, uint32_t, QString, uint32_t, uint32_t, uint32_t>();
 
     qRegisterMetaType<Sections>("Sections");
     qScriptRegisterSequenceMetaType<Sections>(m_script_engine);
