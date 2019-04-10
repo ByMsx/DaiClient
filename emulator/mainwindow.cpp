@@ -108,12 +108,16 @@ void Main_Window::fill_data() noexcept
 {
     auto box = static_cast<QGridLayout*>(ui_->content->layout());
     int dev_address;
+    QVariant address_var;
 
     for (GH::Device* dev: dai_project_.devices())
     {
-        if (dev->items().size() > 0 && dev->items().first()->type_id() != GH::Prt::itProcessor)
+        if (dev->items().size() > 0)
         {
-            dev_address = dev->param("address").toInt();
+            address_var = dev->param("address");
+            if (!address_var.isValid() || address_var.isNull())
+                continue;
+            dev_address = address_var.toInt();
             Modbus_Device_Item modbus_device_item;
             modbus_device_item = create_socat();
             modbus_device_item.modbus_device_ = new QModbusRtuSerialSlave(this);

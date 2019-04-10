@@ -35,7 +35,7 @@ void PIDHelper::calculatePID(uint current_time)
 {
     Q_UNUSED(current_time)
 
-    auto sensor = group()->value(Prt::itTemperature);
+    auto sensor = group()->value(m_sensor_type);
     if (sensor->status() != ItemGroup::valUnknown)
     {
         double temperature = sensor->value();

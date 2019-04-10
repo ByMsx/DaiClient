@@ -198,8 +198,28 @@ void Checker::checkDevices()
         if (dev->items().size() == 0) continue;
 
         if (dev->checker_type()->loader && dev->checker_type()->checker)
+        {
             if (!dev->checker_type()->checker->check(dev))
                 qCDebug(CheckerLog) << "Fail check" << dev->checker_type()->name();
+        }
+        else
+        {
+            bool is_virtual = dev->checker_id() == 0;
+            QVariant value;
+
+            for (DeviceItem* dev_item: dev->items())
+            {
+                if (is_virtual)
+                {
+                    if (dev_item->isConnected())
+                        continue;
+                    else
+                        value = 0; // Init virtual item
+                } // else disconnect
+
+                QMetaObject::invokeMethod(dev_item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, value));
+            }
+        }
     }
 
     if (b_break)
