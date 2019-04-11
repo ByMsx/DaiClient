@@ -1,3 +1,4 @@
+    }
 #include <functional>
 
 #include <QDateTime>
@@ -20,12 +21,15 @@ Log_Value_Save_Timer::Log_Value_Save_Timer(Project* project, Helpz::Database::Th
 {
     for (const Save_Timer &save_timer : project->save_timers_)
     {
-        qDebug() << "!!! Start timer" <<  save_timer.interval();
-        QTimer *timer = new QTimer;
-        timer->setTimerType(Qt::VeryCoarseTimer);
-        connect(timer, &QTimer::timeout, this, &Log_Value_Save_Timer::process_items);
-        timer->start(save_timer.interval());
-        timers_list_.emplace_back(timer);
+        if (save_timer.interval() > 0)
+        {
+            qDebug() << "!!! Start timer" <<  save_timer.interval();
+            QTimer *timer = new QTimer;
+            timer->setTimerType(Qt::VeryCoarseTimer);
+            connect(timer, &QTimer::timeout, this, &Log_Value_Save_Timer::process_items);
+            timer->start(save_timer.interval());
+            timers_list_.emplace_back(timer);
+        }
     }
 }
 
