@@ -16,6 +16,7 @@ class Log_Value_Save_Timer : public QObject
     Q_OBJECT
 public:
     Log_Value_Save_Timer();
+    Log_Value_Save_Timer(Project* project, Helpz::Database::Thread* db_thread);
 
     void start(int period, Project* project, Helpz::Database::Thread* db_thread);
     void stop();
@@ -31,6 +32,7 @@ private:
 
     int period_;
     QTimer timer_;
+    std::vector<QTimer*> timers_list_;
     std::map<quint32, QVariant> cached_values_;
 };
 
