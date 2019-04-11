@@ -71,7 +71,9 @@ Worker::~Worker()
     stop_thread(&webSock_th);
     stop_thread(&django_th);
 
-    log_timer_.stop();
+    //log_timer_.stop();
+    //log_timer_thread_->ptr()->stop(); //вызвать в деструкторе
+    stop_thread(&log_timer_thread_);
     item_values_timer.stop();
 
     net_protocol_thread_.quit(); net_protocol_thread_.wait();
@@ -237,8 +239,12 @@ void Worker::init_LogTimer(int period)
     item_values_timer.setInterval(5000);
     item_values_timer.setSingleShot(true);
 
-    connect(&log_timer_, &Log_Value_Save_Timer::change, this, &Worker::change, Qt::QueuedConnection);
-    log_timer_.start(period, prj->ptr(), db_pending());
+    //connect(&log_timer_, &Log_Value_Save_Timer::change, this, &Worker::change, Qt::QueuedConnection);
+    //log_timer_.start(period, prj->ptr(), db_pending());
+
+    log_timer_thread_ = new Log_Value_Save_Timer_Thread(prj->ptr(), db_pending());
+    log_timer_thread_->start();
+    connect(log_timer_thread_->ptr(), &Log_Value_Save_Timer::change, this, &Worker::change, Qt::QueuedConnection);
 }
 
 void Worker::initDjango(QSettings *s)

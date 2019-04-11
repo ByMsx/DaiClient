@@ -7,36 +7,47 @@
 #include <plus/dai/database.h>
 
 #include "log_value_save_timer.h"
+#include "id_timer.h"
 
 namespace Dai {
 
-Log_Value_Save_Timer::Log_Value_Save_Timer()
+Log_Value_Save_Timer::Log_Value_Save_Timer(Project* project, Helpz::Database::Thread* db_thread) : prj_(project), db_thread_(db_thread)
 {
-    connect(&timer_, &QTimer::timeout, this, &Log_Value_Save_Timer::process_items);
-    timer_.setTimerType(Qt::VeryCoarseTimer);
+    for (const Save_Timer &save_timer : project->save_timers_)
+    {
+        if (save_timer.interval() > 0)
+        {
+            ID_Timer *timer = new ID_Timer(save_timer.id());
+            timer->setTimerType(Qt::VeryCoarseTimer);
+            connect(timer, &ID_Timer::timeout, this, &Log_Value_Save_Timer::process_items);
+            timer->start(save_timer.interval());
+            timers_list_.emplace_back(timer);
+        }
+    }
 }
 
-void Log_Value_Save_Timer::start(int period, Project* project, Helpz::Database::Thread* db_thread)
+Log_Value_Save_Timer::~Log_Value_Save_Timer()
 {
-    prj_ = project;
-    db_thread_ = db_thread;
-
-    const QDateTime cur_time = QDateTime::currentDateTime();
-    const uint32_t need2add = period - (cur_time.toTime_t() % period);
-    uint32_t interval = cur_time.secsTo(cur_time.addSecs(need2add));
-
-    timer_.start(interval * 1000);
+    stop();
 }
 
 void Log_Value_Save_Timer::stop()
 {
-    timer_.stop();
+    //timer_.stop();
+    for (QTimer *timer : timers_list_)
+    {
+        timer->stop();
+        delete timer;
+        qDebug() << "!!! delete timer";
+    }
+    timers_list_.clear();
 }
 
-void Log_Value_Save_Timer::process_items()
+void Log_Value_Save_Timer::process_items(int timer_id)
 {
-    if (timer_.interval() != (period_ * 1000))
-        timer_.setInterval(period_ * 1000);
+    //qDebug() << "!!! process_items" << timer_id;
+//    if (timer_.interval() != (period_ * 1000))
+//        timer_.setInterval(period_ * 1000);
 
     Log_Value_Item pack_item;
     {
@@ -55,7 +66,7 @@ void Log_Value_Save_Timer::process_items()
     {
         for (DeviceItem* dev_item: dev->items())
         {
-            if (typeMng->save_algorithm(dev_item->type_id()) != Item_Type::saSaveByTimer)
+            if (typeMng->save_timer_id(dev_item->type_id()) != timer_id)
                 continue;
 
             val_it = cached_values_.find(dev_item->id());
@@ -77,6 +88,7 @@ void Log_Value_Save_Timer::process_items()
 
     if (pack.size())
         db_thread_->add_query(std::bind(&Log_Value_Save_Timer::save, this, std::placeholders::_1, std::move(pack)));
+
 }
 
 void Log_Value_Save_Timer::save(Helpz::Database::Base* db, QVector<Log_Value_Item> pack)
