@@ -119,7 +119,6 @@ private:
     WebSocketThread::Type* webSock_th = nullptr;
     friend class Websocket_Item;
 
-    //Log_Value_Save_Timer log_timer_;
     using Log_Value_Save_Timer_Thread = Helpz::ParamThread<Log_Value_Save_Timer, Project*, Helpz::Database::Thread*>;
     Log_Value_Save_Timer_Thread* log_timer_thread_ = nullptr;
 
