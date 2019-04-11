@@ -34,7 +34,8 @@ SOURCES += main.cpp \
     structure_synchronizer.cpp \
     Database/db_log_helper.cpp \
     websocket_item.cpp \
-    log_value_save_timer.cpp
+    log_value_save_timer.cpp \
+    id_timer.cpp
 
 HEADERS  += \
     worker.h \
@@ -56,7 +57,8 @@ HEADERS  += \
     structure_synchronizer.h \
     Database/db_log_helper.h \
     websocket_item.h \
-    log_value_save_timer.h
+    log_value_save_timer.h \
+    id_timer.h
 
 #Target version
 VER_MAJ = 1
