@@ -10,27 +10,27 @@
 namespace Dai {
 
 class Project;
+class ID_Timer;
 
 class Log_Value_Save_Timer : public QObject
 {
     Q_OBJECT
 public:
-    Log_Value_Save_Timer();
+    Log_Value_Save_Timer(Project* project, Helpz::Database::Thread* db_thread);
+    ~Log_Value_Save_Timer();
 
-    void start(int period, Project* project, Helpz::Database::Thread* db_thread);
-    void stop();
 
 signals:
     void change(const Log_Value_Item& item, bool immediately);
 private:
-    void process_items();
+    void stop();
+    void process_items(int timer_id);
     void save(Helpz::Database::Base* db, QVector<Log_Value_Item> pack);
 
     Project* prj_;
     Helpz::Database::Thread* db_thread_;
 
-    int period_;
-    QTimer timer_;
+    std::vector<ID_Timer*> timers_list_;
     std::map<quint32, QVariant> cached_values_;
 };
 
