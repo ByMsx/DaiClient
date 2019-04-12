@@ -33,24 +33,25 @@ class ScriptedProject final : public Project
     Q_OBJECT
     Q_PROPERTY(qint64 uptime READ uptime)
 public:
-    enum ScriptFunction {
-        fZero = 0,
-        fOtherScripts,
-        fInitSection,
-        fAfterAllInitialization,
-        fModeChanged,
-        fItemChanged,
-        fSensorChanged,
-        fControlChanged,
-        fDayPartChanged,
-        fControlChangeCheck,
-        fNormalize,
-        fAfterDatabaseInit,
-        fCheckValue,
-        fGroupStatus,
-        fAutomation
+    enum Handler_Type {
+        FUNC_UNKNOWN = 0,
+        FUNC_OTHER_SCRIPTS,
+        FUNC_INIT_SECTION,
+        FUNC_AFTER_ALL_INITIALIZATION,
+        FUNC_CHANGED_MODE,
+        FUNC_CHANGED_ITEM,
+        FUNC_CHANGED_SENSOR,
+        FUNC_CHANGED_CONTROL,
+        FUNC_CHANGED_DAY_PART,
+        FUNC_CONTROL_CHANGE_CHECK,
+        FUNC_NORMALIZE,
+        FUNC_AFTER_DATABASE_INIT,
+        FUNC_CHECK_VALUE,
+        FUNC_GROUP_STATUS,
+
+        FUNC_COUNT
     };
-    Q_ENUM(ScriptFunction)
+    Q_ENUM(Handler_Type)
 
     ScriptedProject(Worker* worker, Helpz::ConsoleReader* consoleReader, const QString &sshHost, bool allow_shell);
     ~ScriptedProject();
@@ -77,7 +78,7 @@ signals:
 
     void dayTimeChanged(/*Section* sct*/);
 public slots:
-    void log(const QString& msg, uint type);
+    void log(const QString& msg, uint type, uint32_t user_id = 0);
     void console(uint32_t user_id, const QString& cmd);
     void reinitialization(const Helpz::Database::Connection_Info &db_info);
     void afterAllInitialization();
@@ -96,7 +97,12 @@ private slots:
     void itemChanged(DeviceItem* item, uint32_t user_id);
     void handlerException(const QScriptValue &exception);
 private:
-    void run_automation(ItemGroup *group, const QScriptValue &groupObj, const QScriptValue& itemObj, uint32_t user_id = 0);
+    QString handler_full_name(int handler_type) const;
+    QPair<QString, QString> handler_name(int handler_type) const;
+    QScriptValue get_api_obj() const;
+    QScriptValue get_handler(int handler_type) const;
+    QScriptValue get_handler(const QString& name, const QString& parent_name) const;
+    void check_error(int handler_type, const QScriptValue &result) const;
     void check_error(const QString &str, const QScriptValue &result) const;
     void check_error(const QString &name, const QString &code) const;
 
@@ -122,17 +128,15 @@ private:
     void registerTypes();
     void scriptsInitialization();
 //    void evaluateFile(const QString &fileName);
-    QScriptValue callFunction(uint func_idx, const QScriptValueList& args = QScriptValueList()) const;
+    QScriptValue callFunction(int handler_type, const QScriptValueList& args = QScriptValueList()) const;
 
     QScriptEngine *m_script_engine;
-
-    std::vector<QScriptValue> m_func;
-
-    std::map<uint, uint> m_automation;
 
     DayTimeHelper m_dayTime;
 
     qint64 m_uptime;
+
+    mutable std::map<uint32_t, QScriptValue> cache_handler_;
 
     bool allow_shell_;
     QString ssh_host;

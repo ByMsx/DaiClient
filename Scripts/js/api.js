@@ -15,7 +15,25 @@ var api = {
     type: {
         item: {}, group: {}, mode: {}, param: {}
     },
-    checker: []
+    checker: [],
+
+    handlers: {
+        changed: {
+            mode: undefined,
+            item: undefined,
+            sensor: undefined,
+            control: undefined,
+            day_part: undefined,
+        },
+        database: { initialized: undefined },
+        section: { initialized: undefined },
+        group: { initialized: {}, changed: {} }, // fill group names
+        control_change_check: undefined,
+        normalize: undefined,
+        check_value: undefined,
+        group_status: undefined,
+        initialized: undefined,
+    },
 }
 
 var modbus = {
@@ -42,12 +60,12 @@ var modbus = {
 }
 
 var console = {
-    'log': function(text) { api.mng.log(text, 0) },
-    'info': function(text) { api.mng.log(text, 4) },
-    'warn': function(text) { api.mng.log(text, 1) },
-    'critical': function(text) { api.mng.log(text, 2) },
-    'error': function(text) { api.mng.log(text, 2) },
-    'err': function(text) { api.mng.log(text, 2) },
+    'log': function(text, user_id) { api.mng.log(text, 0, user_id ? user_id : 0) },
+    'info': function(text, user_id) { api.mng.log(text, 4, user_id ? user_id : 0) },
+    'warn': function(text, user_id) { api.mng.log(text, 1, user_id ? user_id : 0) },
+    'critical': function(text, user_id) { api.mng.log(text, 2, user_id ? user_id : 0) },
+    'error': function(text, user_id) { api.mng.log(text, 2, user_id ? user_id : 0) },
+    'err': function(text, user_id) { api.mng.log(text, 2, user_id ? user_id : 0) },
 }
 
 console.warning = console.warn;
