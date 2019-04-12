@@ -34,15 +34,19 @@ Checker::Checker(Worker *worker, int interval, const QStringList &plugins, QObje
 //            SLOT(read2(int,uchar,int,quint16)), Qt::BlockingQueuedConnection);
 //    connect(prj, SIGNAL(modbusWrite(int,uchar,int,quint16)), SLOT(write(int,uchar,int,quint16)), Qt::QueuedConnection);
 
-    connect(&check_timer, &QTimer::timeout, this, &Checker::checkDevices);
-    check_timer.setInterval(interval);
-    check_timer.setSingleShot(true);
+    connect(&check_timer_, &QTimer::timeout, this, &Checker::checkDevices);
+    //check_timer_.setInterval(interval);
+    check_timer_.setSingleShot(true);
 
     connect(&write_timer, &QTimer::timeout, this, &Checker::writeCache);
     write_timer.setInterval(MINIMAL_WRITE_INTERVAL);
     write_timer.setSingleShot(true);
     // --------------------------------------------------------------------------------
 
+    for (Device* dev: prj->devices())
+    {
+        last_check_time_map_[dev->id()] = 0;
+    }
     checkDevices(); // Первый опрос контроллеров
     QMetaObject::invokeMethod(prj, "afterAllInitialization", Qt::QueuedConnection);
 }
@@ -175,8 +179,8 @@ void Checker::stop()
 {
     qCDebug(CheckerLog) << "Check stoped";
 
-    if (check_timer.isActive())
-        check_timer.stop();
+    if (check_timer_.isActive())
+        check_timer_.stop();
 
     breakChecking();
 }
@@ -189,10 +193,21 @@ void Checker::start()
 
 void Checker::checkDevices()
 {
-    b_break = false;
+    b_break = false;   
 
+    qint64 next_shot, min_shot = std::numeric_limits<qint64>::max(), now_ms;
     for (Device* dev: prj->devices())
     {
+        now_ms = QDateTime::currentMSecsSinceEpoch();
+        next_shot = last_check_time_map_[dev->id()] + dev->check_interval();
+        if (next_shot <= now_ms)
+        {
+            last_check_time_map_[dev->id()] = now_ms;
+            next_shot = now_ms + dev->check_interval();
+        }
+
+        min_shot = std::min(min_shot, next_shot);
+
         if (b_break) break;
 
         if (dev->items().size() == 0) continue;
@@ -220,13 +235,19 @@ void Checker::checkDevices()
                 QMetaObject::invokeMethod(dev_item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, value));
             }
         }
-    }
+    }       
 
     if (b_break)
         return;
 
-    if (check_timer.interval() >= MINIMAL_WRITE_INTERVAL)
-        check_timer.start();
+    now_ms = QDateTime::currentMSecsSinceEpoch();
+    min_shot -= now_ms;
+    if (min_shot < MINIMAL_WRITE_INTERVAL)
+    {
+        min_shot = MINIMAL_WRITE_INTERVAL;
+    }
+    check_timer_.setInterval(min_shot);
+    check_timer_.start();
 
     if (write_cache_.size() && !write_timer.isActive())
         writeCache();
@@ -255,9 +276,6 @@ void Checker::write_data(DeviceItem *item, const QVariant &raw_data, uint32_t us
 
 void Checker::writeCache()
 {
-    if (!check_timer.isActive() && check_timer.interval() >= MINIMAL_WRITE_INTERVAL)
-        return;
-
     std::map<Plugin_Type*, std::vector<Write_Cache_Item>> cache(std::move(write_cache_));
     write_cache_.clear();
 
