@@ -195,46 +195,50 @@ void Checker::checkDevices()
 {
     b_break = false;   
 
-    qint64 next_shot, min_shot = std::numeric_limits<qint64>::max(), now_ms;
+    qint64 next_shot, min_shot = QDateTime::currentMSecsSinceEpoch() + 60000, now_ms;
     for (Device* dev: prj->devices())
     {
+        if (dev->check_interval() <= 0)
+        {
+            continue;
+        }
+
         now_ms = QDateTime::currentMSecsSinceEpoch();
         next_shot = last_check_time_map_[dev->id()] + dev->check_interval();
         if (next_shot <= now_ms)
         {
             last_check_time_map_[dev->id()] = now_ms;
             next_shot = now_ms + dev->check_interval();
-        }
 
-        min_shot = std::min(min_shot, next_shot);
+            if (b_break) break;
 
-        if (b_break) break;
+            if (dev->items().size() == 0) continue;
 
-        if (dev->items().size() == 0) continue;
-
-        if (dev->checker_type()->loader && dev->checker_type()->checker)
-        {
-            if (!dev->checker_type()->checker->check(dev))
-                qCDebug(CheckerLog) << "Fail check" << dev->checker_type()->name();
-        }
-        else
-        {
-            bool is_virtual = dev->checker_id() == 0;
-            QVariant value;
-
-            for (DeviceItem* dev_item: dev->items())
+            if (dev->checker_type()->loader && dev->checker_type()->checker)
             {
-                if (is_virtual)
-                {
-                    if (dev_item->isConnected())
-                        continue;
-                    else
-                        value = 0; // Init virtual item
-                } // else disconnect
+                if (!dev->checker_type()->checker->check(dev))
+                    qCDebug(CheckerLog) << "Fail check" << dev->checker_type()->name();
+            }
+            else
+            {
+                bool is_virtual = dev->checker_id() == 0;
+                QVariant value;
 
-                QMetaObject::invokeMethod(dev_item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, value));
+                for (DeviceItem* dev_item: dev->items())
+                {
+                    if (is_virtual)
+                    {
+                        if (dev_item->isConnected())
+                            continue;
+                        else
+                            value = 0; // Init virtual item
+                    } // else disconnect
+
+                    QMetaObject::invokeMethod(dev_item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, value));
+                }
             }
         }
+        min_shot = std::min(min_shot, next_shot);
     }       
 
     if (b_break)
@@ -288,9 +292,15 @@ void Checker::writeCache()
 
 void Checker::write_items(Plugin_Type* plugin, std::vector<Write_Cache_Item>& items)
 {
-    if (plugin && plugin->id() && plugin->checker)
+    if (items.size() == 0)
     {
+        return;
+    }
+
+    if (plugin && plugin->id() && plugin->checker)
+    {        
         plugin->checker->write(items);
+        last_check_time_map_[items.begin()->dev_item_->device_id()] = 0;
     }
     else
     {
