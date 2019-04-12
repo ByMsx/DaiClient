@@ -14,7 +14,7 @@ public:
 
     void stop();
 signals:
-    void onDayPartChanged(Section*, bool);
+    void onDayPartChanged(Section*, bool is_day);
 public slots:
     void init();
 
