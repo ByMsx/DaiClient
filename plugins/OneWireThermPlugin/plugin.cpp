@@ -62,32 +62,30 @@ bool OneWireThermPlugin::check(Device* dev)
 
     for (DeviceItem * item: items)
     {
-        unit = item->param("unit").toInt();
-        if (unit < 1)
-        {
-            continue;
-        }
         value.clear();
-
-        if (!check_and_open_file(unit))
+        unit = item->param("unit").toInt();
+        if (unit >= 1)
         {
-            if (item->isConnected())
-                qCWarning(OneWireThermLog) << "Read failed" << "unit: " << unit << file_.fileName() << file_.errorString();
-        }
-        else
-        {
-            data_lines = file_.readAll().split('\n');
-            if (data_lines.size() >= 2 && data_lines.at(0).right(3).toUpper() == "YES")
+            if (!check_and_open_file(unit))
             {
-                idx = data_lines.at(1).indexOf("t=");
-                if (idx != -1)
-                {
-                    t = data_lines.at(1).mid(idx + 2).toInt(&ok) / 1000.;
-                    if (ok)
-                        value = t;
-                }
+                if (item->isConnected())
+                    qCWarning(OneWireThermLog) << "Read failed unit: " << unit << file_.fileName() << file_.errorString();
             }
-            file_.close();
+            else
+            {
+                data_lines = file_.readAll().split('\n');
+                if (data_lines.size() >= 2 && data_lines.at(0).right(3).toUpper() == "YES")
+                {
+                    idx = data_lines.at(1).indexOf("t=");
+                    if (idx != -1)
+                    {
+                        t = data_lines.at(1).mid(idx + 2).toInt(&ok) / 1000.;
+                        if (ok)
+                            value = t;
+                    }
+                }
+                file_.close();
+            }
         }
 
         if (item->raw_value() != value)

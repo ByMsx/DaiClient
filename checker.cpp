@@ -17,9 +17,9 @@ Q_LOGGING_CATEGORY(CheckerLog, "checker")
 
 #define MINIMAL_WRITE_INTERVAL    50
 
-Checker::Checker(Worker *worker, int interval, const QStringList &plugins, QObject *parent) :
+Checker::Checker(Worker *worker, const QStringList &plugins, QObject *parent) :
     QObject(parent),
-    b_break(false)
+    b_break(false), first_check_(true)
 {
     prj = worker->prj->ptr();
 
@@ -45,9 +45,11 @@ Checker::Checker(Worker *worker, int interval, const QStringList &plugins, QObje
 
     for (Device* dev: prj->devices())
     {
-        last_check_time_map_[dev->id()] = 0;
+        last_check_time_map_.insert(dev->id(), { true, 0 });
     }
     checkDevices(); // Первый опрос контроллеров
+    first_check_ = false;
+
     QMetaObject::invokeMethod(prj, "afterAllInitialization", Qt::QueuedConnection);
 }
 
@@ -203,11 +205,12 @@ void Checker::checkDevices()
             continue;
         }
 
+        Check_Info& check_info = last_check_time_map_[dev->id()];
         now_ms = QDateTime::currentMSecsSinceEpoch();
-        next_shot = last_check_time_map_[dev->id()] + dev->check_interval();
+        next_shot = check_info.time_ + dev->check_interval();
         if (next_shot <= now_ms)
         {
-            last_check_time_map_[dev->id()] = now_ms;
+            check_info.time_ = now_ms;
             next_shot = now_ms + dev->check_interval();
 
             if (b_break) break;
@@ -216,8 +219,18 @@ void Checker::checkDevices()
 
             if (dev->checker_type()->loader && dev->checker_type()->checker)
             {
-                if (!dev->checker_type()->checker->check(dev))
+                if (dev->checker_type()->checker->check(dev))
+                {
+                    if (!check_info.status_)
+                    {
+                        check_info.status_ = true;
+                    }
+                }
+                else if (check_info.status_)
+                {
+                    check_info.status_ = false;
                     qCDebug(CheckerLog) << "Fail check" << dev->checker_type()->name();
+                }
             }
             else
             {
@@ -230,7 +243,7 @@ void Checker::checkDevices()
                     {
                         if (dev_item->isConnected())
                             continue;
-                        else
+                        else if (first_check_)
                             value = 0; // Init virtual item
                     } // else disconnect
 
@@ -300,7 +313,7 @@ void Checker::write_items(Plugin_Type* plugin, std::vector<Write_Cache_Item>& it
     if (plugin && plugin->id() && plugin->checker)
     {        
         plugin->checker->write(items);
-        last_check_time_map_[items.begin()->dev_item_->device_id()] = 0;
+        last_check_time_map_[items.begin()->dev_item_->device_id()].time_ = 0;
     }
     else
     {

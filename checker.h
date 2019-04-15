@@ -24,7 +24,7 @@ class Checker : public QObject
 {
     Q_OBJECT
 public:
-    explicit Checker(Worker* worker, int interval = 1500, const QStringList& plugins = {}, QObject *parent = 0);
+    explicit Checker(Worker* worker, const QStringList& plugins = {}, QObject *parent = 0);
     ~Checker();
     void loadPlugins(const QStringList& allowed_plugins, Worker* worker);
 
@@ -45,11 +45,16 @@ private:
     Project* prj;
     std::map<Plugin_Type*, std::vector<Write_Cache_Item>> write_cache_;
 
-    bool b_break;
+    bool b_break, first_check_;
 
     std::shared_ptr<Plugin_Type_Manager> plugin_type_mng_;
 
-    QMap<uint32_t, qint64> last_check_time_map_;
+    struct Check_Info
+    {
+        bool status_;
+        qint64 time_;
+    };
+    QMap<uint32_t, Check_Info> last_check_time_map_;
 };
 
 } // namespace Dai
