@@ -38,7 +38,6 @@ void Log_Value_Save_Timer::stop()
     {
         timer->stop();
         delete timer;
-        qDebug() << "!!! delete timer";
     }
     timers_list_.clear();
 }

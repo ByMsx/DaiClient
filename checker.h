@@ -40,7 +40,7 @@ private slots:
 private:
     void write_items(Plugin_Type* plugin, std::vector<Write_Cache_Item>& items);
 
-    QTimer check_timer, write_timer;
+    QTimer check_timer_, write_timer;
 
     Project* prj;
     std::map<Plugin_Type*, std::vector<Write_Cache_Item>> write_cache_;
@@ -48,6 +48,8 @@ private:
     bool b_break;
 
     std::shared_ptr<Plugin_Type_Manager> plugin_type_mng_;
+
+    QMap<uint32_t, qint64> last_check_time_map_;
 };
 
 } // namespace Dai

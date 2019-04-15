@@ -512,7 +512,7 @@ void Worker::setParamValues(uint32_t user_id, const ParamValuesPack &pack)
     for (const ParamValueItem& item: pack)
     {
         db_mng->saveParamValue(item.first, item.second);
-        dbg_msg += "\n " + QString::number(item.first) + ": \"" + item.second + "\"";
+        dbg_msg += "\n " + QString::number(item.first) + ": \"" + item.second.left(16) + "\"";
     }
 
     Log_Event_Item event {0, user_id, QtDebugMsg, 0, Service::Log().categoryName(), dbg_msg};
