@@ -4,7 +4,6 @@
 #include <QLoggingCategory>
 #include <QModbusRtuSerialMaster>
 #include <QSerialPort>
-#include <QEventLoop>
 
 #include <memory>
 
@@ -17,6 +16,8 @@ namespace Dai {
 namespace Modbus {
 
 Q_DECLARE_LOGGING_CATEGORY(ModbusLog)
+
+struct Modbus_Queue;
 
 class MODBUSPLUGINSHARED_EXPORT Modbus_Plugin_Base : public QModbusRtuSerialMaster, public Checker_Interface
 {
@@ -32,6 +33,9 @@ public:
 
     bool checkConnect();
 
+    static int32_t address(Device* dev, bool *ok = nullptr);
+    static int32_t unit(DeviceItem* item, bool *ok = nullptr);
+
     // CheckerInterface interface
 public:
     virtual void configure(QSettings* settings, Project*) override;
@@ -39,25 +43,30 @@ public:
     virtual void stop() override;
     virtual void write(std::vector<Write_Cache_Item>& items) override;
 public slots:
-    QVariantList read(int serverAddress, uchar regType = QModbusDataUnit::InputRegisters,
-                      int startAddress = 0, quint16 unitCount = 1, bool clearCache = true);
-
     QStringList available_ports() const;
-protected:
-    typedef std::map<int, DeviceItem*> DevItems;
-    void proccessRegister(Device* dev, QModbusDataUnit::RegisterType registerType, const DevItems& itemMap);
-    void write_item_pack(Device* dev, QModbusDataUnit::RegisterType reg_type, std::vector<Write_Cache_Item*>& items);
-    void write_multi_item(int server_address, QModbusDataUnit::RegisterType reg_type, int start_address, const QVector<quint16>& values);
 
-    int32_t address(Device* dev, bool *ok = nullptr) const;
-    int32_t unit(DeviceItem* item, bool *ok = nullptr) const;
+    void clear_status_cache();
+private slots:
+    void write_finished_slot();
+    void read_finished_slot();
+protected:
+    void print_cached(int server_address, QModbusDataUnit::RegisterType register_type, Error value, const QString& text);
+    bool reconnect();
+    void read(const QVector<DeviceItem *>& dev_items);
+    void process_queue();
+    QVector<quint16> cache_items_to_values(const std::vector<Write_Cache_Item>& items) const;
+    void write_pack(int server_address, QModbusDataUnit::RegisterType register_type, int start_address, const std::vector<Write_Cache_Item>& items, QModbusReply** reply);
+    void write_finished(QModbusReply* reply);
+    void read_pack(int server_address, QModbusDataUnit::RegisterType register_type, int start_address, const std::vector<DeviceItem*>& items, QModbusReply** reply);
+    void read_finished(QModbusReply* reply);
 
     typedef std::map<std::pair<int, QModbusDataUnit::RegisterType>, QModbusDevice::Error> StatusCacheMap;
     StatusCacheMap dev_status_cache_;
 private:
     Config config_;
 
-    QEventLoop wait_;
+    Modbus_Queue* queue_;
+
     bool b_break;
 };
 

@@ -30,7 +30,7 @@ namespace Dai {
 
 Q_LOGGING_CATEGORY(ScriptLog, "script")
 Q_LOGGING_CATEGORY(ScriptEngineLog, "script.engine")
-Q_LOGGING_CATEGORY(ScriptDetailLog, "script.detail", QtWarningMsg)
+Q_LOGGING_CATEGORY(ScriptDetailLog, "script.detail", QtInfoMsg)
 
 template<class T>
 QScriptValue sharedPtrToScriptValue(QScriptEngine *eng, const T &obj) {

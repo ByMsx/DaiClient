@@ -1,3 +1,8 @@
+#include <queue>
+#include <vector>
+#include <iterator>
+#include <type_traits>
+
 #include <QDebug>
 #include <QSettings>
 #include <QFile>
@@ -20,14 +25,218 @@ namespace Modbus {
 
 Q_LOGGING_CATEGORY(ModbusLog, "modbus")
 
+template <typename T>
+struct Modbus_Pack_Item_Cast {
+    static inline DeviceItem* run(T item) { return item; }
+};
+
+template <>
+struct Modbus_Pack_Item_Cast<Write_Cache_Item> {
+    static inline DeviceItem* run(const Write_Cache_Item& item) { return item.dev_item_; }
+};
+
+template<typename T>
+struct Modbus_Pack
+{
+    Modbus_Pack(Modbus_Pack<T>&& o) = default;
+    Modbus_Pack(const Modbus_Pack<T>& o) = default;
+    Modbus_Pack<T>& operator =(Modbus_Pack<T>&& o) = default;
+    Modbus_Pack<T>& operator =(const Modbus_Pack<T>& o) = default;
+    Modbus_Pack(T&& item) :
+        reply_(nullptr)
+    {
+        init(Modbus_Pack_Item_Cast<T>::run(item), std::is_same<Write_Cache_Item, T>::value);
+        items_.push_back(std::move(item));
+    }
+
+    void init(DeviceItem* dev_item, bool is_write)
+    {
+        bool ok;
+        server_address_ = Modbus_Plugin_Base::address(dev_item->device(), &ok);
+        if (ok && server_address_ > 0)
+        {
+            start_address_ = Modbus_Plugin_Base::unit(dev_item, &ok);
+            if (ok && start_address_ >= 0)
+            {
+                if (dev_item->register_type() > QModbusDataUnit::Invalid && dev_item->register_type() <= QModbusDataUnit::HoldingRegisters &&
+                        (!is_write || (dev_item->register_type() == QModbusDataUnit::Coils || dev_item->register_type() != QModbusDataUnit::HoldingRegisters)))
+                {
+                    register_type_ = static_cast<QModbusDataUnit::RegisterType>(dev_item->register_type());
+                }
+                else
+                    register_type_ = QModbusDataUnit::Invalid;
+            }
+            else
+                start_address_ = -1;
+        }
+        else
+            server_address_ = -1;
+    }
+
+    bool is_valid() const
+    {
+        return server_address_ > 0 && start_address_ >= 0 && register_type_ != QModbusDataUnit::Invalid;
+    }
+
+    bool add_next(T&& item)
+    {
+        DeviceItem* dev_item = Modbus_Pack_Item_Cast<T>::run(item);
+        if (register_type_ == dev_item->register_type() &&
+            server_address_ == Modbus_Plugin_Base::address(dev_item->device()))
+        {
+            int unit = Modbus_Plugin_Base::unit(dev_item);
+            if (unit == (start_address_ + static_cast<int>(items_.size())))
+            {
+                items_.push_back(std::move(item));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool assign(Modbus_Pack<T>& pack)
+    {
+        if (register_type_ == pack.register_type_ &&
+            server_address_ == pack.server_address_ &&
+            (start_address_ + static_cast<int>(items_.size())) == pack.start_address_)
+        {
+            std::copy( std::make_move_iterator(pack.items_.begin()),
+                       std::make_move_iterator(pack.items_.end()),
+                       std::back_inserter(items_) );
+            return true;
+        }
+        return false;
+    }
+
+    bool operator <(DeviceItem* dev_item) const
+    {
+        return register_type_ < dev_item->register_type() ||
+               server_address_ < Modbus_Plugin_Base::address(dev_item->device()) ||
+               (start_address_ + static_cast<int>(items_.size())) < Modbus_Plugin_Base::unit(dev_item);
+    }
+
+    int server_address_;
+    int start_address_;
+    QModbusDataUnit::RegisterType register_type_;
+    QModbusReply* reply_;
+    std::vector<T> items_;
+};
+
+template<typename T, typename Container> struct Input_Container_Item_Type { typedef T& type; };
+template<typename T, typename Container> struct Input_Container_Item_Type<T, const Container> { typedef T type; };
+
+template<typename T>
+class Modbus_Pack_Builder
+{
+public:
+    template<typename Input_Container>
+    Modbus_Pack_Builder(Input_Container& items)
+    {
+        typename std::vector<Modbus_Pack<T>>::iterator it;
+
+        for (typename Input_Container_Item_Type<T, Input_Container>::type item: items)
+        {
+            insert(std::move(item));
+        }
+    }
+
+    std::vector<Modbus_Pack<T>> container_;
+private:
+    void insert(T&& item)
+    {
+        typename std::vector<Modbus_Pack<T>>::iterator it = container_.begin();
+        for (; it != container_.end(); ++it)
+        {
+            if (*it < Modbus_Pack_Item_Cast<T>::run(item))
+            {
+                continue;
+            }
+            else if (it->add_next(std::move(item)))
+            {
+                assign_next(it);
+                return;
+            }
+            else
+            {
+                create(it, std::move(item));
+                return;
+            }
+        }
+
+        if (it == container_.end())
+        {
+            create(it, std::move(item));
+        }
+    }
+
+    void create(typename std::vector<Modbus_Pack<T>>::iterator it, T&& item)
+    {
+        Modbus_Pack pack(std::move(item));
+        if (pack.is_valid())
+        {
+            it = container_.insert(it, std::move(pack));
+            assign_next(it);
+        }
+    }
+
+    void assign_next(typename std::vector<Modbus_Pack<T>>::iterator it)
+    {
+        if (it != container_.end())
+        {
+            typename std::vector<Modbus_Pack<T>>::iterator old_it = it;
+            it++;
+            if (it != container_.end())
+            {
+                if (old_it->assign(*it))
+                {
+                    container_.erase(it);
+                }
+            }
+        }
+    }
+};
+
+// -----------------------------------------------------------------
+
+struct Modbus_Queue
+{
+    std::queue<Modbus_Pack<Write_Cache_Item>> write_;
+    std::queue<Modbus_Pack<DeviceItem*>> read_;
+
+    bool is_active() const
+    {
+        return (write_.size() && write_.front().reply_) ||
+                (read_.size() && read_.front().reply_);
+    }
+
+    void clear()
+    {
+        if (write_.size())
+        {
+            std::queue<Modbus_Pack<Write_Cache_Item>> empty;
+            std::swap( write_, empty );
+        }
+
+        if (read_.size())
+        {
+            std::queue<Modbus_Pack<DeviceItem*>> empty;
+            std::swap( read_, empty );
+        }
+    }
+};
+
+// -----------------------------------------------------------------
+
 Modbus_Plugin_Base::Modbus_Plugin_Base() :
     QModbusRtuSerialMaster(),
     b_break(false)
 {
+    queue_ = new Modbus_Queue;
 }
 
 Modbus_Plugin_Base::~Modbus_Plugin_Base()
 {
+    delete queue_;
 }
 
 bool Modbus_Plugin_Base::check_break_flag() const
@@ -41,7 +250,7 @@ void Modbus_Plugin_Base::clear_break_flag()
         b_break = false;
 }
 
-const Config&Modbus_Plugin_Base::config() const
+const Config& Modbus_Plugin_Base::config() const
 {
     return config_;
 }
@@ -49,8 +258,11 @@ const Config&Modbus_Plugin_Base::config() const
 bool Modbus_Plugin_Base::checkConnect()
 {
     if (state() == ConnectedState || connectDevice())
+    {
         return true;
-    qCCritical(ModbusLog).noquote() << "Connect failed." << this->errorString();
+    }
+
+    print_cached(0, QModbusDataUnit::Invalid, ConnectionError, tr("Connect failed: ") + errorString());
     return false;
 }
 
@@ -101,7 +313,7 @@ void Modbus_Plugin_Base::configure(QSettings *settings, Project *)
 
     connect(this, &QModbusClient::errorOccurred, [this](Error e)
     {
-        qCCritical(ModbusLog).noquote() << "Occurred:" << e << errorString();
+//        qCCritical(ModbusLog).noquote() << "Occurred:" << e << errorString();
         if (e == ConnectionError)
             disconnectDevice();
     });
@@ -116,255 +328,26 @@ bool Modbus_Plugin_Base::check(Device* dev)
 
     clear_break_flag();
 
-    std::map<QModbusDataUnit::RegisterType, DevItems> modbusInfoMap;
-
-    for (DeviceItem* item: dev->items())
-    {
-        const auto rgsType = static_cast<QModbusDataUnit::RegisterType>(item->register_type());
-        if (    rgsType > QModbusDataUnit::Invalid &&
-                rgsType <= QModbusDataUnit::HoldingRegisters)
-        {
-            modbusInfoMap[rgsType][unit(item)] = item;
-        }
-    }
-
-    for (auto modbusInfo: modbusInfoMap)
-        if (!b_break)
-            proccessRegister(dev, modbusInfo.first, modbusInfo.second);
-
+    read(dev->items());
     return true;
 }
 
 void Modbus_Plugin_Base::stop()
 {
     b_break = true;
-
-    if (wait_.isRunning())
-        wait_.exit(1);
 }
 
 void Modbus_Plugin_Base::write(std::vector<Write_Cache_Item>& items)
 {
-    if (!checkConnect() || !items.size())
+    if (!checkConnect() || !items.size() || b_break)
         return;
 
-    std::map<Device*, std::map<QModbusDataUnit::RegisterType, std::vector<Write_Cache_Item*>>> write_map;
-    for (Write_Cache_Item& item: items)
+    Modbus_Pack_Builder<Write_Cache_Item> pack_builder(items);
+    for (Modbus_Pack<Write_Cache_Item>& pack: pack_builder.container_)
     {
-        auto reg_type = static_cast<QModbusDataUnit::RegisterType>( item.dev_item_->register_type() );
-        if (reg_type != QModbusDataUnit::Coils && reg_type != QModbusDataUnit::HoldingRegisters)
-            continue;
-
-        write_map[item.dev_item_->device()][reg_type].push_back(&item);
+        queue_->write_.push(std::move(pack));
     }
-
-    for (auto& it: write_map)
-    {
-        for (auto& r_it: it.second)
-        {
-            write_item_pack(it.first, r_it.first, r_it.second);
-        }
-    }
-}
-
-void Modbus_Plugin_Base::write_item_pack(Device* dev, QModbusDataUnit::RegisterType reg_type, std::vector<Write_Cache_Item*>& items)
-{
-    if (reg_type != QModbusDataUnit::Coils && reg_type != QModbusDataUnit::HoldingRegisters)
-    {
-        qCWarning(ModbusLog) << "ERROR: Try to toggle not supported item.";
-        return;
-    }
-
-    int dev_address = address(dev);
-    if (dev_address < 0)
-        return;
-
-    std::sort(items.begin(), items.end(), [this](Write_Cache_Item* item, Write_Cache_Item* item_b)
-    {
-        return unit(item->dev_item_) < unit(item_b->dev_item_);
-    });
-
-    quint16 write_data;
-    int32_t unit_id;
-
-    std::map<uint32_t, std::pair<int32_t, QVector<quint16>>> item_units;
-    decltype(item_units)::iterator it;
-
-    for (Write_Cache_Item* item: items)
-    {
-        unit_id = unit(item->dev_item_);
-        if (unit_id >= 0)
-        {
-            if (item->raw_data_.type() == QVariant::Bool)
-                write_data = item->raw_data_.toBool() ? 1 : 0;
-            else
-                write_data = item->raw_data_.toUInt();
-
-            it = item_units.find(unit_id);
-            if (it != item_units.end())
-            {
-                it->second.second.push_back(write_data);
-            }
-            else
-            {
-                item_units.emplace(unit_id + 1, std::make_pair(unit_id, QVector<quint16>{write_data}));
-            }
-
-            qCDebug(ModbusLog).noquote() << QString::number(item->user_id_) + "|WRITE" << write_data << "TO" << item->dev_item_->toString() << "ADR"
-                                         << dev_address << "UNIT" << unit_id
-                                         << (reg_type == QModbusDataUnit::Coils ? "Coils" : "HoldingRegisters");
-        }
-    }
-
-    for (auto& iter: item_units)
-    {
-        write_multi_item(dev_address, reg_type, iter.second.first, iter.second.second);
-    }
-}
-
-void Modbus_Plugin_Base::write_multi_item(int server_address, QModbusDataUnit::RegisterType reg_type, int start_address, const QVector<quint16>& values)
-{
-    if (!values.size())
-        return;
-
-    QModbusDataUnit write_unit(reg_type, start_address, values);
-
-    QEventLoop wait;
-
-    if (auto *reply = sendWriteRequest(write_unit, server_address))
-    {
-        if (!reply->isFinished())
-        {
-            connect(reply, &QModbusReply::finished, &wait, &QEventLoop::quit);
-            wait.exec(QEventLoop::EventLoopExec);
-        }
-
-        if (!reply->isFinished())
-            qCDebug(ModbusLog) << "Write break";
-        else if (reply->error() != NoError)
-            qCWarning(ModbusLog).noquote() << tr("Write response error: %1 Device address: %2 (%3) Function: %4 Start unit: %5 Data:")
-                          .arg(reply->errorString())
-                          .arg(server_address)
-                          .arg(reply->error() == ProtocolError ?
-                                   tr("Mobus exception: 0x%1").arg(reply->rawResult().exceptionCode(), -1, 16) :
-                                   tr("code: 0x%1").arg(reply->error(), -1, 16))
-                          .arg(reg_type).arg(start_address) << values;
-
-        reply->deleteLater();
-    }
-    else
-        qCCritical(ModbusLog).noquote() << tr("Write error: ") + this->errorString();
-}
-
-QVariantList Modbus_Plugin_Base::read(int serverAddress, uchar regType,
-                                         int startAddress, quint16 unitCount, bool clearCache)
-{
-    QVariantList values;
-    values.reserve(unitCount);
-    for (quint16 i = 0; i < unitCount; ++i)
-        values.push_back(QVariant());
-
-    if (unitCount == 0)
-        return values;
-
-    auto registerType = static_cast<QModbusDataUnit::RegisterType>(regType);
-    auto requestPair = std::make_pair(serverAddress, registerType);
-    StatusCacheMap::iterator statusIt = dev_status_cache_.find(requestPair);
-
-    if (clearCache && statusIt != dev_status_cache_.end())
-    {
-        dev_status_cache_.erase(statusIt);
-        statusIt = dev_status_cache_.end();
-    }
-
-    struct ReadException {
-        Error error;
-        QString text;
-    };
-
-    try {
-        if (state() != ConnectedState)
-        {
-            disconnectDevice();
-
-            config_.name = Config::getUSBSerial();
-            if (config_.name.isEmpty())
-                throw ReadException{ ConnectionError, "USB Serial not found" };
-
-            setConnectionParameter(SerialPortNameParameter, config_.name);
-
-            if (!connectDevice())
-                throw ReadException{ error(), tr("Connect to port %1 fail: %2").arg(config_.name).arg(errorString()) };
-        }
-
-        QModbusDataUnit request(registerType, startAddress, unitCount);
-        std::unique_ptr<QModbusReply> reply(sendReadRequest(request, serverAddress));
-
-        if (!reply)
-            throw ReadException{ error(), errorString() };
-
-        // broadcast replies return immediately
-        if (!reply->isFinished())
-        {
-            wait_.connect(reply.get(), &QModbusReply::finished, &wait_, &QEventLoop::quit);
-            wait_.exec(QEventLoop::EventLoopExec);
-        }
-
-        if (!reply->isFinished())
-        {
-            qCDebug(ModbusLog) << "Read break";
-            return values;
-        }
-
-        if (reply->error() == QModbusDevice::NoError)
-        {
-//                    auto dbg = qDebug() << "Dev" << dev->address() << modbusInfo.first;
-            const QModbusDataUnit unit = reply->result();
-            for (uint i = 0; i < unit.valueCount() && i < unitCount; i++)
-            {
-                quint16 raw = unit.value(i);
-//                        dbg << raw;
-                // if (quint16(0xFFFF) != raw)
-                {
-                    if (registerType == QModbusDataUnit::Coils ||
-                            registerType == QModbusDataUnit::DiscreteInputs)
-                        values[i] = (bool)raw;
-                    else
-                        values[i] = (qint32)raw;
-                }
-//                    if (itemMap.at(startAddress + i)->id() == 44)
-//                        qWarning() << "Modbus" << raw << (quint16(0xFFFF) != raw) << Prt::valueToVariant(value);
-            }
-
-            if (statusIt != dev_status_cache_.end())
-            {
-                qCDebug(ModbusLog) << "Modbus device " << statusIt->first.first << "recovered" << statusIt->second
-                         << "Function:" << registerType << "Start:" << startAddress << "Value count:" << unitCount;
-                dev_status_cache_.erase(statusIt);
-            }
-        }
-        else
-            throw ReadException{ reply->error(),
-                    tr("%5 Device address: %1 (%6) registerType: %2 Start: %3 Value count: %4")
-                    .arg(serverAddress).arg(registerType).arg(startAddress).arg(unitCount)
-                    .arg(reply->errorString())
-                    .arg(reply->error() == QModbusDevice::ProtocolError ?
-                           tr("Mobus exception: 0x%1").arg(reply->rawResult().exceptionCode(), -1, 16) :
-                           tr("code: 0x%1").arg(reply->error(), -1, 16)) };
-    }
-    catch(const ReadException& err)
-    {
-        if (statusIt == dev_status_cache_.end() || statusIt->second != err.error)
-        {
-            qCWarning(ModbusLog).noquote() << tr("Read response error:") << err.text;
-
-            if (statusIt == dev_status_cache_.end())
-                dev_status_cache_[requestPair] = err.error;
-            else
-                statusIt->second = err.error;
-        }
-    }
-    return values;
+    process_queue();
 }
 
 QStringList Modbus_Plugin_Base::available_ports() const
@@ -372,50 +355,285 @@ QStringList Modbus_Plugin_Base::available_ports() const
     return Config::available_ports();
 }
 
-void Modbus_Plugin_Base::proccessRegister(Device *dev, QModbusDataUnit::RegisterType registerType, const DevItems& itemMap)
+void Modbus_Plugin_Base::clear_status_cache()
 {
-    int32_t dev_address = address(dev);
+    dev_status_cache_.clear();
+}
 
-    if (dev_address >= 0 && itemMap.size())
+void Modbus_Plugin_Base::write_finished_slot()
+{
+    write_finished(qobject_cast<QModbusReply*>(sender()));
+}
+
+void Modbus_Plugin_Base::read_finished_slot()
+{
+    read_finished(qobject_cast<QModbusReply*>(sender()));
+}
+
+void Modbus_Plugin_Base::print_cached(int server_address, QModbusDataUnit::RegisterType register_type, QModbusDevice::Error value, const QString& text)
+{
+    auto request_pair = std::make_pair(server_address, register_type);
+    auto status_it = dev_status_cache_.find(request_pair);
+
+    if (status_it == dev_status_cache_.end() || status_it->second != value)
     {
-        int startAddress = 0;
-        quint16 unitCount = 0;
+        qCWarning(ModbusLog).noquote() << text;
 
-        auto readValues = [&]()
-        {
-            if (unitCount)
-            {
-                auto values = read(dev_address, registerType, startAddress, unitCount, false);
-                for (int i = 0; i < values.size(); ++i)
-                    QMetaObject::invokeMethod(itemMap.at(startAddress + i), "setRawValue", Qt::QueuedConnection,
-                                              Q_ARG(const QVariant&, values.at(i)));
-            }
-        };
-
-        for(auto unit_it: itemMap)
-        {
-            if (startAddress + unitCount == unit_it.first)
-                ++unitCount;
-            else
-            {
-                readValues();
-
-                startAddress = unit_it.first;
-                unitCount = 1;
-            }
-        }
-
-        readValues();
+        if (status_it == dev_status_cache_.end())
+            dev_status_cache_[request_pair] = value;
+        else
+            status_it->second = value;
     }
 }
 
-int32_t Modbus_Plugin_Base::address(Device *dev, bool* ok) const
+bool Modbus_Plugin_Base::reconnect()
+{
+    disconnectDevice();
+
+    config_.name = Config::getUSBSerial();
+    if (!config_.name.isEmpty())
+    {
+        setConnectionParameter(SerialPortNameParameter, config_.name);
+
+        if (connectDevice())
+        {
+            return true;
+        }
+        else
+        {
+            print_cached(0, QModbusDataUnit::Invalid, error(), tr("Connect to port %1 fail: %2").arg(config_.name).arg(errorString()));
+        }
+    }
+    else
+    {
+        print_cached(0, QModbusDataUnit::Invalid, ConnectionError, tr("USB Serial not found"));
+    }
+    return false;
+}
+
+void Modbus_Plugin_Base::read(const QVector<DeviceItem*>& dev_items)
+{
+    Modbus_Pack_Builder<DeviceItem*> pack_builder(dev_items);
+    for (Modbus_Pack<DeviceItem*>& pack: pack_builder.container_)
+    {
+        queue_->read_.push(std::move(pack));
+    }
+
+    process_queue();
+}
+
+void Modbus_Plugin_Base::process_queue()
+{
+    if (!b_break && !queue_->is_active())
+    {
+        if (state() != ConnectedState && !reconnect())
+        {
+            queue_->clear();
+            return;
+        }
+        else
+        {
+            auto status_it = dev_status_cache_.find(std::make_pair(0, QModbusDataUnit::Invalid));
+            if (status_it != dev_status_cache_.end())
+            {
+                qCDebug(ModbusLog) << "Modbus device opened";
+                dev_status_cache_.erase(status_it);
+            }
+        }
+
+        if (queue_->write_.size())
+        {
+            Modbus_Pack<Write_Cache_Item>& pack = queue_->write_.front();
+            write_pack(pack.server_address_, pack.register_type_, pack.start_address_, pack.items_, &pack.reply_);
+            if (!pack.reply_)
+            {
+                queue_->write_.pop();
+                process_queue();
+            }
+        }
+        else if (queue_->read_.size())
+        {
+            Modbus_Pack<DeviceItem*>& pack = queue_->read_.front();
+            read_pack(pack.server_address_, pack.register_type_, pack.start_address_, pack.items_, &pack.reply_);
+            if (!pack.reply_)
+            {
+                queue_->read_.pop();
+                process_queue();
+            }
+        }
+    }
+    else if (b_break)
+        queue_->clear();
+}
+
+QVector<quint16> Modbus_Plugin_Base::cache_items_to_values(const std::vector<Write_Cache_Item>& items) const
+{
+    QVector<quint16> values;
+    quint16 write_data;
+    for (const Write_Cache_Item& item: items)
+    {
+        if (item.raw_data_.type() == QVariant::Bool)
+            write_data = item.raw_data_.toBool() ? 1 : 0;
+        else
+            write_data = item.raw_data_.toUInt();
+        values.push_back(write_data);
+
+    }
+    return values;
+}
+
+void Modbus_Plugin_Base::write_pack(int server_address, QModbusDataUnit::RegisterType register_type, int start_address, const std::vector<Write_Cache_Item>& items, QModbusReply** reply)
+{
+    QVector<quint16> values = cache_items_to_values(items);
+    qCDebug(ModbusLog).noquote().nospace() << items.front().user_id_ << "|WRITE " << values.size() << " START " << start_address
+                                 << " TO ADR " << server_address
+                                 << " REGISTER " << (register_type == QModbusDataUnit::Coils ? "Coils" : "HoldingRegisters")
+                                 << " DATA " << values;
+
+    QModbusDataUnit write_unit(register_type, start_address, values);
+    *reply = sendWriteRequest(write_unit, server_address);
+
+    if (*reply)
+    {
+        if ((*reply)->isFinished())
+        {
+            write_finished(*reply);
+        }
+        else
+        {
+            connect(*reply, &QModbusReply::finished, this, &Modbus_Plugin_Base::write_finished_slot);
+        }
+    }
+    else
+        qCCritical(ModbusLog).noquote() << tr("Write error: ") + this->errorString();
+}
+
+void Modbus_Plugin_Base::write_finished(QModbusReply* reply)
+{
+    if (!reply)
+    {
+        qCCritical(ModbusLog).noquote() << tr("Write finish error: ") + this->errorString();
+        process_queue();
+        return;
+    }
+
+    if (queue_->write_.size())
+    {
+        Modbus_Pack<Write_Cache_Item>& pack = queue_->write_.front();
+        if (reply == pack.reply_)
+        {
+            queue_->write_.pop();
+        }
+        else
+            qCCritical(ModbusLog).noquote() << tr("Write finished but is not queue front") << reply << pack.reply_;
+
+        if (reply->error() != NoError)
+        {
+            qCWarning(ModbusLog).noquote() << tr("Write response error: %1 Device address: %2 (%3) Function: %4 Start unit: %5 Data:")
+                          .arg(reply->errorString())
+                          .arg(reply->serverAddress())
+                          .arg(reply->error() == ProtocolError ?
+                                   tr("Mobus exception: 0x%1").arg(reply->rawResult().exceptionCode(), -1, 16) :
+                                   tr("code: 0x%1").arg(reply->error(), -1, 16))
+                          .arg(pack.register_type_).arg(pack.start_address_) << cache_items_to_values(pack.items_);
+        }
+    }
+    else
+        qCCritical(ModbusLog).noquote() << tr("Write finished but queue is empty");
+
+    reply->deleteLater();
+    process_queue();
+}
+
+void Modbus_Plugin_Base::read_pack(int server_address, QModbusDataUnit::RegisterType register_type, int start_address, const std::vector<DeviceItem*>& items, QModbusReply** reply)
+{
+    QModbusDataUnit request(register_type, start_address, items.size());
+    *reply = sendReadRequest(request, server_address);
+
+    if (*reply)
+    {
+        if ((*reply)->isFinished())
+        {
+            read_finished(*reply);
+        }
+        else
+        {
+            connect(*reply, &QModbusReply::finished, this, &Modbus_Plugin_Base::read_finished_slot);
+        }
+    }
+    else
+        qCCritical(ModbusLog).noquote() << tr("Read error: ") + this->errorString();
+}
+
+void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
+{
+    if (!reply)
+    {
+        qCCritical(ModbusLog).noquote() << tr("Read finish error: ") + this->errorString();
+        process_queue();
+        return;
+    }
+
+    if (queue_->read_.size())
+    {
+        Modbus_Pack<DeviceItem*>& pack = queue_->read_.front();
+        if (reply == pack.reply_)
+        {
+            QVariant raw_data;
+            const QModbusDataUnit unit = reply->result();
+            for (uint i = 0; i < unit.valueCount() && i < pack.items_.size(); i++)
+            {
+                if (pack.register_type_ == QModbusDataUnit::Coils ||
+                        pack.register_type_ == QModbusDataUnit::DiscreteInputs)
+                {
+                    raw_data = static_cast<bool>(unit.value(i));
+                }
+                else
+                {
+                    raw_data = static_cast<qint32>(unit.value(i));
+                }
+
+                QMetaObject::invokeMethod(pack.items_.at(i), "setRawValue", Qt::QueuedConnection,
+                                          Q_ARG(const QVariant&, raw_data));
+            }
+
+            auto status_it = dev_status_cache_.find(std::make_pair(pack.server_address_, pack.register_type_));
+            if (status_it != dev_status_cache_.end())
+            {
+                qCDebug(ModbusLog) << "Modbus device " << pack.server_address_ << "recovered" << status_it->second
+                         << "RegisterType:" << pack.register_type_ << "Start:" << pack.start_address_ << "Value count:" << pack.items_.size();
+                dev_status_cache_.erase(status_it);
+            }
+
+            queue_->read_.pop();
+        }
+        else
+            qCCritical(ModbusLog).noquote() << tr("Read finished but is not queue front") << reply << pack.reply_;
+
+        if (reply->error() != NoError)
+        {
+            print_cached(pack.server_address_, pack.register_type_, reply->error(), tr("Read response error: %5 Device address: %1 (%6) registerType: %2 Start: %3 Value count: %4")
+                         .arg(pack.server_address_).arg(pack.register_type_).arg(pack.start_address_).arg(pack.items_.size())
+                         .arg(reply->errorString())
+                         .arg(reply->error() == QModbusDevice::ProtocolError ?
+                                tr("Mobus exception: 0x%1").arg(reply->rawResult().exceptionCode(), -1, 16) :
+                                  tr("code: 0x%1").arg(reply->error(), -1, 16)));
+        }
+    }
+    else
+        qCCritical(ModbusLog).noquote() << tr("Read finished but queue is empty");
+
+    reply->deleteLater();
+    process_queue();
+}
+
+/*static*/ int32_t Modbus_Plugin_Base::address(Device *dev, bool* ok)
 {
     QVariant v = dev->param("address");
     return v.isValid() ? v.toInt(ok) : -2;
 }
 
-int32_t Modbus_Plugin_Base::unit(DeviceItem *item, bool* ok) const
+/*static*/ int32_t Modbus_Plugin_Base::unit(DeviceItem *item, bool* ok)
 {
     QVariant v = item->param("unit");
     return v.isValid() ? v.toInt(ok) : -2;
