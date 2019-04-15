@@ -581,28 +581,25 @@ void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
         {
             QVariant raw_data;
             const QModbusDataUnit unit = reply->result();
-            for (uint i = 0; i < unit.valueCount() && i < pack.items_.size(); i++)
+            for (uint i = 0; i < pack.items_.size(); ++i)
             {
-                if (pack.register_type_ == QModbusDataUnit::Coils ||
-                        pack.register_type_ == QModbusDataUnit::DiscreteInputs)
+                if (reply->error() == NoError && i < unit.valueCount())
                 {
-                    raw_data = static_cast<bool>(unit.value(i));
+                    if (pack.register_type_ == QModbusDataUnit::Coils ||
+                            pack.register_type_ == QModbusDataUnit::DiscreteInputs)
+                    {
+                        raw_data = static_cast<bool>(unit.value(i));
+                    }
+                    else
+                    {
+                        raw_data = static_cast<qint32>(unit.value(i));
+                    }
                 }
                 else
-                {
-                    raw_data = static_cast<qint32>(unit.value(i));
-                }
+                    raw_data.clear();
 
                 QMetaObject::invokeMethod(pack.items_.at(i), "setRawValue", Qt::QueuedConnection,
                                           Q_ARG(const QVariant&, raw_data));
-            }
-
-            auto status_it = dev_status_cache_.find(std::make_pair(pack.server_address_, pack.register_type_));
-            if (status_it != dev_status_cache_.end())
-            {
-                qCDebug(ModbusLog) << "Modbus device " << pack.server_address_ << "recovered" << status_it->second
-                         << "RegisterType:" << pack.register_type_ << "Start:" << pack.start_address_ << "Value count:" << pack.items_.size();
-                dev_status_cache_.erase(status_it);
             }
 
             queue_->read_.pop();
@@ -618,6 +615,16 @@ void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
                          .arg(reply->error() == QModbusDevice::ProtocolError ?
                                 tr("Mobus exception: 0x%1").arg(reply->rawResult().exceptionCode(), -1, 16) :
                                   tr("code: 0x%1").arg(reply->error(), -1, 16)));
+        }
+        else
+        {
+            auto status_it = dev_status_cache_.find(std::make_pair(pack.server_address_, pack.register_type_));
+            if (status_it != dev_status_cache_.end())
+            {
+                qCDebug(ModbusLog) << "Modbus device" << pack.server_address_ << "recovered" << status_it->second
+                         << "RegisterType:" << pack.register_type_ << "Start:" << pack.start_address_ << "Value count:" << pack.items_.size();
+                dev_status_cache_.erase(status_it);
+            }
         }
     }
     else

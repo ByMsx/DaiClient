@@ -229,7 +229,7 @@ void Checker::checkDevices()
                 else if (check_info.status_)
                 {
                     check_info.status_ = false;
-                    qCDebug(CheckerLog) << "Fail check" << dev->checker_type()->name();
+                    qCDebug(CheckerLog) << "Fail check" << dev->checker_type()->name() << dev->toString();
                 }
             }
             else
