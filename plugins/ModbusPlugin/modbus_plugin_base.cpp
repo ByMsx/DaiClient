@@ -212,16 +212,18 @@ struct Modbus_Queue
 
     void clear()
     {
-        if (write_.size())
+        while (write_.size())
         {
-            std::queue<Modbus_Pack<Write_Cache_Item>> empty;
-            std::swap( write_, empty );
+            if (write_.front().reply_)
+                QObject::disconnect(write_.front().reply_, 0, 0, 0);
+            write_.pop();
         }
 
-        if (read_.size())
+        while (read_.size())
         {
-            std::queue<Modbus_Pack<DeviceItem*>> empty;
-            std::swap( read_, empty );
+            if (read_.front().reply_)
+                QObject::disconnect(read_.front().reply_, 0, 0, 0);
+            read_.pop();
         }
     }
 };
@@ -237,7 +239,11 @@ Modbus_Plugin_Base::Modbus_Plugin_Base() :
 
 Modbus_Plugin_Base::~Modbus_Plugin_Base()
 {
+    stop();
+
+    queue_->clear();
     delete queue_;
+    queue_ = nullptr;
 }
 
 bool Modbus_Plugin_Base::check_break_flag() const
@@ -463,7 +469,7 @@ void Modbus_Plugin_Base::process_queue()
             }
         }
     }
-    else if (b_break)
+    else if (b_break && queue_)
         queue_->clear();
 }
 
@@ -514,7 +520,7 @@ void Modbus_Plugin_Base::write_pack(int server_address, QModbusDataUnit::Registe
 
 void Modbus_Plugin_Base::write_finished(QModbusReply* reply)
 {
-    if (!reply)
+    if (!reply || b_break)
     {
         qCCritical(ModbusLog).noquote() << tr("Write finish error: ") + this->errorString();
         process_queue();
@@ -571,7 +577,7 @@ void Modbus_Plugin_Base::read_pack(int server_address, QModbusDataUnit::Register
 
 void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
 {
-    if (!reply)
+    if (!reply || b_break)
     {
         qCCritical(ModbusLog).noquote() << tr("Read finish error: ") + this->errorString();
         process_queue();
