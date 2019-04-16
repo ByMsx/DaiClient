@@ -53,6 +53,15 @@ void Device_Item_View::init() noexcept
     });
 }
 
+void Device_Item_View::add_device(Dai::Device *dev) noexcept
+{
+    if (units_table_model_ != nullptr)
+    {
+        units_table_model_->add_items(&dev->items());
+        units_tree_view_->reset();
+        units_tree_view_->expandAll();
+    }
+}
 
 bool Device_Item_View::is_use() const noexcept
 {
