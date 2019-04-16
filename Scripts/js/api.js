@@ -60,12 +60,12 @@ var modbus = {
 }
 
 var console = {
-    'log': function(text, user_id) { api.mng.log(text, 0, user_id ? user_id : 0) },
-    'info': function(text, user_id) { api.mng.log(text, 4, user_id ? user_id : 0) },
-    'warn': function(text, user_id) { api.mng.log(text, 1, user_id ? user_id : 0) },
-    'critical': function(text, user_id) { api.mng.log(text, 2, user_id ? user_id : 0) },
-    'error': function(text, user_id) { api.mng.log(text, 2, user_id ? user_id : 0) },
-    'err': function(text, user_id) { api.mng.log(text, 2, user_id ? user_id : 0) },
+    'log': function(text, user_id, inform) { api.mng.log(text, 0, user_id ? user_id : 0) },
+    'info': function(text, user_id, inform) { api.mng.log(text, 4, user_id ? user_id : 0) },
+    'warn': function(text, user_id, inform) { api.mng.log(text, 1, user_id ? user_id : 0) },
+    'critical': function(text, user_id, inform) { api.mng.log(text, 2, user_id ? user_id : 0) },
+    'error': function(text, user_id, inform) { api.mng.log(text, 2, user_id ? user_id : 0) },
+    'err': function(text, user_id, inform) { api.mng.log(text, 2, user_id ? user_id : 0) },
 }
 
 console.warning = console.warn;
