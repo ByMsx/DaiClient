@@ -59,7 +59,8 @@ struct Modbus_Pack
             if (ok && start_address_ >= 0)
             {
                 if (dev_item->register_type() > QModbusDataUnit::Invalid && dev_item->register_type() <= QModbusDataUnit::HoldingRegisters &&
-                        (!is_write || (dev_item->register_type() == QModbusDataUnit::Coils || dev_item->register_type() != QModbusDataUnit::HoldingRegisters)))
+                        (!is_write || (dev_item->register_type() == QModbusDataUnit::Coils ||
+                                       dev_item->register_type() == QModbusDataUnit::HoldingRegisters)))
                 {
                     register_type_ = static_cast<QModbusDataUnit::RegisterType>(dev_item->register_type());
                 }
@@ -484,11 +485,14 @@ QVector<quint16> Modbus_Plugin_Base::cache_items_to_values(const std::vector<Wri
 
 void Modbus_Plugin_Base::write_pack(int server_address, QModbusDataUnit::RegisterType register_type, int start_address, const std::vector<Write_Cache_Item>& items, QModbusReply** reply)
 {
+    if (!items.size())
+        return;
+
     QVector<quint16> values = cache_items_to_values(items);
-    qCDebug(ModbusLog).noquote().nospace() << items.front().user_id_ << "|WRITE " << values.size() << " START " << start_address
-                                 << " TO ADR " << server_address
-                                 << " REGISTER " << (register_type == QModbusDataUnit::Coils ? "Coils" : "HoldingRegisters")
-                                 << " DATA " << values;
+    qCDebug(ModbusLog).noquote().nospace()
+            << items.front().user_id_ << "|WRITE " << values << ' '
+            << (register_type == QModbusDataUnit::Coils ? "Coils" : "HoldingRegisters")
+            << " START " << start_address << " TO ADR " << server_address;
 
     QModbusDataUnit write_unit(register_type, start_address, values);
     *reply = sendWriteRequest(write_unit, server_address);
