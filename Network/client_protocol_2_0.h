@@ -22,7 +22,7 @@ signals:
     void write_to_item(uint32_t user_id, uint32_t item_id, const QVariant& raw_data);
     bool set_mode(uint32_t user_id, quint32 mode_id, quint32 group_id);
     void set_param_values(uint32_t user_id, const ParamValuesPack& pack);
-    void exec_script_command(uint32_t user_id, const QString& script);
+    void exec_script_command(uint32_t user_id, const QString& script, bool is_function, const QVariantList& arguments);
 
     void send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev, Helpz::Network::Protocol* protocol);
 //    bool modify_project(uint32_t user_id, quint8 struct_type, QIODevice* data_dev);
@@ -33,6 +33,7 @@ private:
     void process_message(uint8_t msg_id, uint16_t cmd, QIODevice& data_dev) override;
     void process_answer_message(uint8_t msg_id, uint16_t cmd, QIODevice& data_dev) override;
 
+    void parse_script_command(uint32_t user_id, const QString& script, QIODevice* data_dev);
     void process_item_file(QIODevice &data_dev);
 
     void start_authentication();

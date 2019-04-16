@@ -383,20 +383,35 @@ QScriptValue ScriptedProject::valueFromVariant(const QVariant &data) const
     }
 }
 
-void ScriptedProject::log(const QString &msg, uint type, uint32_t user_id)
+void ScriptedProject::log(const QString &msg, uint8_t type_id, uint32_t user_id, bool inform_flag)
 {
-    Log_Event_Item event{0, 0, user_id, type, ScriptLog().categoryName(), msg};
+    if (inform_flag)
+        type_id |= Log_Event_Item::EVENT_NEED_TO_INFORM;
+    Log_Event_Item event{0, 0, user_id, type_id, ScriptLog().categoryName(), msg};
     std::cerr << "[script] " << event.msg().toStdString() << std::endl;
     add_event_message(event);
 }
 
-void ScriptedProject::console(uint32_t user_id, const QString &cmd)
+void ScriptedProject::console(uint32_t user_id, const QString &cmd, bool is_function, const QVariantList& arguments)
 {
+    if (is_function)
+    {
+        QScriptValueList arg_list;
+        for (const QVariant& arg: arguments)
+            arg_list.push_back(m_script_engine->newVariant(arg));
+
+        QScriptValue func = m_script_engine->currentContext()->activationObject().property(cmd);
+        QScriptValue ret = func.call(QScriptValue(), arg_list);
+        check_error( "exec", ret);
+        return;
+    }
+
     QString script = cmd.trimmed();
     if (script.isEmpty() || !m_script_engine->canEvaluate(script))
         return;
 
-    auto res = m_script_engine->evaluate(script, "CONSOLE");
+    QScriptValue res = m_script_engine->evaluate(script, "CONSOLE");
+
     bool is_error = res.isError();
 
     if (!res.isUndefined())

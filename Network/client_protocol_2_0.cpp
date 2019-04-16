@@ -84,7 +84,7 @@ void Protocol_2_0::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data
     case Cmd::WRITE_TO_ITEM_FILE:   process_item_file(data_dev);                                break;
     case Cmd::SET_MODE:             apply_parse(data_dev, &Protocol_2_0::set_mode);             break;
     case Cmd::SET_PARAM_VALUES:     apply_parse(data_dev, &Protocol_2_0::set_param_values);     break;
-    case Cmd::EXEC_SCRIPT_COMMAND:  apply_parse(data_dev, &Protocol_2_0::exec_script_command);  break;
+    case Cmd::EXEC_SCRIPT_COMMAND:  apply_parse(data_dev, &Protocol_2_0::parse_script_command, &data_dev);  break;
 
     case Cmd::GET_PROJECT:          Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::send_project_structure, structure_sync_, msg_id, &data_dev); break;
     case Cmd::MODIFY_PROJECT:       Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::process_modify_message, structure_sync_, &data_dev, worker()->db_pending(), QString()); break;
@@ -101,6 +101,17 @@ void Protocol_2_0::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data
 void Protocol_2_0::process_answer_message(uint8_t msg_id, uint16_t cmd, QIODevice& /*data_dev*/)
 {
     qCWarning(NetClientLog) << "unprocess answer" << int(msg_id) << cmd;
+}
+
+void Protocol_2_0::parse_script_command(uint32_t user_id, const QString& script, QIODevice* data_dev)
+{
+    QVariantList arguments;
+    bool is_function = data_dev->bytesAvailable();
+    if (is_function)
+    {
+        parse_out(*data_dev, arguments);
+    }
+    exec_script_command(user_id, script, is_function, arguments);
 }
 
 void Protocol_2_0::process_item_file(QIODevice& data_dev)
