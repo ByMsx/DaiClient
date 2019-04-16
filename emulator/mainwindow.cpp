@@ -116,39 +116,54 @@ void Main_Window::fill_data() noexcept
         {
             address_var = dev->param("address");
             if (!address_var.isValid() || address_var.isNull())
+            {
                 continue;
+            }
+
             dev_address = address_var.toInt();
-            Modbus_Device_Item modbus_device_item;
-            modbus_device_item = create_socat();
-            modbus_device_item.modbus_device_ = new QModbusRtuSerialSlave(this);
-            modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialPortNameParameter, modbus_device_item.port_from_name_);
-            modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialParityParameter, config_.parity_);
-            modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialBaudRateParameter, config_.baud_rate_);
-            modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialDataBitsParameter, config_.data_bits_);
-            modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialStopBitsParameter, config_.stop_bits_);
-            modbus_device_item.modbus_device_->setServerAddress(dev_address);
+            auto map_it = modbus_list_.find(dev_address);
 
-    //        connect(modbusDevice, &QModbusServer::stateChanged,
-    //                this, &MainWindow::onStateChanged);
-            connect(modbus_device_item.modbus_device_, &QModbusServer::errorOccurred, this, &Main_Window::handleDeviceError);
+            if (map_it == modbus_list_.cend())
+            {
+                Modbus_Device_Item modbus_device_item;
+                modbus_device_item = create_socat();
+                modbus_device_item.modbus_device_ = new QModbusRtuSerialSlave(this);
+                modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialPortNameParameter, modbus_device_item.port_from_name_);
+                modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialParityParameter, config_.parity_);
+                modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialBaudRateParameter, config_.baud_rate_);
+                modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialDataBitsParameter, config_.data_bits_);
+                modbus_device_item.modbus_device_->setConnectionParameter(QModbusDevice::SerialStopBitsParameter, config_.stop_bits_);
+                modbus_device_item.modbus_device_->setServerAddress(dev_address);
+        //        connect(modbusDevice, &QModbusServer::stateChanged,
+        //                this, &MainWindow::onStateChanged);
+                connect(modbus_device_item.modbus_device_, &QModbusServer::errorOccurred, this, &Main_Window::handleDeviceError);
 
-            modbus_device_item.serial_port_ = new QSerialPort(this);
-            modbus_device_item.serial_port_->setPortName(modbus_device_item.port_to_name_);
-            modbus_device_item.serial_port_->setBaudRate(config_.baud_rate_);
-            modbus_device_item.serial_port_->setDataBits(config_.data_bits_);
-            modbus_device_item.serial_port_->setParity(config_.parity_);
-            modbus_device_item.serial_port_->setStopBits(config_.stop_bits_);
-            modbus_device_item.serial_port_->setFlowControl(config_.flow_control_);
+                modbus_device_item.serial_port_ = new QSerialPort(this);
+                modbus_device_item.serial_port_->setPortName(modbus_device_item.port_to_name_);
+                modbus_device_item.serial_port_->setBaudRate(config_.baud_rate_);
+                modbus_device_item.serial_port_->setDataBits(config_.data_bits_);
+                modbus_device_item.serial_port_->setParity(config_.parity_);
+                modbus_device_item.serial_port_->setStopBits(config_.stop_bits_);
+                modbus_device_item.serial_port_->setFlowControl(config_.flow_control_);
 
-            if (!modbus_device_item.serial_port_->open(QIODevice::ReadWrite))
-                qCritical() << modbus_device_item.serial_port_->errorString();
+                if (!modbus_device_item.serial_port_->open(QIODevice::ReadWrite))
+                    qCritical() << modbus_device_item.serial_port_->errorString();
 
-            connect(modbus_device_item.serial_port_, &QSerialPort::readyRead, this, &Main_Window::socketDataReady);
+                connect(modbus_device_item.serial_port_, &QSerialPort::readyRead, this, &Main_Window::socketDataReady);
 
-            modbus_device_item.device_item_view_ = new Device_Item_View(&dai_project_.item_type_mng_, dev, modbus_device_item.modbus_device_, ui_->content);
-            box->addWidget(modbus_device_item.device_item_view_);
+                modbus_device_item.device_item_view_ = new Device_Item_View(&dai_project_.item_type_mng_, dev, modbus_device_item.modbus_device_, ui_->content);
+                box->addWidget(modbus_device_item.device_item_view_);
 
-            modbus_list_.emplace(dev_address, modbus_device_item);
+                modbus_list_.emplace(dev_address, modbus_device_item);
+            }
+            else
+            {
+                Device_Item_View* device_view = map_it->second.device_item_view_;
+                if (device_view != nullptr)
+                {
+                    device_view->add_device(dev);
+                }
+            }
         }
     }
 }

@@ -33,6 +33,8 @@ private:
 public:
     explicit Units_Table_Model(Dai::Database::Item_Type_Manager* mng, const QVector<Dai::DeviceItem *> *units_vector, QModbusServer *modbus_server, QObject *parent = 0);
 
+    void add_items(const QVector<Dai::DeviceItem *> *units_vector);
+
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
     int columnCount(const QModelIndex &parent = QModelIndex()) const;
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;

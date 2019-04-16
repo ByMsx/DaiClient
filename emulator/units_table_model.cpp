@@ -10,21 +10,55 @@
 
 int unit(const Dai::DeviceItem *a)
 {
+    if (a == nullptr)
+    {
+        return -1;
+    }
     QVariant val = a->param("unit");
-    return val.isValid() ? val.toInt() : 0;
+    return val.isValid() ? val.toInt() : -1;
 }
 
 Units_Table_Model::Units_Table_Model(Dai::Item_Type_Manager *mng, const QVector<Dai::DeviceItem *> *units_vector, QModbusServer *modbus_server, QObject *parent)
     : QAbstractItemModel(parent), item_type_manager_(mng), modbus_server_(modbus_server)
 {    
+    add_items(units_vector);
+}
+
+void Units_Table_Model::add_items(const QVector<Dai::DeviceItem *> *units_vector)
+{
     for (auto *item_unit : *units_vector)
     {
+        if (unit(item_unit) < 0)
+        {
+            continue;
+        }
 //        if (item_unit->type_id() == Dai::Prt::itWindowState)
 //            item_unit->setRawValue(Dai::Prt::wCalibrated | Dai::Prt::wExecuted | Dai::Prt::wClosed);
 //        else
 //            item_unit->setRawValue(mng->need_normalize(item_unit->type_id()) ? (qrand() % 100) + 240 : (qrand() % 3000) + 50);
 
-        modbus_units_map_[static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->register_type(item_unit->type_id()))].push_back(item_unit);
+        QModbusDataUnit::RegisterType type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->register_type(item_unit->type_id()));
+        auto map_it = modbus_units_map_.find(type);
+        if (map_it != modbus_units_map_.cend())
+        {
+            bool is_found = false;
+            for (Dai::DeviceItem* dev_item : map_it->second)
+            {
+                if (unit(dev_item) == unit(item_unit))
+                {
+                    is_found = true;
+                    break;
+                }
+            }
+            if (!is_found)
+            {
+                modbus_units_map_[type].push_back(item_unit);
+            }
+        }
+        else
+        {
+            modbus_units_map_[type].push_back(item_unit);
+        }
     }
 
     QModbusDataUnitMap modbus_data_unit_map;
@@ -40,7 +74,12 @@ Units_Table_Model::Units_Table_Model(Dai::Item_Type_Manager *mng, const QVector<
         auto it_t = it.second.begin();
         for (int i = 0; i <= max_unit; ++i)
         {
-            if (it_t == it.second.end() || unit(*it_t) != i)
+            int unit_i = unit(*it_t);
+            if (unit_i < 0)
+            {
+                --i;
+            }
+            else if (it_t == it.second.end() || unit_i != i)
             {
                 it_t = it.second.insert(it_t, nullptr);
             }
@@ -66,7 +105,6 @@ Units_Table_Model::Units_Table_Model(Dai::Item_Type_Manager *mng, const QVector<
     modbus_server_->setMap(modbus_data_unit_map);
     QObject::connect(modbus_server_, &QModbusServer::dataWritten, this, &Units_Table_Model::update_table_values);
 }
-
 
 QModbusDataUnit::RegisterType row_to_register_type(int row)
 {
