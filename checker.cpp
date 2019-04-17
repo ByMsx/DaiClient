@@ -59,7 +59,7 @@ Checker::~Checker()
 
     for (const Plugin_Type& plugin: plugin_type_mng_->types())
         if (plugin.loader && !plugin.loader->unload())
-            qWarning(CheckerLog) << "Unload fail" << plugin.loader->fileName() << plugin.loader->errorString();
+            qCWarning(CheckerLog) << "Unload fail" << plugin.loader->fileName() << plugin.loader->errorString();
 }
 
 void Checker::loadPlugins(const QStringList &allowed_plugins, Worker *worker)
@@ -110,7 +110,7 @@ void Checker::loadPlugins(const QStringList &allowed_plugins, Worker *worker)
                 pl_type = plugin_type_mng_->get_type(type);
                 if (pl_type->id() && pl_type->need_it && !pl_type->loader)
                 {
-                    qDebug(CheckerLog) << "Load plugin:" << fileName << type;
+                    qCDebug(CheckerLog) << "Load plugin:" << fileName << type;
 
                     plugin = loader->instance();
                     checker_interface = qobject_cast<Checker_Interface *>(plugin);
@@ -150,16 +150,16 @@ void Checker::loadPlugins(const QStringList &allowed_plugins, Worker *worker)
                         continue;
                     }
                     else
-                        qWarning(CheckerLog) << "Bad plugin" << plugin << loader->errorString();
+                        qCWarning(CheckerLog) << "Bad plugin" << plugin << loader->errorString();
                 }
             }
             else
-                qWarning(CheckerLog) << "Bad type in plugin" << fileName << type;
+                qCWarning(CheckerLog) << "Bad type in plugin" << fileName << type;
 
             loader->unload();
         }
         else
-            qWarning(CheckerLog) << "Fail to load plugin" << fileName << loader->errorString();
+            qCWarning(CheckerLog) << "Fail to load plugin" << fileName << loader->errorString();
     }
 
     if (plugins_update_vect.size())
@@ -208,48 +208,51 @@ void Checker::checkDevices()
         Check_Info& check_info = last_check_time_map_[dev->id()];
         now_ms = QDateTime::currentMSecsSinceEpoch();
         next_shot = check_info.time_ + dev->check_interval();
+
         if (next_shot <= now_ms)
         {
-            check_info.time_ = now_ms;
-            next_shot = now_ms + dev->check_interval();
-
             if (b_break) break;
 
-            if (dev->items().size() == 0) continue;
-
-            if (dev->checker_type()->loader && dev->checker_type()->checker)
+            if (dev->items().size())
             {
-                if (dev->checker_type()->checker->check(dev))
+                if (dev->checker_type()->loader && dev->checker_type()->checker)
                 {
-                    if (!check_info.status_)
+                    if (dev->checker_type()->checker->check(dev))
                     {
-                        check_info.status_ = true;
+                        if (!check_info.status_)
+                        {
+                            check_info.status_ = true;
+                        }
+                    }
+                    else if (check_info.status_)
+                    {
+                        check_info.status_ = false;
+                        qCDebug(CheckerLog) << "Fail check" << dev->checker_type()->name() << dev->toString();
                     }
                 }
-                else if (check_info.status_)
+                else
                 {
-                    check_info.status_ = false;
-                    qCDebug(CheckerLog) << "Fail check" << dev->checker_type()->name() << dev->toString();
-                }
-            }
-            else
-            {
-                bool is_virtual = dev->checker_id() == 0;
-                QVariant value;
+                    bool is_virtual = dev->checker_id() == 0;
+                    QVariant value;
 
-                for (DeviceItem* dev_item: dev->items())
-                {
-                    if (is_virtual)
+                    for (DeviceItem* dev_item: dev->items())
                     {
-                        if (dev_item->isConnected())
-                            continue;
-                        else if (first_check_)
-                            value = 0; // Init virtual item
-                    } // else disconnect
+                        if (is_virtual)
+                        {
+                            if (dev_item->isConnected())
+                                continue;
+                            else if (first_check_)
+                                value = 0; // Init virtual item
+                        } // else disconnect
 
-                    QMetaObject::invokeMethod(dev_item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, value));
+                        QMetaObject::invokeMethod(dev_item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, value));
+                    }
                 }
             }
+
+            now_ms = QDateTime::currentMSecsSinceEpoch();
+            check_info.time_ = now_ms;
+            next_shot = now_ms + dev->check_interval();
         }
         min_shot = std::min(min_shot, next_shot);
     }       
@@ -263,8 +266,7 @@ void Checker::checkDevices()
     {
         min_shot = MINIMAL_WRITE_INTERVAL;
     }
-    check_timer_.setInterval(min_shot);
-    check_timer_.start();
+    check_timer_.start(min_shot);
 
     if (write_cache_.size() && !write_timer.isActive())
         writeCache();

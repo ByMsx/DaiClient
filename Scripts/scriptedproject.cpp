@@ -177,6 +177,7 @@ void ScriptedProject::reinitialization(const Helpz::Database::Connection_Info& d
 
 void ScriptedProject::registerTypes()
 {
+    qRegisterMetaType<uint8_t>("uint8_t");
     qRegisterMetaType<Section*>("Section*");
     qRegisterMetaType<Sections*>("Sections*");
     qRegisterMetaType<ItemGroup*>("ItemGroup*");
@@ -590,7 +591,7 @@ QString ScriptedProject::handler_full_name(int handler_type) const
     {
         handler_type -= FUNC_COUNT;
         names.first = "group";
-        names.second = "changed." + group_type_mng_.title(handler_type);
+        names.second = "changed." + group_type_mng_.name(handler_type);
     }
     else
         names = handler_name(handler_type);
