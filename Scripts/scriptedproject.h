@@ -94,6 +94,7 @@ private slots:
     bool checkValue(DeviceItem* item) const;
 
     void groupModeChanged(uint32_t user_id, uint32_t mode, uint32_t group_id);
+    void group_param_changed(Params, uint32_t user_id = 0);
     void itemChanged(DeviceItem* item, uint32_t user_id);
     void handlerException(const QScriptValue &exception);
 private:

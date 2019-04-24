@@ -164,6 +164,7 @@ void ScriptedProject::reinitialization(const Helpz::Database::Connection_Info& d
             connect(group, &ItemGroup::itemChanged, this, &ScriptedProject::itemChanged);
             connect(group, &ItemGroup::itemChanged, this, &ScriptedProject::sctItemChanged);
             connect(group, &ItemGroup::modeChanged, this, &ScriptedProject::groupModeChanged);
+            connect(group, &ItemGroup::paramChanged, this, &ScriptedProject::group_param_changed);
             connect(group, &ItemGroup::status_added, this, &ScriptedProject::status_added);
             connect(group, &ItemGroup::status_removed, this, &ScriptedProject::status_removed);
 
@@ -274,21 +275,29 @@ void ScriptedProject::scriptsInitialization()
     api.setProperty("mng", m_script_engine->newQObject(this));
 
     QScriptValue statuses = api.property("status");
+    QScriptValue common_status = m_script_engine->newObject();
+    api.setProperty("common_status", common_status);
 
-    std::map<uint, std::vector<Status_Info*>> statusMap;
-    for (Status_Info& type: *status_mng_.get_types())
-        statusMap[type.groupType_id].push_back(&type);
-
+    // Многие статусы могут пренадлежать одному типу группы.
     QString status_name;
-    for (auto it: statusMap)
+    QScriptValue status_group_property;
+    for (Status_Info& type: *status_mng_.get_types())
     {
-        status_name = group_type_mng_.name(it.first);
-        auto statusGroup = m_script_engine->newObject();
-        for (Status_Info* type: it.second)
+        if (type.groupType_id)
         {
-            statusGroup.setProperty(type->name(), type->id());
+            status_name = group_type_mng_.name(type.groupType_id);
+            status_group_property = statuses.property(status_name);
+            if (!status_group_property.isObject())
+            {
+                status_group_property = m_script_engine->newObject();
+                statuses.setProperty(status_name, status_group_property);
+            }
+            status_group_property.setProperty(type.name(), type.id());
         }
-        statuses.setProperty(status_name, statusGroup);
+        else
+        {
+            common_status.setProperty(type.name(), type.id());
+        }
     }
 
     QScriptValue types = api.property("type");
@@ -472,6 +481,15 @@ void ScriptedProject::groupModeChanged(uint32_t user_id, uint32_t mode, uint32_t
 
     callFunction(FUNC_CHANGED_MODE, { groupObj, mode, user_id });
     callFunction(FUNC_COUNT + group->type_id(), { groupObj, QScriptValue(), user_id });
+}
+
+void ScriptedProject::group_param_changed(Params, uint32_t user_id)
+{
+    auto group = static_cast<ItemGroup*>(sender());
+    if (!group)
+        return;
+
+    callFunction(FUNC_COUNT + group->type_id(), { m_script_engine->newQObject(group), QScriptValue(), user_id });
 }
 
 QElapsedTimer t;

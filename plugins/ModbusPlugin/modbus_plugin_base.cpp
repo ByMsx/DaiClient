@@ -491,7 +491,7 @@ QVector<quint16> Modbus_Plugin_Base::cache_items_to_values(const std::vector<Wri
 
 void Modbus_Plugin_Base::write_pack(int server_address, QModbusDataUnit::RegisterType register_type, int start_address, const std::vector<Write_Cache_Item>& items, QModbusReply** reply)
 {
-    if (!items.size())
+    if (!items.size() || state() != ConnectedState)
         return;
 
     QVector<quint16> values = cache_items_to_values(items);

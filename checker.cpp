@@ -243,7 +243,9 @@ void Checker::checkDevices()
                                 continue;
                             else if (first_check_)
                                 value = 0; // Init virtual item
-                        } // else disconnect
+                        }
+                        else if (!dev_item->isConnected()) // else disconnect
+                            continue;
 
                         QMetaObject::invokeMethod(dev_item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, value));
                     }
