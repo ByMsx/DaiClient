@@ -15,7 +15,6 @@
 
 #include "tools/automationhelper.h"
 #include "tools/pidhelper.h"
-#include "tools/resthelper.h"
 #include "tools/severaltimeshelper.h"
 #include "tools/inforegisterhelper.h"
 
@@ -160,7 +159,6 @@ void ScriptedProject::reinitialization(const Helpz::Database::Connection_Info& d
     {
         for (ItemGroup* group: sct->groups())
         {
-            connect(group, &ItemGroup::checkValue, this, &ScriptedProject::checkValue);
             connect(group, &ItemGroup::itemChanged, this, &ScriptedProject::itemChanged);
             connect(group, &ItemGroup::itemChanged, this, &ScriptedProject::sctItemChanged);
             connect(group, &ItemGroup::modeChanged, this, &ScriptedProject::groupModeChanged);
@@ -196,7 +194,6 @@ void ScriptedProject::registerTypes()
 
     addTypeN<AutomationHelperItem, ItemGroup*>();
     addTypeN<SeveralTimesHelper, ItemGroup*>();
-    addTypeN<RestHelper, ItemGroup*>();
     addTypeN<PIDHelper, ItemGroup*, uint>();
     addTypeN<InfoRegisterHelper, ItemGroup*, uint, uint>();
 
@@ -221,7 +218,6 @@ void ScriptedProject::registerTypes()
 
     qRegisterMetaType<AutomationHelperItem*>("AutomationHelperItem*");
 
-    qScriptRegisterMetaType<ItemGroup::ValueType>(m_script_engine, sharedPtrToScriptValue<ItemGroup::ValueType>, emptyFromScriptValue<ItemGroup::ValueType>);
 //    qScriptRegisterMetaType<SectionPtr>(eng, sharedPtrToScriptValue<SectionPtr>, emptyFromScriptValue<SectionPtr>);
     qScriptRegisterMetaType<std::string>(m_script_engine, stdstringToScriptValue, emptyFromScriptValue<std::string>);
 //    qScriptRegisterMetaType<DeviceItem*>(eng, )
@@ -588,14 +584,6 @@ bool ScriptedProject::controlChangeCheck(DeviceItem *item, const QVariant &raw_d
     return ret.isBool() && ret.toBool();
 }
 
-bool ScriptedProject::checkValue(DeviceItem* item) const
-{
-    auto ret = callFunction(FUNC_CHECK_VALUE, { m_script_engine->newQObject(sender()),
-                                           valueFromVariant(item->value()),
-                                           m_script_engine->newQObject(item) });
-    return ret.isBool() && ret.toBool();
-}
-
 void ScriptedProject::handlerException(const QScriptValue &exception)
 {
     if (m_script_engine->hasUncaughtException())
@@ -613,7 +601,7 @@ QString ScriptedProject::handler_full_name(int handler_type) const
     }
     else
         names = handler_name(handler_type);
-    QString full_name = "api.handler.";
+    QString full_name = "api.handlers.";
     if (!names.first.isEmpty())
         full_name += names.first + '.';
     full_name += names.second;

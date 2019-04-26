@@ -20,7 +20,6 @@ SOURCES += main.cpp \
     Database/db_manager.cpp \
     Scripts/tools/pidcontroller.cpp \
     Scripts/tools/automationhelper.cpp \
-    Scripts/tools/resthelper.cpp \
     Scripts/tools/severaltimeshelper.cpp \
     Scripts/tools/pidhelper.cpp \
     Scripts/tools/daytimehelper.cpp \
@@ -43,7 +42,6 @@ HEADERS  += \
     Database/db_manager.h \
     Scripts/tools/pidcontroller.h \
     Scripts/tools/automationhelper.h \
-    Scripts/tools/resthelper.h \
     Scripts/tools/severaltimeshelper.h \
     Scripts/tools/pidhelper.h \
     Scripts/tools/daytimehelper.h \

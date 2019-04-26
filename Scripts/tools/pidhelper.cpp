@@ -34,7 +34,7 @@ void PIDHelper::startPWM()
 void PIDHelper::calculatePID(uint current_time)
 {
     Q_UNUSED(current_time)
-
+/*
     auto sensor = group()->value(m_sensor_type);
     if (sensor->status() != ItemGroup::valUnknown)
     {
@@ -60,6 +60,7 @@ void PIDHelper::calculatePID(uint current_time)
     }
     else
         m_pwm_on = 0.;
+        */
 }
 
 void PIDHelper::onPWM()
@@ -73,7 +74,7 @@ void PIDHelper::onPWM()
         calculatePID( current_time );
     m_step = (m_step + 1) % 2;
 
-    bool state = group()->isControlOn(type());
+    bool state = false; // group()->isControlOn(type());
 
     // Init Timer
     {

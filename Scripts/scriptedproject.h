@@ -91,7 +91,6 @@ private slots:
 //    void dayTimeChanged(Section* sct);
 
     bool controlChangeCheck(DeviceItem* item, const QVariant& raw_data, uint32_t user_id);
-    bool checkValue(DeviceItem* item) const;
 
     void groupModeChanged(uint32_t user_id, uint32_t mode, uint32_t group_id);
     void group_param_changed(Params, uint32_t user_id = 0);
