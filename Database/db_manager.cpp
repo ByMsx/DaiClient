@@ -61,29 +61,4 @@ void DBManager::saveCode(uint type, const QString &code)
     update({"house_codes", {"text"}}, { code }, "id=" + QString::number(type));
 }
 
-QVector<Group_Status_Item> DBManager::get_group_status_items()
-{
-    return Helpz::Database::db_build_list<Group_Status_Item>(*this);
-}
-
-QVector<View> DBManager::get_views()
-{
-    return Helpz::Database::db_build_list<View>(*this);
-}
-
-QVector<View_Item> DBManager::get_view_items()
-{
-    return Helpz::Database::db_build_list<View_Item>(*this);
-}
-
-QVector<Device_Item_Value> DBManager::get_device_item_values()
-{
-    return Helpz::Database::db_build_list<Device_Item_Value>(*this);
-}
-
-QVector<Group_Mode> DBManager::get_group_modes()
-{
-    return Helpz::Database::db_build_list<Group_Mode>(*this);
-}
-
 } // namespace Dai

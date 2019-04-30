@@ -424,12 +424,14 @@ void ScriptedProject::console(uint32_t user_id, const QString &cmd, bool is_func
     {
         if (!res.isError() && (res.isObject() || res.isArray()))
         {
-            QScriptValue check_func = m_script_engine->evaluate("(function(key, value) {"
-                                                      "if ((typeof value === 'object' || typeof value === 'function') && value !== null && !Array.isArray(value) && value.toString() !== '[object Object]') {"
-                                                        "return value.toString();"
-                                                      "}"
-                                                      "return value;"
-                                                    "})");
+            QScriptValue check_func = m_script_engine->evaluate(
+                "(function(key, value) {"
+                "  if ((typeof value === 'object' || typeof value === 'function') && "
+                "      value !== null && !Array.isArray(value) && value.toString() !== '[object Object]') {"
+                "    return value.toString();"
+                "  }"
+                "  return value;"
+                "})");
             res = m_script_engine->evaluate("JSON.stringify").call(QScriptValue(), {res, check_func, ' '});
         }
 

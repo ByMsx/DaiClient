@@ -30,11 +30,6 @@ public:
 
     void saveCode(uint type, const QString& code);
 public slots:
-    QVector<Group_Status_Item> get_group_status_items();
-    QVector<View> get_views();
-    QVector<View_Item> get_view_items();
-    QVector<Device_Item_Value> get_device_item_values();
-    QVector<Group_Mode> get_group_modes();
 };
 
 } // namespace Dai

@@ -48,89 +48,103 @@ void Structure_Synchronizer::set_protocol(std::shared_ptr<Protocol_2_0> protocol
     protocol_ = std::move(protocol);
 }
 
-void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice *data_dev)
+void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice *data_dev, Helpz::Database::Thread *thread)
 {
     if (!protocol_)
     {
         return;
     }
 
-    Helpz::Network::Protocol_Sender helper = protocol_->send_answer(Cmd::GET_PROJECT, msg_id);
-    helper << struct_type;
-
-    std::unique_ptr<QDataStream> ds;
-    std::unique_ptr<QBuffer> buf;
-
-    bool hash_flag = struct_type & STRUCT_TYPE_HASH_FLAG;
-    if (hash_flag)
+    if (struct_type & STRUCT_TYPE_HASH_FLAG)
     {
         struct_type &= ~STRUCT_TYPE_HASH_FLAG;
 
-        buf.reset(new QBuffer{});
-        buf->open(QIODevice::ReadWrite);
-        ds.reset(new QDataStream{buf.get()});
-        ds->setVersion(protocol_->DATASTREAM_VERSION);
-    }
-    else
-    {
-        ds.reset(&helper);
-    }
-
-    switch (static_cast<StructureType>(struct_type))
-    {
-    case STRUCT_TYPE_DEVICES:           *ds << prj_->devices();         break;
-    case STRUCT_TYPE_CHECKER_TYPES:     add_checker_types(*ds);         break;
-    case STRUCT_TYPE_DEVICE_ITEMS:      add_device_items(*ds);          break;
-    case STRUCT_TYPE_DEVICE_ITEM_TYPES: *ds << prj_->item_type_mng_;    break;
-    case STRUCT_TYPE_SAVE_TIMERS:       *ds << prj_->save_timers_;      break;
-    case STRUCT_TYPE_SECTIONS:          *ds << prj_->sections();        break;
-    case STRUCT_TYPE_GROUPS:            add_groups(*ds);                break;
-    case STRUCT_TYPE_GROUP_TYPES:       *ds << prj_->group_type_mng_;   break;
-    case STRUCT_TYPE_GROUP_MODE_TYPES:  *ds << prj_->mode_type_mng_;    break;
-    case STRUCT_TYPE_GROUP_PARAM_TYPES: *ds << prj_->param_mng_;        break;
-    case STRUCT_TYPE_GROUP_STATUS_INFO: *ds << prj_->status_mng_;       break;
-    case STRUCT_TYPE_GROUP_STATUS_TYPE: *ds << prj_->status_type_mng_;  break;
-    case STRUCT_TYPE_SIGNS:             *ds << prj_->sign_mng_;         break;
-    case STRUCT_TYPE_VIEW:              add_views(*ds);                 break;
-    case STRUCT_TYPE_VIEW_ITEM:         add_view_itemss(*ds);           break;
-    case STRUCT_TYPE_SCRIPTS:
-    {
-        if (hash_flag)
+        if (struct_type == STRUCT_TYPE_SCRIPTS)
         {
-            hash_flag = false;
-            ds.reset();
-
-            helper << prj_->get_codes_checksum();
+            send_structure_codes_hash(msg_id);
+        }
+        else if (struct_type)
+        {
+            thread->add_query([this, msg_id, struct_type](Helpz::Database::Base *db)
+            {
+                send_structure_hash(struct_type, msg_id, db);
+            });
         }
         else
         {
-            Helpz::apply_parse(*data_dev, Helpz::Network::Protocol::DATASTREAM_VERSION, &Structure_Synchronizer::add_codes, this, ds.get());
-            // qDebug(NetClientLog) << "code sended size:" << helper.device()->size();
+            thread->add_query([this, msg_id](Helpz::Database::Base *db)
+            {
+                send_structure_hash_for_all(msg_id, db);
+            });
         }
-        break;
-    }
-
-    case STRUCT_TYPE_DEVICE_ITEM_VALUES:add_device_item_values(*ds);    break;
-    case STRUCT_TYPE_GROUP_MODE:        add_group_mode(*ds);            break;
-    case STRUCT_TYPE_GROUP_STATUS:      add_group_status_items(*ds);    break;
-    case STRUCT_TYPE_GROUP_PARAMS:      *ds << prj_->get_param_items(); break;
-    default:
-        helper.release();
-        break;
-    }
-
-    if (hash_flag)
-    {
-        ds->device()->seek(0);
-        QByteArray data = ds->device()->readAll();
-        helper << qChecksum(data.constData(), data.size());
     }
     else
     {
-        ds.release();
+        if (struct_type == STRUCT_TYPE_SCRIPTS)
+        {
+            Helpz::apply_parse(*data_dev, Helpz::Network::Protocol::DATASTREAM_VERSION, &Structure_Synchronizer::send_structure_codes, this, msg_id);
+        }
+        else
+        {
+            thread->add_query([this, msg_id, struct_type](Helpz::Database::Base *db)
+            {
+                send_structure(struct_type, msg_id, db);
+            });
+        }
     }
+}
 
+void Structure_Synchronizer::send_structure_hash(uint8_t struct_type, uint8_t msg_id, Helpz::Database::Base* db)
+{
+    protocol_->send_answer(Cmd::GET_PROJECT, msg_id)
+            << uint8_t(struct_type | STRUCT_TYPE_HASH_FLAG)
+            << get_structure_hash(struct_type, db);
+}
+
+void Structure_Synchronizer::send_structure_hash_for_all(uint8_t msg_id, Helpz::Database::Base* db)
+{
+    protocol_->send_answer(Cmd::GET_PROJECT, msg_id)
+            << uint8_t(STRUCT_TYPE_HASH_FLAG)
+            << get_structure_hash_for_all(db);
+}
+
+void Structure_Synchronizer::send_structure(uint8_t struct_type, uint8_t msg_id, Helpz::Database::Base* db)
+{
+    Helpz::Network::Protocol_Sender helper = protocol_->send_answer(Cmd::GET_PROJECT, msg_id);
+    helper << struct_type;
     helper.timeout(nullptr, std::chrono::minutes(5), std::chrono::seconds(90));
+    add_structure_data(struct_type, &helper, db);
+}
+
+void Structure_Synchronizer::send_structure_codes_hash(uint8_t msg_id)
+{
+    protocol_->send_answer(Cmd::GET_PROJECT, msg_id)
+            << uint8_t(STRUCT_TYPE_SCRIPTS | STRUCT_TYPE_HASH_FLAG)
+            << prj_->get_codes_checksum();
+}
+
+void Structure_Synchronizer::send_structure_codes(const QVector<uint32_t> &ids, uint8_t msg_id)
+{
+    Helpz::Network::Protocol_Sender sender = protocol_->send_answer(Cmd::GET_PROJECT, msg_id);
+    sender << uint8_t(STRUCT_TYPE_SCRIPTS);
+
+    Code_Item* code;
+    uint32_t count = 0;
+    auto pos = sender.device()->pos();
+    sender << count;
+    for (uint32_t id: ids)
+    {
+        code = prj_->code_mng_.get_type(id);
+        if (code->id())
+        {
+            sender << *code;
+            ++count;
+        }
+    }
+    sender.device()->seek(pos);
+    sender << count;
+    sender.device()->seek(sender.device()->size());
+    // qDebug(NetClientLog) << "code sended size:" << sender.device()->size();
 }
 
 void Structure_Synchronizer::send_modify_response(const QByteArray &buffer)
@@ -139,119 +153,6 @@ void Structure_Synchronizer::send_modify_response(const QByteArray &buffer)
     {
         protocol_->send(Cmd::MODIFY_PROJECT).writeRawData(buffer.constData(), buffer.size());
     }
-}
-
-void Structure_Synchronizer::add_checker_types(QDataStream &ds)
-{
-    if (prj_->plugin_type_mng_)
-    {
-        ds << *prj_->plugin_type_mng_;
-    }
-}
-
-void Structure_Synchronizer::add_device_items(QDataStream &ds)
-{
-    auto pos = ds.device()->pos();
-    uint32_t count = 0;
-    ds << quint32(0);
-
-    for (Device* dev: prj_->devices())
-    {
-        for (DeviceItem* dev_item: dev->items())
-        {
-            ds << dev_item;
-            ++count;
-        }
-    }
-    ds.device()->seek(pos);
-    ds << count;
-}
-
-void Structure_Synchronizer::add_groups(QDataStream &ds)
-{
-    auto pos = ds.device()->pos();
-    uint32_t count = 0;
-    ds << quint32(0);
-    for (Section* sct: prj_->sections())
-    {
-        for (ItemGroup* group: sct->groups())
-        {
-            ds << *group;
-            ++count;
-        }
-    }
-    ds.device()->seek(pos);
-    ds << count;
-}
-
-void Structure_Synchronizer::add_group_status_items(QDataStream& ds)
-{
-    if (!protocol_)
-        return;
-
-    QVector<Group_Status_Item> items;
-    QMetaObject::invokeMethod(protocol_->worker()->database(), "get_group_status_items", Qt::BlockingQueuedConnection, Q_RETURN_ARG(QVector<Group_Status_Item>, items));
-    ds << items;
-}
-
-void Structure_Synchronizer::add_device_item_values(QDataStream& ds)
-{
-    if (!protocol_)
-        return;
-
-    QVector<Device_Item_Value> items;
-    QMetaObject::invokeMethod(protocol_->worker()->database(), "get_device_item_values", Qt::BlockingQueuedConnection, Q_RETURN_ARG(QVector<Device_Item_Value>, items));
-    ds << items;
-}
-
-void Structure_Synchronizer::add_group_mode(QDataStream& ds)
-{
-    if (!protocol_)
-        return;
-
-    QVector<Group_Mode> items;
-    QMetaObject::invokeMethod(protocol_->worker()->database(), "get_group_modes", Qt::BlockingQueuedConnection, Q_RETURN_ARG(QVector<Group_Mode>, items));
-    ds << items;
-}
-
-void Structure_Synchronizer::add_views(QDataStream& ds)
-{
-    if (!protocol_)
-        return;
-
-    QVector<View> items;
-    QMetaObject::invokeMethod(protocol_->worker()->database(), "get_views", Qt::BlockingQueuedConnection, Q_RETURN_ARG(QVector<View>, items));
-    ds << items;
-}
-
-void Structure_Synchronizer::add_view_itemss(QDataStream& ds)
-{
-    if (!protocol_)
-        return;
-
-    QVector<View_Item> items;
-    QMetaObject::invokeMethod(protocol_->worker()->database(), "get_view_items", Qt::BlockingQueuedConnection, Q_RETURN_ARG(QVector<View_Item>, items));
-    ds << items;
-}
-
-void Structure_Synchronizer::add_codes(const QVector<uint32_t> &ids, QDataStream *ds)
-{
-    Code_Item* code;
-    uint32_t count = 0;
-    auto pos = ds->device()->pos();
-    *ds << count;
-    for (uint32_t id: ids)
-    {
-        code = prj_->code_mng_.get_type(id);
-        if (code->id())
-        {
-            *ds << *code;
-            ++count;
-        }
-    }
-    ds->device()->seek(pos);
-    *ds << count;
-    ds->device()->seek(ds->device()->size());
 }
 
 } // namespace Client
