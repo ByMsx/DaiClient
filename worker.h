@@ -40,12 +40,12 @@ public:
     std::shared_ptr<Client::Protocol_2_0> net_protocol();
 
 private:
-    int init_logging(QSettings* s);
+    void init_logging(QSettings* s);
     void init_Database(QSettings *s);
     void init_Project(QSettings* s);
     void init_Checker(QSettings* s);
     void init_network_client(QSettings* s);
-    void init_LogTimer(int period);
+    void init_LogTimer();
 
     void initDjango(QSettings *s);
 

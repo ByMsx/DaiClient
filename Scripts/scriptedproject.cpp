@@ -89,7 +89,7 @@ ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleRe
     Project(),
     m_dayTime(this),
     m_uptime(QDateTime::currentMSecsSinceEpoch()),
-    ssh_host(sshHost), allow_shell_(allow_shell)
+    allow_shell_(allow_shell), ssh_host_(sshHost)
 {
     registerTypes();
 
@@ -122,7 +122,7 @@ ScriptedProject::~ScriptedProject()
 //    delete db();
 }
 
-void ScriptedProject::setSSHHost(const QString &value) { if (ssh_host != value) ssh_host = value; }
+void ScriptedProject::setSSHHost(const QString &value) { if (ssh_host_ != value) ssh_host_ = value; }
 
 qint64 ScriptedProject::uptime() const { return m_uptime; }
 
@@ -528,7 +528,7 @@ void ScriptedProject::ssh(quint16 port, quint32 remote_port)
     if (pid > 0)
         QProcess::startDetached("kill", { QString::number(pid) });
     // ssh -o StrictHostKeyChecking=no -N -R 0.0.0.0:12345:localhost:22 -p 15666 root@deviceaccess.ru
-    QStringList args{"-o", "StrictHostKeyChecking=no", "-N", "-R", QString("0.0.0.0:%1:localhost:22").arg(remote_port), "-p", QString::number(port), "root@" + ssh_host };
+    QStringList args{"-o", "StrictHostKeyChecking=no", "-N", "-R", QString("0.0.0.0:%1:localhost:22").arg(remote_port), "-p", QString::number(port), "root@" + ssh_host_ };
     QProcess::startDetached("ssh", args, QString(), &pid);
 
     qCInfo(ProjectLog) << "SSH Client started" << pid;

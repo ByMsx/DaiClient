@@ -139,7 +139,7 @@ private:
     mutable std::map<uint32_t, QScriptValue> cache_handler_;
 
     bool allow_shell_;
-    QString ssh_host;
+    QString ssh_host_;
     qint64 pid = -1;
 };
 

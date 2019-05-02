@@ -16,7 +16,7 @@ Q_LOGGING_CATEGORY(RandomLog, "random")
 
 RandomPlugin::RandomPlugin() : QObject() {}
 
-void RandomPlugin::configure(QSettings *settings, Project *)
+void RandomPlugin::configure(QSettings */*settings*/, Project */*proj*/)
 {
     using Helpz::Param;
 //    auto [interval] = Helpz::SettingsHelper(

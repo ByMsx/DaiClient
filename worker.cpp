@@ -32,12 +32,12 @@ Worker::Worker(QObject *parent) :
 
     auto s = settings();
 
-    int log_period = init_logging(s.get());
+    init_logging(s.get());
     init_Database(s.get());
     init_Project(s.get()); // инициализация структуры проекта
     init_Checker(s.get()); // запуск потока опроса устройств
     init_network_client(s.get()); // подключение к серверу
-    init_LogTimer(log_period); // сохранение статуса устройства по таймеру
+    init_LogTimer(); // сохранение статуса устройства по таймеру
 
     // используется для подключения к Orange на прямую
     initDjango(s.get());
@@ -99,17 +99,16 @@ std::shared_ptr<Client::Protocol_2_0> Worker::net_protocol()
     return std::static_pointer_cast<Client::Protocol_2_0>(net_thread_->client()->protocol());
 }
 
-int Worker::init_logging(QSettings *s)
+void Worker::init_logging(QSettings *s)
 {
-    std::tuple<bool, bool, int> t = Helpz::SettingsHelper
+    std::tuple<bool, bool> t = Helpz::SettingsHelper
         #if (__cplusplus < 201402L) || (defined(__GNUC__) && (__GNUC__ < 7))
-            <Z::Param<bool>,Z::Param<bool>,Z::Param<int>>
+            <Z::Param<bool>,Z::Param<bool>>
         #endif
             (
             s, "Log",
             Z::Param<bool>{"Debug", false},
-            Z::Param<bool>{"Syslog", true},
-            Z::Param<int>{"Period", 60 * 30} // 30 минут
+            Z::Param<bool>{"Syslog", true}
     )();
 
     logg().set_debug(std::get<0>(t));
@@ -117,7 +116,6 @@ int Worker::init_logging(QSettings *s)
     logg().set_syslog(std::get<1>(t));
 #endif
     QMetaObject::invokeMethod(&logg(), "init", Qt::QueuedConnection);
-    return std::get<2>(t);
 }
 
 void Worker::init_Database(QSettings* s)
@@ -223,7 +221,7 @@ void Worker::init_network_client(QSettings* s)
     net_thread_.reset(new Helpz::DTLS::Client_Thread{std::move(conf)});
 }
 
-void Worker::init_LogTimer(int period)
+void Worker::init_LogTimer()
 {
     connect(&item_values_timer, &QTimer::timeout, [this]()
     {

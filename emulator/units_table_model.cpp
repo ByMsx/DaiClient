@@ -144,7 +144,7 @@ int Units_Table_Model::rowCount(const QModelIndex &parent) const
 }
 
 
-int Units_Table_Model::columnCount(const QModelIndex &parent) const
+int Units_Table_Model::columnCount(const QModelIndex &/*parent*/) const
 {
     return 3;
 }
@@ -352,7 +352,7 @@ QModelIndex Units_Table_Model::index(int row, int column, const QModelIndex &par
         auto reg_type = row_to_register_type(parent.row());
 
         auto it = modbus_units_map_.find(reg_type);
-        if (it == modbus_units_map_.cend() || row > it->second.size() || it->second.at(row) == nullptr)
+        if (it == modbus_units_map_.cend() || row > static_cast<int>(it->second.size()) || it->second.at(row) == nullptr)
         {
             return QModelIndex();
         }

@@ -33,6 +33,9 @@ void Websocket_Item::modeChanged(uint mode_id, uint group_id) {
 
 void Websocket_Item::procCommand(uint32_t user_id, quint32 user_team_id, quint32 proj_id, quint8 cmd, const QByteArray &raw_data)
 {
+    Q_UNUSED(user_team_id)
+    Q_UNUSED(proj_id)
+
     QByteArray data(4, Qt::Uninitialized);
     data += raw_data;
     QDataStream ds(&data, QIODevice::ReadWrite);

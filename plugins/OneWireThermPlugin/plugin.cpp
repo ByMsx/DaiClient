@@ -21,7 +21,7 @@ OneWireThermPlugin::OneWireThermPlugin() :
 {
 }
 
-void OneWireThermPlugin::configure(QSettings *settings, Project *)
+void OneWireThermPlugin::configure(QSettings */*settings*/, Project */*proj*/)
 {
     /*
     using Helpz::Param;

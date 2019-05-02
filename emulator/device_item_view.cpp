@@ -11,7 +11,9 @@
 #include <QtWidgets/QHeaderView>
 #include "Dai/type_managers.h"
 
-Device_Item_View::Device_Item_View(Dai::Item_Type_Manager *mng, Dai::Device *dev, QModbusServer *modbus_server, QWidget *parent) : QWidget(parent), item_type_manager_(mng), device_(dev), modbus_server_(modbus_server)
+Device_Item_View::Device_Item_View(Dai::Item_Type_Manager *mng, Dai::Device *dev, QModbusServer *modbus_server, QWidget *parent) :
+    QWidget(parent),
+    device_(dev), item_type_manager_(mng), modbus_server_(modbus_server)
 {
     init();
 }
