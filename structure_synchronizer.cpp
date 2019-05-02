@@ -58,17 +58,19 @@ void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t
     if (struct_type & STRUCT_TYPE_HASH_FLAG)
     {
         struct_type &= ~STRUCT_TYPE_HASH_FLAG;
-
-        if (struct_type == STRUCT_TYPE_SCRIPTS)
+        if (struct_type)
         {
-            send_structure_codes_hash(msg_id);
-        }
-        else if (struct_type)
-        {
-            thread->add_query([this, msg_id, struct_type](Helpz::Database::Base *db)
+            if (struct_type == STRUCT_TYPE_SCRIPTS)
             {
-                send_structure_hash(struct_type, msg_id, db);
-            });
+                send_structure_codes_hash(msg_id);
+            }
+            else
+            {
+                thread->add_query([this, msg_id, struct_type](Helpz::Database::Base *db)
+                {
+                    send_structure_hash(struct_type, msg_id, db);
+                });
+            }
         }
         else
         {
