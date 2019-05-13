@@ -7,8 +7,8 @@
 namespace Dai {
 namespace Client {
 
-Structure_Synchronizer::Structure_Synchronizer() :
-    QObject(),
+Structure_Synchronizer::Structure_Synchronizer(Helpz::Database::Thread *db_thread) :
+    QObject(), Dai::Structure_Synchronizer(db_thread),
     protocol_(nullptr)
 {
     qRegisterMetaType<std::shared_ptr<Client::Protocol_2_0>>("std::shared_ptr<Client::Protocol_2_0>");
@@ -48,7 +48,7 @@ void Structure_Synchronizer::set_protocol(std::shared_ptr<Protocol_2_0> protocol
     protocol_ = std::move(protocol);
 }
 
-void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice *data_dev, Helpz::Database::Thread *thread)
+void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice *data_dev)
 {
     if (!protocol_)
     {
@@ -66,7 +66,7 @@ void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t
             }
             else
             {
-                thread->add_query([this, msg_id, struct_type](Helpz::Database::Base *db)
+                db_thread()->add_query([this, msg_id, struct_type](Helpz::Database::Base *db)
                 {
                     send_structure_hash(struct_type, msg_id, db);
                 });
@@ -74,7 +74,7 @@ void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t
         }
         else
         {
-            thread->add_query([this, msg_id](Helpz::Database::Base *db)
+            db_thread()->add_query([this, msg_id](Helpz::Database::Base *db)
             {
                 send_structure_hash_for_all(msg_id, db);
             });
@@ -88,7 +88,7 @@ void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t
         }
         else
         {
-            thread->add_query([this, msg_id, struct_type](Helpz::Database::Base *db)
+            db_thread()->add_query([this, msg_id, struct_type](Helpz::Database::Base *db)
             {
                 send_structure(struct_type, msg_id, db);
             });

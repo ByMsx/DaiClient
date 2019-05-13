@@ -20,6 +20,7 @@ Protocol_2_0::Protocol_2_0(Worker *worker, Structure_Synchronizer *structure_syn
     log_sender_(this),
     structure_sync_(structure_synchronizer)
 {
+    structure_sync_->set_common_db_name(worker->database_info().common_db_name());
     connect_worker_signals();
 }
 
@@ -86,8 +87,8 @@ void Protocol_2_0::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data
     case Cmd::SET_PARAM_VALUES:     apply_parse(data_dev, &Protocol_2_0::set_param_values);     break;
     case Cmd::EXEC_SCRIPT_COMMAND:  apply_parse(data_dev, &Protocol_2_0::parse_script_command, &data_dev);  break;
 
-    case Cmd::GET_PROJECT:          Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::send_project_structure, structure_sync_, msg_id, &data_dev, worker()->db_pending()); break;
-    case Cmd::MODIFY_PROJECT:       Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::process_modify_message, structure_sync_, &data_dev, worker()->db_pending(), QString()); break;
+    case Cmd::GET_PROJECT:          Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::send_project_structure, structure_sync_, msg_id, &data_dev); break;
+    case Cmd::MODIFY_PROJECT:       Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::process_modify_message, structure_sync_, &data_dev, QString()); break;
 
     default:
         if (cmd >= Helpz::Network::Cmd::USER_COMMAND)
@@ -157,12 +158,22 @@ void Protocol_2_0::start_authentication()
 {
     send(Cmd::AUTH).answer([this](QIODevice& data_dev)
     {
-        bool authorized;
-        parse_out(data_dev, authorized);
-        qDebug(NetClientLog) << "Authentication status:" << authorized;
+        apply_parse(data_dev, &Protocol_2_0::process_authentication);
     }).timeout([]() {
         std::cout << "Authentication timeout" << std::endl;
     }, std::chrono::seconds(15)) << auth_info() << structure_sync_->modified();
+}
+
+void Protocol_2_0::process_authentication(bool authorized, const QUuid& connection_id)
+{
+    qDebug(NetClientLog) << "Authentication status:" << authorized;
+    if (authorized)
+    {
+        if (connection_id != auth_info().device_id())
+        {
+            Worker::store_connection_id(connection_id);
+        }
+    }
 }
 
 void Protocol_2_0::send_version(uint8_t msg_id)

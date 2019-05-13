@@ -16,7 +16,7 @@ class Structure_Synchronizer : public QObject, public Dai::Structure_Synchronize
 {
     Q_OBJECT
 public:
-    Structure_Synchronizer();
+    Structure_Synchronizer(Helpz::Database::Thread *db_thread);
 
     void set_project(Project* project);
 
@@ -26,7 +26,7 @@ public:
 
 public slots:
     void set_protocol(std::shared_ptr<Client::Protocol_2_0> protocol = {});
-    void send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev, Helpz::Database::Thread* thread);
+    void send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev);
 private:
     void send_structure_hash(uint8_t struct_type, uint8_t msg_id, Helpz::Database::Base* db);
     void send_structure_hash_for_all(uint8_t msg_id, Helpz::Database::Base* db);

@@ -37,6 +37,7 @@ private:
     void process_item_file(QIODevice &data_dev);
 
     void start_authentication();
+    void process_authentication(bool authorized, const QUuid &connection_id);
     void send_version(uint8_t msg_id);
     void send_time_info(uint8_t msg_id);
 

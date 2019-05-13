@@ -34,18 +34,15 @@ void Log_Helper::log_range(quint8 log_type, qint64 date_ms, std::function<void (
         uint32_t start = 0, end = 0, id;
 
         QSqlQuery q = db->select(table, where, values);
-        if (q.isActive())
+        while(q.next())
         {
-            while(q.next())
-            {
-                id = q.value(0).value<uint32_t>();
-                if (start == 0)
-                    start = end = id;
-                else if (id == (end + 1))
-                    ++end;
-                else
-                    break;
-            }
+            id = q.value(0).value<uint32_t>();
+            if (start == 0)
+                start = end = id;
+            else if (id == (end + 1))
+                ++end;
+            else
+                break;
         }
         callback(qMakePair(start, end));
     });

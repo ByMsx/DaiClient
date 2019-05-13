@@ -53,7 +53,7 @@ void Websocket_Item::procCommand(uint32_t user_id, quint32 user_team_id, quint32
         case wsWriteToDevItem:      Helpz::apply_parse(ds, &Worker::writeToItem, w); break;
         case wsChangeGroupMode:     Helpz::apply_parse(ds, &Worker::setMode, w); break;
         case wsChangeParamValues:   Helpz::apply_parse(ds, &Worker::setParamValues, w); break;
-        case wsStructModify:        Helpz::apply_parse(ds, &Client::Structure_Synchronizer::process_modify_message, &w->structure_sync_, ds.device(), w->db_pending(), QString()); break;
+        case wsStructModify:        Helpz::apply_parse(ds, &Client::Structure_Synchronizer::process_modify_message, w->structure_sync_.get(), ds.device(), QString()); break;
         case wsExecScript:          Helpz::apply_parse(ds, &ScriptedProject::console, w->prj->ptr()); break;
 
         default:

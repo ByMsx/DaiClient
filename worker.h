@@ -22,6 +22,28 @@
 
 namespace Dai {
 
+class DB_Connection_Info : public Helpz::Database::Connection_Info
+{
+public:
+    DB_Connection_Info(const QString &common_db_name, const QString &db_name, const QString &login, const QString &password,
+                   const QString &host = "localhost", int port = -1,
+                   const QString &driver_name = "QMYSQL", const QString& connect_options = QString()) :
+        Helpz::Database::Connection_Info(db_name, login, password, host, port, driver_name, connect_options),
+        common_db_name_(common_db_name)
+    {
+        if (common_db_name.isEmpty())
+        {
+            QStringList list = db_name.split('_');
+            if (list.size())
+                common_db_name_ = list.first();
+        }
+    }
+
+    QString common_db_name() const { return common_db_name_; }
+private:
+    QString common_db_name_;
+};
+
 class Websocket_Item;
 
 class Worker final : public QObject
@@ -33,12 +55,13 @@ public:
 
     DBManager* database() const;
     Helpz::Database::Thread* db_pending();
-    const Helpz::Database::Connection_Info& database_info() const;
+    const DB_Connection_Info& database_info() const;
 
     static std::unique_ptr<QSettings> settings();
 
     std::shared_ptr<Client::Protocol_2_0> net_protocol();
 
+    static void store_connection_id(const QUuid& connection_id);
 private:
     void init_logging(QSettings* s);
     void init_Database(QSettings *s);
@@ -95,7 +118,7 @@ public slots:
 public slots:
     void newValue(DeviceItem* item, uint32_t user_id = 0);
 private:
-    std::unique_ptr<Helpz::Database::Connection_Info> db_info_;
+    std::unique_ptr<DB_Connection_Info> db_info_;
     DBManager* db_mng;
 
     friend class Client::Protocol_2_0;
@@ -103,7 +126,7 @@ private:
     std::shared_ptr<Helpz::DTLS::Client_Thread> net_thread_;
     std::unique_ptr<Helpz::Database::Thread> db_pending_thread_;
     QThread net_protocol_thread_;
-    Client::Structure_Synchronizer structure_sync_;
+    std::unique_ptr<Client::Structure_Synchronizer> structure_sync_;
 
     using ScriptsThread = Helpz::SettingsThreadHelper<ScriptedProject, Worker*, Helpz::ConsoleReader*, QString, bool>;
     ScriptsThread::Type* prj;

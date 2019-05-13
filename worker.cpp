@@ -86,7 +86,7 @@ Worker::~Worker()
 
 DBManager* Worker::database() const { return db_mng; }
 Helpz::Database::Thread* Worker::db_pending() { return db_pending_thread_.get(); }
-const Helpz::Database::Connection_Info& Worker::database_info() const { return *db_info_; }
+const DB_Connection_Info &Worker::database_info() const { return *db_info_; }
 
 /*static*/ std::unique_ptr<QSettings> Worker::settings()
 {
@@ -97,6 +97,14 @@ const Helpz::Database::Connection_Info& Worker::database_info() const { return *
 std::shared_ptr<Client::Protocol_2_0> Worker::net_protocol()
 {
     return std::static_pointer_cast<Client::Protocol_2_0>(net_thread_->client()->protocol());
+}
+
+/*static*/ void Worker::store_connection_id(const QUuid &connection_id)
+{
+    std::shared_ptr<QSettings> s = settings();
+    s->beginGroup("RemoteServer");
+    s->setValue("Device", connection_id);
+    s->endGroup();
 }
 
 void Worker::init_logging(QSettings *s)
@@ -122,10 +130,11 @@ void Worker::init_Database(QSettings* s)
 {
     db_info_ = Helpz::SettingsHelper
         #if (__cplusplus < 201402L) || (defined(__GNUC__) && (__GNUC__ < 7))
-            <Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<int>,Z::Param<QString>,Z::Param<QString>>
+            <Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<QString>,Z::Param<int>,Z::Param<QString>,Z::Param<QString>>
         #endif
             (
                 s, "Database",
+                Z::Param<QString>{"CommonName", QString()},
                 Z::Param<QString>{"Name", "deviceaccess_local"},
                 Z::Param<QString>{"User", "DaiUser"},
                 Z::Param<QString>{"Password", ""},
@@ -133,7 +142,7 @@ void Worker::init_Database(QSettings* s)
                 Z::Param<int>{"Port", -1},
                 Z::Param<QString>{"Driver", "QMYSQL"},
                 Z::Param<QString>{"ConnectOptions", QString()}
-    ).unique_ptr<Helpz::Database::Connection_Info>();
+    ).unique_ptr<DB_Connection_Info>();
     if (!db_info_)
         throw std::runtime_error("Failed get database config");
 
@@ -174,8 +183,9 @@ void Worker::init_Checker(QSettings* s)
 void Worker::init_network_client(QSettings* s)
 {
     net_protocol_thread_.start();
-    structure_sync_.moveToThread(&net_protocol_thread_);
-    structure_sync_.set_project(prj->ptr());
+    structure_sync_.reset(new Client::Structure_Synchronizer{ db_pending_thread_.get() });
+    structure_sync_->moveToThread(&net_protocol_thread_);
+    structure_sync_->set_project(prj->ptr());
 
     qRegisterMetaType<Log_Value_Item>("Log_Value_Item");
     qRegisterMetaType<Log_Event_Item>("Log_Event_Item");
@@ -209,8 +219,8 @@ void Worker::init_network_client(QSettings* s)
 
     Helpz::DTLS::Create_Client_Protocol_Func_T func = [this, auth_info](const std::string& /*app_protocol*/) -> std::shared_ptr<Helpz::Network::Protocol>
     {
-        std::shared_ptr<Client::Protocol_2_0> ptr(new Client::Protocol_2_0{this, &structure_sync_, auth_info});
-        QMetaObject::invokeMethod(&structure_sync_, "set_protocol", Qt::BlockingQueuedConnection, Q_ARG(std::shared_ptr<Client::Protocol_2_0>, ptr));
+        std::shared_ptr<Client::Protocol_2_0> ptr(new Client::Protocol_2_0{this, structure_sync_.get(), auth_info});
+        QMetaObject::invokeMethod(structure_sync_.get(), "set_protocol", Qt::BlockingQueuedConnection, Q_ARG(std::shared_ptr<Client::Protocol_2_0>, ptr));
         return std::static_pointer_cast<Helpz::Network::Protocol>(ptr);
     };
 
@@ -542,7 +552,7 @@ void Worker::add_status(quint32 group_id, quint32 info_id, const QStringList& ar
         {
             if (db->update({table.name_, {"args"}}, {args.join(';')}, "id=" + id_value.toString()))
             {
-                structure_sync_.send_status_update(user_id, item);
+                structure_sync_->send_status_update(user_id, item);
             }
         }
         else
@@ -551,7 +561,7 @@ void Worker::add_status(quint32 group_id, quint32 info_id, const QStringList& ar
             if (db->insert(table, {group_id, info_id, args.join(';')}, &id_value))
             {
                 item.set_id(id_value.toUInt());
-                structure_sync_.send_status_insert(user_id, item);
+                structure_sync_->send_status_insert(user_id, item);
             }
         }
     });
@@ -567,7 +577,7 @@ void Worker::remove_status(quint32 group_id, quint32 info_id, uint32_t user_id)
         {
             if (db->del(table_name, QString("group_id = %1 AND status_id = %2").arg(group_id).arg(info_id)).numRowsAffected())
             {
-                structure_sync_.send_status_delete(user_id, id_value.toUInt());
+                structure_sync_->send_status_delete(user_id, id_value.toUInt());
             }
         }
     });
@@ -579,7 +589,7 @@ void Worker::update_plugin_param_names(const QVector<Plugin_Type>& plugins)
     QDataStream ds(&data, QIODevice::ReadWrite);
     ds << plugins << uint32_t(0) << uint32_t(0);
     ds.device()->seek(0);
-    structure_sync_.process_modify_message(0, STRUCT_TYPE_CHECKER_TYPES, ds.device(), db_pending());
+    structure_sync_->process_modify_message(0, STRUCT_TYPE_CHECKER_TYPES, ds.device());
 
     for (Device* dev: prj->ptr()->devices())
     {

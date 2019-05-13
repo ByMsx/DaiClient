@@ -43,16 +43,11 @@ void DBManager::getListValues(const QVector<quint32>& ids, QVector<quint32> &fou
     pack.clear();
     quint32 id;
     auto q = select(db_table<Log_Value_Item>(), suffix);
-    if (q.isActive())
+    while(q.next())
     {
-//        DeviceItem::ValueType raw_val, val;
-
-        while(q.next())
-        {
-            id = q.value(0).toUInt();
-            pack.push_back(Log_Value_Item{ id, q.value(1).toDateTime().toMSecsSinceEpoch(), q.value(2).toUInt(), q.value(3).toUInt(), q.value(4), q.value(5)});
-            found.push_back(id);
-        }
+        id = q.value(0).toUInt();
+        pack.push_back(Log_Value_Item{ id, q.value(1).toDateTime().toMSecsSinceEpoch(), q.value(2).toUInt(), q.value(3).toUInt(), q.value(4), q.value(5)});
+        found.push_back(id);
     }
 }
 
