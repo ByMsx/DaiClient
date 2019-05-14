@@ -38,7 +38,7 @@ private:
 ParamGroupClass::ParamGroupClass(QScriptEngine *engine) :
     QObject(engine), QScriptClass(engine)
 {
-    qScriptRegisterMetaType<Param*>(engine, toScriptValue, fromScriptValue);
+    qScriptRegisterMetaType<Dai::Param*>(engine, toScriptValue, fromScriptValue);
 
     proto = engine->newQObject(new ParamGroupPrototype(this),
                                QScriptEngine::QtOwnership,
@@ -48,7 +48,7 @@ ParamGroupClass::ParamGroupClass(QScriptEngine *engine) :
     QScriptValue global = engine->globalObject();
     proto.setPrototype(global.property("Object").property("prototype"));
 
-    engine->setDefaultPrototype(qMetaTypeId<Param*>(), proto);
+    //engine->setDefaultPrototype(qMetaTypeId<Param*>(), proto);
 
     f_ctor = engine->newFunction(construct, proto);
     f_ctor.setData(engine->toScriptValue(this));
