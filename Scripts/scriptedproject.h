@@ -93,7 +93,7 @@ private slots:
     bool controlChangeCheck(DeviceItem* item, const QVariant& raw_data, uint32_t user_id);
 
     void groupModeChanged(uint32_t user_id, uint32_t mode, uint32_t group_id);
-    void group_param_changed(Params, uint32_t user_id = 0);
+    void group_param_changed(Param *param, uint32_t user_id = 0);
     void itemChanged(DeviceItem* item, uint32_t user_id);
     void handlerException(const QScriptValue &exception);
 private:

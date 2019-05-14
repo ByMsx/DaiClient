@@ -38,7 +38,7 @@ private:
 ParamGroupClass::ParamGroupClass(QScriptEngine *engine) :
     QObject(engine), QScriptClass(engine)
 {
-    qScriptRegisterMetaType<Params>(engine, toScriptValue, fromScriptValue);
+    qScriptRegisterMetaType<Param*>(engine, toScriptValue, fromScriptValue);
 
     proto = engine->newQObject(new ParamGroupPrototype(this),
                                QScriptEngine::QtOwnership,
@@ -47,6 +47,8 @@ ParamGroupClass::ParamGroupClass(QScriptEngine *engine) :
                                | QScriptEngine::ExcludeSuperClassProperties);
     QScriptValue global = engine->globalObject();
     proto.setPrototype(global.property("Object").property("prototype"));
+
+    engine->setDefaultPrototype(qMetaTypeId<Param*>(), proto);
 
     f_ctor = engine->newFunction(construct, proto);
     f_ctor.setData(engine->toScriptValue(this));
@@ -106,7 +108,7 @@ QScriptClass::QueryFlags ParamGroupClass::queryProperty(const QScriptValue &obje
         flags &= ~HandlesReadAccess;
     return flags;
 
-//    qWarning() << "queryProperty" << name << param << object.data().toVariant().value<Params>() << flags << (flags == 0);
+//    qWarning() << "queryProperty" << name << param << object.data().toVariant().value<Param*>() << flags << (flags == 0);
 }
 
 QScriptValue ParamGroupClass::property(const QScriptValue &object, const QScriptString &name, uint id)
@@ -188,12 +190,12 @@ QScriptValue ParamGroupClass::construct(QScriptContext *ctx, QScriptEngine *)
     if (cls) {
         QScriptValue arg = ctx->argument(0);
         if (arg.instanceOf(ctx->callee()))
-            return cls->newInstance(qscriptvalue_cast<Params>(arg));
+            return cls->newInstance(qscriptvalue_cast<Param*>(arg));
     }
     return QScriptValue();
 }
 
-QScriptValue ParamGroupClass::toScriptValue(QScriptEngine *eng, const Params &param)
+QScriptValue ParamGroupClass::toScriptValue(QScriptEngine *eng, Param * const & param)
 {
     QScriptValue ctor = eng->globalObject().property("Params");
     ParamGroupClass *cls = qscriptvalue_cast<ParamGroupClass*>(ctor.data());
@@ -202,9 +204,9 @@ QScriptValue ParamGroupClass::toScriptValue(QScriptEngine *eng, const Params &pa
     return cls->newInstance(param);
 }
 
-void ParamGroupClass::fromScriptValue(const QScriptValue &obj, Params& param)
+void ParamGroupClass::fromScriptValue(const QScriptValue &obj, Param* & param)
 {
-    param = obj.data().toVariant().value<Params>();
+    param = obj.data().toVariant().value<Param*>();
 }
 // ----- /STATIC -----
 

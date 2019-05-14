@@ -229,6 +229,7 @@ void ScriptedProject::registerTypes()
 
     auto paramClass = new ParamGroupClass(m_script_engine);
     m_script_engine->globalObject().setProperty("Params", paramClass->constructor());
+
 //    eng->globalObject().setProperty("ParamElem", paramClass->constructor());
 }
 
@@ -481,7 +482,7 @@ void ScriptedProject::groupModeChanged(uint32_t user_id, uint32_t mode, uint32_t
     callFunction(FUNC_COUNT + group->type_id(), { groupObj, QScriptValue(), user_id });
 }
 
-void ScriptedProject::group_param_changed(Params, uint32_t user_id)
+void ScriptedProject::group_param_changed(Param* /*param*/, uint32_t user_id)
 {
     auto group = static_cast<ItemGroup*>(sender());
     if (!group)

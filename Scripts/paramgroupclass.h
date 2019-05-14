@@ -47,8 +47,8 @@ public:
 private:
     static QScriptValue construct(QScriptContext *ctx, QScriptEngine *);
 
-    static QScriptValue toScriptValue(QScriptEngine *eng, const Params& param);
-    static void fromScriptValue(const QScriptValue &obj, Params &param);
+    static QScriptValue toScriptValue(QScriptEngine *eng, Param * const &param);
+    static void fromScriptValue(const QScriptValue &obj, Param *&param);
 
     QScriptValue proto, f_ctor;
 

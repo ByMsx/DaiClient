@@ -64,7 +64,7 @@ QScriptValue ParamGroupPrototype::valueOf() const
 
 Param *ParamGroupPrototype::thisParam() const
 {
-    Param* param = thisObject().data().toVariant().value<Params>();
+    Param* param = thisObject().data().toVariant().value<Param*>();
     return param ? param : &empty_param;
 }
 
