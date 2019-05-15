@@ -28,11 +28,14 @@ public slots:
     void set_protocol(std::shared_ptr<Client::Protocol_2_0> protocol = {});
     void send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev);
 private:
-    void send_structure_hash(uint8_t struct_type, uint8_t msg_id, Helpz::Database::Base* db);
-    void send_structure_hash_for_all(uint8_t msg_id, Helpz::Database::Base* db);
-    void send_structure(uint8_t struct_type, uint8_t msg_id, Helpz::Database::Base* db);
-    void send_structure_codes_hash(uint8_t msg_id);
-    void send_structure_codes(const QVector<uint32_t>& ids, uint8_t msg_id);
+    void send_structure_items_hash(uint8_t struct_type, uint8_t msg_id);
+    void add_structure_items_hash(uint8_t struct_type, QDataStream& ds, Helpz::Database::Base& db);
+
+    void send_structure_items(const QVector<uint32_t>& id_vect, uint8_t struct_type, uint8_t msg_id);
+
+    void send_structure_hash(uint8_t struct_type, uint8_t msg_id, Helpz::Database::Base& db);
+    void send_structure_hash_for_all(uint8_t msg_id, Helpz::Database::Base& db);
+    void send_structure(uint8_t struct_type, uint8_t msg_id, Helpz::Database::Base& db);
 
     void send_modify_response(const QByteArray &buffer) override;
 

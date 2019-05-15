@@ -531,7 +531,7 @@ void Worker::setParamValues(uint32_t user_id, const ParamValuesPack &pack)
 
 QVariant db_get_group_status_item_id(Helpz::Database::Base* db, const QString& table_name, quint32 group_id, quint32 info_id)
 {
-    auto q = db->select({table_name, {"id"}}, QString("WHERE group_id = %1 AND status_id = %2").arg(group_id).arg(info_id));
+    auto q = db->select({table_name, {}, {"id"}}, QString("WHERE group_id = %1 AND status_id = %2").arg(group_id).arg(info_id));
     if (q.next())
     {
         return q.value(0);
@@ -545,19 +545,19 @@ void Worker::add_status(quint32 group_id, quint32 info_id, const QStringList& ar
     {
         auto table = Helpz::Database::db_table<Group_Status_Item>();
 
-        QVariant id_value = db_get_group_status_item_id(db, table.name_, group_id, info_id);
+        QVariant id_value = db_get_group_status_item_id(db, table.name(), group_id, info_id);
         Group_Status_Item item{id_value.toUInt(), group_id, info_id, args};
 
         if (id_value.isValid())
         {
-            if (db->update({table.name_, {"args"}}, {args.join(';')}, "id=" + id_value.toString()))
+            if (db->update({table.name(), {}, {"args"}}, {args.join(';')}, "id=" + id_value.toString()))
             {
                 structure_sync_->send_status_update(user_id, item);
             }
         }
         else
         {
-            table.field_names_.removeFirst(); // remove id
+            table.field_names().removeFirst(); // remove id
             if (db->insert(table, {group_id, info_id, args.join(';')}, &id_value))
             {
                 item.set_id(id_value.toUInt());

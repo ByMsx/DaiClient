@@ -27,7 +27,7 @@ void Log_Helper::log_range(quint8 log_type, qint64 date_ms, std::function<void (
     }
     where += "ORDER BY date ASC LIMIT 10000;";
 
-    Helpz::Database::Table table{log_table_name(log_type), {"id"}};
+    Helpz::Database::Table table{log_table_name(log_type), {}, {"id"}};
 
     db_->add_query([table, where, values, callback](Helpz::Database::Base* db)
     {

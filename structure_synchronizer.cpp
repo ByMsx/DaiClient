@@ -1,4 +1,9 @@
+#include <Helpz/db_builder.h>
+
 #include <Dai/commands.h>
+#include <Dai/db/translation.h>
+#include <Dai/db/auth_user.h>
+#include <Dai/db/auth_group.h>
 
 #include "worker.h"
 #include "Network/client_protocol_2_0.h"
@@ -55,98 +60,93 @@ void Structure_Synchronizer::send_project_structure(uint8_t struct_type, uint8_t
         return;
     }
 
-    if (struct_type & STRUCT_TYPE_HASH_FLAG)
+    uint8_t flags = struct_type & STRUCT_TYPE_FLAGS;
+    struct_type &= ~STRUCT_TYPE_FLAGS;
+
+    if (flags & STRUCT_TYPE_HASH_FLAG)
     {
-        struct_type &= ~STRUCT_TYPE_HASH_FLAG;
-        if (struct_type)
+        if (flags & STRUCT_TYPE_ITEM_FLAG)
         {
-            if (struct_type == STRUCT_TYPE_SCRIPTS)
+            send_structure_items_hash(struct_type, msg_id);
+        }
+        else if (struct_type)
+        {
+            db_thread()->add_query([this, msg_id, struct_type](Helpz::Database::Base *db)
             {
-                send_structure_codes_hash(msg_id);
-            }
-            else
-            {
-                db_thread()->add_query([this, msg_id, struct_type](Helpz::Database::Base *db)
-                {
-                    send_structure_hash(struct_type, msg_id, db);
-                });
-            }
+                send_structure_hash(struct_type, msg_id, *db);
+            });
         }
         else
         {
             db_thread()->add_query([this, msg_id](Helpz::Database::Base *db)
             {
-                send_structure_hash_for_all(msg_id, db);
+                send_structure_hash_for_all(msg_id, *db);
             });
         }
     }
     else
     {
-        if (struct_type == STRUCT_TYPE_SCRIPTS)
+        if (flags & STRUCT_TYPE_ITEM_FLAG)
         {
-            Helpz::apply_parse(*data_dev, Helpz::Network::Protocol::DATASTREAM_VERSION, &Structure_Synchronizer::send_structure_codes, this, msg_id);
+            Helpz::apply_parse(*data_dev, Helpz::Network::Protocol::DATASTREAM_VERSION, &Structure_Synchronizer::send_structure_items, this, struct_type, msg_id);
         }
         else
         {
             db_thread()->add_query([this, msg_id, struct_type](Helpz::Database::Base *db)
             {
-                send_structure(struct_type, msg_id, db);
+                send_structure(struct_type, msg_id, *db);
             });
         }
     }
 }
 
-void Structure_Synchronizer::send_structure_hash(uint8_t struct_type, uint8_t msg_id, Helpz::Database::Base* db)
+void Structure_Synchronizer::send_structure_items_hash(uint8_t struct_type, uint8_t msg_id)
+{
+    db_thread()->add_query([this, struct_type, msg_id](Helpz::Database::Base *db)
+    {
+        Helpz::Network::Protocol_Sender helper = protocol_->send_answer(Cmd::GET_PROJECT, msg_id);
+        helper << uint8_t(struct_type | STRUCT_TYPE_FLAGS);
+        helper.timeout(nullptr, std::chrono::minutes(5), std::chrono::seconds(90));
+        add_structure_items_hash(struct_type, helper, *db);
+    });
+}
+
+void Structure_Synchronizer::add_structure_items_hash(uint8_t struct_type, QDataStream& ds, Helpz::Database::Base& db)
+{
+    ds << get_structure_hash_vect_by_type(struct_type, db);
+}
+
+void Structure_Synchronizer::send_structure_items(const QVector<uint32_t>& id_vect, uint8_t struct_type, uint8_t msg_id)
+{
+    db_thread()->add_query([this, id_vect, struct_type, msg_id](Helpz::Database::Base *db)
+    {
+        Helpz::Network::Protocol_Sender helper = protocol_->send_answer(Cmd::GET_PROJECT, msg_id);
+        helper << uint8_t(struct_type | STRUCT_TYPE_ITEM_FLAG);
+        helper.timeout(nullptr, std::chrono::minutes(5), std::chrono::seconds(90));
+        add_structure_items_data(struct_type, id_vect, helper, *db);
+    });
+}
+
+void Structure_Synchronizer::send_structure_hash(uint8_t struct_type, uint8_t msg_id, Helpz::Database::Base& db)
 {
     protocol_->send_answer(Cmd::GET_PROJECT, msg_id)
             << uint8_t(struct_type | STRUCT_TYPE_HASH_FLAG)
             << get_structure_hash(struct_type, db);
 }
 
-void Structure_Synchronizer::send_structure_hash_for_all(uint8_t msg_id, Helpz::Database::Base* db)
+void Structure_Synchronizer::send_structure_hash_for_all(uint8_t msg_id, Helpz::Database::Base& db)
 {
     protocol_->send_answer(Cmd::GET_PROJECT, msg_id)
             << uint8_t(STRUCT_TYPE_HASH_FLAG)
             << get_structure_hash_for_all(db);
 }
 
-void Structure_Synchronizer::send_structure(uint8_t struct_type, uint8_t msg_id, Helpz::Database::Base* db)
-{
-    Helpz::Network::Protocol_Sender helper = protocol_->send_answer(Cmd::GET_PROJECT, msg_id);
-    helper << struct_type;
-    helper.timeout(nullptr, std::chrono::minutes(5), std::chrono::seconds(90));
-    add_structure_data(struct_type, &helper, db);
-}
-
-void Structure_Synchronizer::send_structure_codes_hash(uint8_t msg_id)
-{
-    protocol_->send_answer(Cmd::GET_PROJECT, msg_id)
-            << uint8_t(STRUCT_TYPE_SCRIPTS | STRUCT_TYPE_HASH_FLAG)
-            << prj_->get_codes_checksum();
-}
-
-void Structure_Synchronizer::send_structure_codes(const QVector<uint32_t> &ids, uint8_t msg_id)
+void Structure_Synchronizer::send_structure(uint8_t struct_type, uint8_t msg_id, Helpz::Database::Base& db)
 {
     Helpz::Network::Protocol_Sender sender = protocol_->send_answer(Cmd::GET_PROJECT, msg_id);
-    sender << uint8_t(STRUCT_TYPE_SCRIPTS);
-
-    Code_Item* code;
-    uint32_t count = 0;
-    auto pos = sender.device()->pos();
-    sender << count;
-    for (uint32_t id: ids)
-    {
-        code = prj_->code_mng_.get_type(id);
-        if (code->id())
-        {
-            sender << *code;
-            ++count;
-        }
-    }
-    sender.device()->seek(pos);
-    sender << count;
-    sender.device()->seek(sender.device()->size());
-    // qDebug(NetClientLog) << "code sended size:" << sender.device()->size();
+    sender << struct_type;
+    sender.timeout(nullptr, std::chrono::minutes(5), std::chrono::seconds(90));
+    add_structure_data(struct_type, sender, db);
 }
 
 void Structure_Synchronizer::send_modify_response(const QByteArray &buffer)

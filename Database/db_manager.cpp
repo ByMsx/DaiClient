@@ -22,7 +22,7 @@ using namespace Helpz::Database;
 
 bool DBManager::setDayTime(uint id, const TimeRange &range)
 {
-    return update({db_table_name<Section>(), {"dayStart", "dayEnd"}},
+    return update({db_table_name<Section>(), {}, {"dayStart", "dayEnd"}},
         {range.start(), range.end()}, "id=" + QString::number(id));
 }
 
@@ -53,7 +53,8 @@ void DBManager::getListValues(const QVector<quint32>& ids, QVector<quint32> &fou
 
 void DBManager::saveCode(uint type, const QString &code)
 {
-    update({"house_codes", {"text"}}, { code }, "id=" + QString::number(type));
+
+    update({db_table_name<Code_Item>(), {}, {"text"}}, { code }, "id=" + QString::number(type));
 }
 
 } // namespace Dai
