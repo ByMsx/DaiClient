@@ -73,11 +73,11 @@ QScriptValue ParamGroupClass::getValue(Param *param)
 /*static*/ QScriptValue ParamGroupClass::getValue(ParamGroupClass *pgClass, Param *param)
 {
     switch (param->type()->type()) {
+    case Param_Type::TimeType:
     case Param_Type::IntType:       return param->value().toInt();
     case Param_Type::BoolType:      return param->value().toInt() ? true : false;
     case Param_Type::FloatType:     return param->value().toReal();
     case Param_Type::BytesType:     return QString::fromLocal8Bit(param->value().toByteArray().toHex());
-    case Param_Type::TimeType:      return pgClass->engine()->newDate(param->value().toDateTime());
     case Param_Type::RangeType:
         if (pgClass)
             return ParamGroupClass::newInstance(pgClass, const_cast<Param*>(param));
