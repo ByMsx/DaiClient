@@ -512,21 +512,21 @@ bool Worker::setMode(uint32_t user_id, uint32_t mode_id, uint32_t group_id)
     return res;
 }
 
-void Worker::setParamValues(uint32_t user_id, const ParamValuesPack &pack)
+void Worker::set_group_param_values(uint32_t user_id, const QVector<Group_Param_Value> &pack)
 {
-    QMetaObject::invokeMethod(prj->ptr(), "setParamValues", Qt::QueuedConnection, Q_ARG(uint32_t, user_id), Q_ARG(ParamValuesPack, pack));
+    QMetaObject::invokeMethod(prj->ptr(), "set_group_param_values", Qt::QueuedConnection, Q_ARG(uint32_t, user_id), Q_ARG(QVector<Group_Param_Value>, pack));
 
     QString dbg_msg = "Params changed:";
-    for (const ParamValueItem& item: pack)
+    for (const Group_Param_Value& item: pack)
     {
-        db_mng->saveParamValue(item.first, item.second);
-        dbg_msg += "\n " + QString::number(item.first) + ": \"" + item.second.left(16) + "\"";
+        db_mng->save_group_param_value(item.group_param_id(), item.value());
+        dbg_msg += "\n " + QString::number(item.group_param_id()) + ": \"" + item.value().left(16) + "\"";
     }
 
     Log_Event_Item event {0, user_id, QtDebugMsg, 0, Service::Log().categoryName(), dbg_msg};
     add_event_message(event);
 
-    emit paramValuesChanged(user_id, pack);
+    emit group_param_values_changed(user_id, pack);
 }
 
 QVariant db_get_group_status_item_id(Helpz::Database::Base* db, const QString& table_name, quint32 group_id, quint32 info_id)

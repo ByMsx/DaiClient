@@ -31,20 +31,20 @@ Protocol_2_0::~Protocol_2_0()
 
 void Protocol_2_0::connect_worker_signals()
 {
-    qRegisterMetaType<ParamValuesPack>("ParamValuesPack");
+    qRegisterMetaType<QVector<Group_Param_Value>>("QVector<Group_Param_Value>");
 
     prj_ = worker()->prj->ptr();
 
     connect(this, &Protocol_2_0::restart, worker(), &Worker::restart_service_object, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::write_to_item, worker(), &Worker::writeToItem, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::set_mode, worker(), &Worker::setMode, Qt::QueuedConnection);
-    connect(this, &Protocol_2_0::set_param_values, worker(), &Worker::setParamValues, Qt::QueuedConnection);
+    connect(this, &Protocol_2_0::set_group_param_values, worker(), &Worker::set_group_param_values, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::exec_script_command, worker()->prj->ptr(), &ScriptedProject::console, Qt::QueuedConnection);
 
     connect(worker(), &Worker::modeChanged, this, &Protocol_2_0::send_mode, Qt::QueuedConnection);
     connect(worker(), &Worker::status_added, this, &Protocol_2_0::send_status_added, Qt::QueuedConnection);
     connect(worker(), &Worker::status_removed, this, &Protocol_2_0::send_status_removed, Qt::QueuedConnection);
-    connect(worker(), &Worker::paramValuesChanged, this, &Protocol_2_0::send_param_values, Qt::QueuedConnection);
+    connect(worker(), &Worker::group_param_values_changed, this, &Protocol_2_0::send_group_param_values, Qt::QueuedConnection);
 
     /*
     qRegisterMetaType<Code_Item>("Code_Item");
@@ -73,22 +73,22 @@ void Protocol_2_0::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data
     switch (cmd)
     {
 
-    case Cmd::NO_AUTH:              start_authentication(); break;
-    case Cmd::VERSION:              send_version(msg_id);   break;
-    case Cmd::TIME_INFO:            send_time_info(msg_id); break;
+    case Cmd::NO_AUTH:                  start_authentication(); break;
+    case Cmd::VERSION:                  send_version(msg_id);   break;
+    case Cmd::TIME_INFO:                send_time_info(msg_id); break;
 
-    case Cmd::LOG_RANGE:            Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_log_range, &log_sender_, msg_id);    break;
-    case Cmd::LOG_DATA:             Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_log_data, &log_sender_, msg_id);     break;
+    case Cmd::LOG_RANGE:                Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_log_range, &log_sender_, msg_id);    break;
+    case Cmd::LOG_DATA:                 Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_log_data, &log_sender_, msg_id);     break;
 
-    case Cmd::RESTART:              apply_parse(data_dev, &Protocol_2_0::restart);              break;
-    case Cmd::WRITE_TO_ITEM:        apply_parse(data_dev, &Protocol_2_0::write_to_item);        break;
-    case Cmd::WRITE_TO_ITEM_FILE:   process_item_file(data_dev);                                break;
-    case Cmd::SET_MODE:             apply_parse(data_dev, &Protocol_2_0::set_mode);             break;
-    case Cmd::SET_PARAM_VALUES:     apply_parse(data_dev, &Protocol_2_0::set_param_values);     break;
-    case Cmd::EXEC_SCRIPT_COMMAND:  apply_parse(data_dev, &Protocol_2_0::parse_script_command, &data_dev);  break;
+    case Cmd::RESTART:                  apply_parse(data_dev, &Protocol_2_0::restart);                          break;
+    case Cmd::WRITE_TO_ITEM:            apply_parse(data_dev, &Protocol_2_0::write_to_item);                    break;
+    case Cmd::WRITE_TO_ITEM_FILE:       process_item_file(data_dev);                                            break;
+    case Cmd::SET_MODE:                 apply_parse(data_dev, &Protocol_2_0::set_mode);                         break;
+    case Cmd::SET_GROUP_PARAM_VALUES:   apply_parse(data_dev, &Protocol_2_0::set_group_param_values);           break;
+    case Cmd::EXEC_SCRIPT_COMMAND:      apply_parse(data_dev, &Protocol_2_0::parse_script_command, &data_dev);  break;
 
-    case Cmd::GET_PROJECT:          Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::send_project_structure, structure_sync_, msg_id, &data_dev); break;
-    case Cmd::MODIFY_PROJECT:       Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::process_modify_message, structure_sync_, &data_dev, QString()); break;
+    case Cmd::GET_PROJECT:              Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::send_project_structure, structure_sync_, msg_id, &data_dev); break;
+    case Cmd::MODIFY_PROJECT:           Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::process_modify_message, structure_sync_, &data_dev, QString()); break;
 
     default:
         if (cmd >= Helpz::Network::Cmd::USER_COMMAND)
@@ -208,9 +208,9 @@ void Protocol_2_0::send_status_removed(quint32 group_id, quint32 info_id, uint32
     send(Cmd::REMOVE_STATUS) << group_id << info_id;
 }
 
-void Protocol_2_0::send_param_values(uint32_t user_id, const ParamValuesPack& pack)
+void Protocol_2_0::send_group_param_values(uint32_t user_id, const QVector<Group_Param_Value> &pack)
 {
-    send(Cmd::SET_PARAM_VALUES) << user_id << pack;
+    send(Cmd::SET_GROUP_PARAM_VALUES) << user_id << pack;
 }
 
 // -----------------------

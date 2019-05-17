@@ -21,7 +21,7 @@ signals:
     void restart(uint32_t user_id);
     void write_to_item(uint32_t user_id, uint32_t item_id, const QVariant& raw_data);
     bool set_mode(uint32_t user_id, quint32 mode_id, quint32 group_id);
-    void set_param_values(uint32_t user_id, const ParamValuesPack& pack);
+    void set_group_param_values(uint32_t user_id, const QVector<Group_Param_Value>& pack);
     void exec_script_command(uint32_t user_id, const QString& script, bool is_function, const QVariantList& arguments);
 
     void send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev, Helpz::Network::Protocol* protocol);
@@ -44,7 +44,7 @@ private:
     void send_mode(uint32_t user_id, uint mode_id, quint32 group_id);
     void send_status_added(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t);
     void send_status_removed(quint32 group_id, quint32 info_id, uint32_t);
-    void send_param_values(uint32_t user_id, const ParamValuesPack& pack);
+    void send_group_param_values(uint32_t user_id, const QVector<Group_Param_Value>& pack);
 
     Project* prj_;
 

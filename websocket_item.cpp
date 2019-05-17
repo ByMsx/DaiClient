@@ -49,12 +49,12 @@ void Websocket_Item::procCommand(uint32_t user_id, quint32 user_team_id, quint32
             send(this, w->webSock_th->ptr()->prepare_connect_state_message(id(), "127.0.0.1", QDateTime::currentDateTime().timeZone(), 0));
             break;
 
-        case wsRestart:             Helpz::apply_parse(ds, &Worker::restart_service_object, w); break;
-        case wsWriteToDevItem:      Helpz::apply_parse(ds, &Worker::writeToItem, w); break;
-        case wsChangeGroupMode:     Helpz::apply_parse(ds, &Worker::setMode, w); break;
-        case wsChangeParamValues:   Helpz::apply_parse(ds, &Worker::setParamValues, w); break;
-        case wsStructModify:        Helpz::apply_parse(ds, &Client::Structure_Synchronizer::process_modify_message, w->structure_sync_.get(), ds.device(), QString()); break;
-        case wsExecScript:          Helpz::apply_parse(ds, &ScriptedProject::console, w->prj->ptr()); break;
+        case wsRestart:                 Helpz::apply_parse(ds, &Worker::restart_service_object, w); break;
+        case wsWriteToDevItem:          Helpz::apply_parse(ds, &Worker::writeToItem, w); break;
+        case wsChangeGroupMode:         Helpz::apply_parse(ds, &Worker::setMode, w); break;
+        case wsChangeGroupParamValues:  Helpz::apply_parse(ds, &Worker::set_group_param_values, w); break;
+        case wsStructModify:            Helpz::apply_parse(ds, &Client::Structure_Synchronizer::process_modify_message, w->structure_sync_.get(), ds.device(), QString()); break;
+        case wsExecScript:              Helpz::apply_parse(ds, &ScriptedProject::console, w->prj->ptr()); break;
 
         default:
             qWarning() << "Unknown WebSocket Message:" << (WebSockCmd)cmd;
