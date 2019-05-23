@@ -22,6 +22,7 @@ public slots:
 
     void modeChanged(uint mode_id, uint group_id);
     void procCommand(uint32_t user_id, quint32 user_team_id, quint32 proj_id, quint8 cmd, const QByteArray& raw_data);
+    void parse_script_command(uint32_t user_id, const QString &script, QDataStream* data);
 private:
     Worker* w;
 };
