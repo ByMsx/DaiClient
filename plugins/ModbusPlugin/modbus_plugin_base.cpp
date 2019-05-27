@@ -1,4 +1,4 @@
-#include <queue>
+﻿#include <queue>
 #include <vector>
 #include <iterator>
 #include <type_traits>
@@ -320,7 +320,8 @@ void Modbus_Plugin_Base::configure(QSettings *settings, Project *)
 
     connect(this, &QModbusClient::errorOccurred, [this](Error e)
     {
-//        qCCritical(ModbusLog).noquote() << "Occurred:" << e << errorString();
+        queue_->clear();
+        //qCCritical(ModbusLog).noquote() << "Occurred:" << e << errorString();
         if (e == ConnectionError)
             disconnectDevice();
     });
@@ -546,6 +547,7 @@ void Modbus_Plugin_Base::write_finished(QModbusReply* reply)
                                    tr("Mobus exception: 0x%1").arg(reply->rawResult().exceptionCode(), -1, 16) :
                                    tr("code: 0x%1").arg(reply->error(), -1, 16))
                           .arg(pack.register_type_).arg(pack.start_address_) << cache_items_to_values(pack.items_);
+            queue_->clear();
         }
     }
     else
@@ -625,6 +627,7 @@ void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
                          .arg(reply->error() == QModbusDevice::ProtocolError ?
                                 tr("Mobus exception: 0x%1").arg(reply->rawResult().exceptionCode(), -1, 16) :
                                   tr("code: 0x%1").arg(reply->error(), -1, 16)));
+            queue_->clear();
         }
         else
         {
