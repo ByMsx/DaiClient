@@ -1,4 +1,4 @@
-﻿#include <queue>
+﻿#include <deque>
 #include <vector>
 #include <iterator>
 #include <type_traits>
@@ -201,8 +201,8 @@ private:
 
 struct Modbus_Queue
 {
-    std::queue<Modbus_Pack<Write_Cache_Item>> write_;
-    std::queue<Modbus_Pack<DeviceItem*>> read_;
+    std::deque<Modbus_Pack<Write_Cache_Item>> write_;
+    std::deque<Modbus_Pack<DeviceItem*>> read_;
 
     bool is_active() const
     {
@@ -216,14 +216,39 @@ struct Modbus_Queue
         {
             if (write_.front().reply_)
                 QObject::disconnect(write_.front().reply_, 0, 0, 0);
-            write_.pop();
+            write_.pop_front();
         }
 
         while (read_.size())
         {
             if (read_.front().reply_)
                 QObject::disconnect(read_.front().reply_, 0, 0, 0);
-            read_.pop();
+            read_.pop_front();
+        }
+    }
+
+    void clear_by_address(int address)
+    {
+        for (int i = 0; i < write_.size(); ++i)
+        {
+            if (write_.front().server_address_ == address)
+            {
+                if (write_.front().reply_)
+                    QObject::disconnect(write_.front().reply_, 0, 0, 0);
+                write_.erase(write_.begin() + i);
+                --i;
+            }
+        }
+
+        for (int i = 0; i < read_.size(); ++i)
+        {
+            if (read_.front().server_address_ == address)
+            {
+                if (read_.front().reply_)
+                    QObject::disconnect(read_.front().reply_, 0, 0, 0);
+                read_.erase(read_.begin() + i);
+                --i;
+            }
         }
     }
 };
@@ -353,7 +378,7 @@ void Modbus_Plugin_Base::write(std::vector<Write_Cache_Item>& items)
     Modbus_Pack_Builder<Write_Cache_Item> pack_builder(items);
     for (Modbus_Pack<Write_Cache_Item>& pack: pack_builder.container_)
     {
-        queue_->write_.push(std::move(pack));
+        queue_->write_.push_back(std::move(pack));
     }
     process_queue();
 }
@@ -424,7 +449,7 @@ void Modbus_Plugin_Base::read(const QVector<DeviceItem*>& dev_items)
     Modbus_Pack_Builder<DeviceItem*> pack_builder(dev_items);
     for (Modbus_Pack<DeviceItem*>& pack: pack_builder.container_)
     {
-        queue_->read_.push(std::move(pack));
+        queue_->read_.push_back(std::move(pack));
     }
 
     process_queue();
@@ -455,7 +480,7 @@ void Modbus_Plugin_Base::process_queue()
             write_pack(pack.server_address_, pack.register_type_, pack.start_address_, pack.items_, &pack.reply_);
             if (!pack.reply_)
             {
-                queue_->write_.pop();
+                queue_->write_.pop_front();
                 process_queue();
             }
         }
@@ -465,7 +490,7 @@ void Modbus_Plugin_Base::process_queue()
             read_pack(pack.server_address_, pack.register_type_, pack.start_address_, pack.items_, &pack.reply_);
             if (!pack.reply_)
             {
-                queue_->read_.pop();
+                queue_->read_.pop_front();
                 process_queue();
             }
         }
@@ -533,7 +558,7 @@ void Modbus_Plugin_Base::write_finished(QModbusReply* reply)
         Modbus_Pack<Write_Cache_Item>& pack = queue_->write_.front();
         if (reply == pack.reply_)
         {
-            queue_->write_.pop();
+            queue_->write_.pop_front();
         }
         else
             qCCritical(ModbusLog).noquote() << tr("Write finished but is not queue front") << reply << pack.reply_;
@@ -547,7 +572,7 @@ void Modbus_Plugin_Base::write_finished(QModbusReply* reply)
                                    tr("Mobus exception: 0x%1").arg(reply->rawResult().exceptionCode(), -1, 16) :
                                    tr("code: 0x%1").arg(reply->error(), -1, 16))
                           .arg(pack.register_type_).arg(pack.start_address_) << cache_items_to_values(pack.items_);
-            queue_->clear();
+            queue_->clear_by_address(reply->serverAddress());
         }
     }
     else
@@ -614,7 +639,7 @@ void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
                                           Q_ARG(const QVariant&, raw_data));
             }
 
-            queue_->read_.pop();
+            queue_->read_.pop_front();
         }
         else
             qCCritical(ModbusLog).noquote() << tr("Read finished but is not queue front") << reply << pack.reply_;
@@ -627,7 +652,7 @@ void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
                          .arg(reply->error() == QModbusDevice::ProtocolError ?
                                 tr("Mobus exception: 0x%1").arg(reply->rawResult().exceptionCode(), -1, 16) :
                                   tr("code: 0x%1").arg(reply->error(), -1, 16)));
-            queue_->clear();
+            queue_->clear_by_address(pack.server_address_);
         }
         else
         {
