@@ -1,5 +1,4 @@
 #include <QDebug>
-#include <QProcess>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>

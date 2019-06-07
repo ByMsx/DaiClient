@@ -149,10 +149,19 @@ void Structure_Synchronizer::send_structure(uint8_t struct_type, uint8_t msg_id,
     add_structure_data(struct_type, sender, db);
 }
 
-void Structure_Synchronizer::send_modify_response(const QByteArray &buffer)
+void Structure_Synchronizer::send_modify_response(uint8_t struct_type, const QByteArray &buffer)
 {
     if (protocol_)
     {
+        if (struct_type == STRUCT_TYPE_AUTH_USER)
+        {
+            QString sql = "INSERT INTO %1.house_list_employee (team_id,user_id) "
+                          "SELECT 1, au.id FROM %1.house_list_employee hle "
+                          "RIGHT JOIN %1.auth_user au ON hle.user_id = au.id WHERE hle.id IS NULL;";
+            sql = sql.arg(protocol_->worker()->database_info().common_db_name());
+            db_thread()->add_pending_query(std::move(sql), std::vector<QVariantList>());
+        }
+
         protocol_->send(Cmd::MODIFY_PROJECT).writeRawData(buffer.constData(), buffer.size());
     }
 }

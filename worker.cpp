@@ -154,6 +154,10 @@ void Worker::init_Database(QSettings* s)
     db_mng = new DBManager(*db_info_, "Worker_" + QString::number((quintptr)this));
     connect(this, &Worker::status_added, this, &Worker::add_status, Qt::QueuedConnection);
     connect(this, &Worker::status_removed, this, &Worker::remove_status, Qt::QueuedConnection);
+
+    QString sql = "DELETE hle FROM %1.house_list_employee hle LEFT JOIN %1.auth_user au ON hle.user_id = au.id WHERE au.id IS NULL;";
+    sql = sql.arg(db_info_->common_db_name());
+    db_pending_thread_->add_pending_query(std::move(sql), std::vector<QVariantList>());
 }
 
 void Worker::init_Project(QSettings* s)
