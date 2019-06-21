@@ -96,7 +96,10 @@ const DB_Connection_Info &Worker::database_info() const { return *db_info_; }
 
 std::shared_ptr<Client::Protocol_2_0> Worker::net_protocol()
 {
-    return std::static_pointer_cast<Client::Protocol_2_0>(net_thread_->client()->protocol());
+    auto client = net_thread_->client();
+    if (client)
+        return std::static_pointer_cast<Client::Protocol_2_0>(client->protocol());
+    return {};
 }
 
 /*static*/ void Worker::store_connection_id(const QUuid &connection_id)

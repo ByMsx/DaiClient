@@ -335,11 +335,10 @@ void ScriptedProject::scriptsInitialization()
         else
         {
             group_handler = group_handler_obj.property(type.name());
-            cache_handler_.emplace(FUNC_COUNT + type.id(), group_handler);
-            if (!group_handler.isFunction())
-            {
+            if (group_handler.isFunction())
+                cache_handler_.emplace(FUNC_COUNT + type.id(), group_handler);
+            else
                 qCDebug(ScriptDetailLog) << "Group type" << type.id() << type.name() << "havent 'changed' function" << group_handler_obj.toString();
-            }
         }
     }
 
@@ -652,11 +651,10 @@ QScriptValue ScriptedProject::get_handler(int handler_type) const
     }
     auto name_pair = handler_name(handler_type);
     QScriptValue handler = get_handler(name_pair.second, name_pair.first);
-    cache_handler_.emplace(handler_type, handler);
-    if (!handler.isFunction())
-    {
+    if (handler.isFunction())
+        cache_handler_.emplace(handler_type, handler);
+    else
         qCDebug(ScriptDetailLog) << "Can not find:" << handler_full_name(handler_type);
-    }
     return handler;
 }
 
@@ -678,7 +676,10 @@ QScriptValue ScriptedProject::get_handler(const QString& name, const QString& pa
 void ScriptedProject::check_error(int handler_type, const QScriptValue& result) const
 {
     if (result.isError())
+    {
         check_error(handler_full_name(handler_type), result);
+        cache_handler_.erase(handler_type);
+    }
 }
 
 void ScriptedProject::check_error(const QString& str, const QScriptValue& result) const
