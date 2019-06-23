@@ -195,22 +195,22 @@ void Protocol_2_0::send_time_info(uint8_t msg_id)
 
 void Protocol_2_0::send_mode(uint32_t user_id, uint mode_id, quint32 group_id)
 {
-    send(Cmd::SET_MODE) << user_id << mode_id << group_id;
+    send(Cmd::SET_MODE).timeout(nullptr, std::chrono::seconds(16), std::chrono::seconds(5)) << user_id << mode_id << group_id;
 }
 
 void Protocol_2_0::send_status_added(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t)
 {
-    send(Cmd::ADD_STATUS) << group_id << info_id << args;
+    send(Cmd::ADD_STATUS).timeout(nullptr, std::chrono::seconds(16), std::chrono::seconds(5)) << group_id << info_id << args;
 }
 
 void Protocol_2_0::send_status_removed(quint32 group_id, quint32 info_id, uint32_t)
 {
-    send(Cmd::REMOVE_STATUS) << group_id << info_id;
+    send(Cmd::REMOVE_STATUS).timeout(nullptr, std::chrono::seconds(16), std::chrono::seconds(5)) << group_id << info_id;
 }
 
 void Protocol_2_0::send_group_param_values(uint32_t user_id, const QVector<Group_Param_Value> &pack)
 {
-    send(Cmd::SET_GROUP_PARAM_VALUES) << user_id << pack;
+    send(Cmd::SET_GROUP_PARAM_VALUES).timeout(nullptr, std::chrono::seconds(16), std::chrono::seconds(5)) << user_id << pack;
 }
 
 // -----------------------

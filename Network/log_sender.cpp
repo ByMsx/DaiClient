@@ -79,7 +79,7 @@ void Log_Sender::send_log_packs()
 {
     if (value_pack_.size())
     {
-        protocol_->send(Cmd::LOG_PACK_VALUES) << value_pack_;
+        protocol_->send(Cmd::LOG_PACK_VALUES).timeout(nullptr, std::chrono::seconds(46), std::chrono::seconds(15)) << value_pack_;
         value_pack_.clear();
     }
 
