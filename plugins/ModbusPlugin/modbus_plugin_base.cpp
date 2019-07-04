@@ -1,5 +1,6 @@
 ﻿#include <deque>
 #include <vector>
+#include <queue>
 #include <iterator>
 #include <type_traits>
 
@@ -120,6 +121,7 @@ struct Modbus_Pack
     int start_address_;
     QModbusDataUnit::RegisterType register_type_;
     QModbusReply* reply_;
+
     std::vector<T> items_;
 };
 
@@ -199,15 +201,62 @@ private:
 
 // -----------------------------------------------------------------
 
+class Modbus_Pack_Read_Manager
+{
+public:
+    Modbus_Pack_Read_Manager(const Modbus_Pack_Read_Manager&) = delete;
+    Modbus_Pack_Read_Manager& operator =(const Modbus_Pack_Read_Manager&) = delete;
+    Modbus_Pack_Read_Manager(std::vector<Modbus_Pack<DeviceItem*>>&& packs) : packs_(std::move(packs))
+    {
+        for (Modbus_Pack<DeviceItem*> &item_pack : packs_)
+        {
+            for (DeviceItem* device_item : item_pack.items_)
+            {
+                new_values_.emplace(device_item, QVariant());
+            }
+        }
+    }
+
+    Modbus_Pack_Read_Manager(Modbus_Pack_Read_Manager&& o) :
+        packs_(std::move(o.packs_)), new_values_(std::move(o.new_values_)), position_(std::move(o.position_))
+    {
+        o.packs_.clear();
+        o.new_values_.clear();
+    }
+
+    ~Modbus_Pack_Read_Manager()
+    {
+        if (packs_.size())
+        {
+            packs_.front().items_.front()->device()->set_device_items_values(std::move(new_values_));
+            while (packs_.size())
+            {
+                if (packs_.front().reply_)
+                    QObject::disconnect(packs_.front().reply_, 0, 0, 0);
+                packs_.pop_back();
+            }
+        }
+    }
+
+    std::vector<Modbus_Pack<DeviceItem*>> packs_;
+    std::map<DeviceItem*, QVariant> new_values_;
+    int position_ = -1;
+};
+
+
+// -----------------------------------------------------------------
+
 struct Modbus_Queue
 {
     std::deque<Modbus_Pack<Write_Cache_Item>> write_;
-    std::deque<Modbus_Pack<DeviceItem*>> read_;
+    std::queue<Modbus_Pack_Read_Manager> read_;
 
     bool is_active() const
     {
+        int position  = read_.front().position_;
+
         return (write_.size() && write_.front().reply_) ||
-                (read_.size() && read_.front().reply_);
+                (read_.size() && position > -1 && read_.front().packs_.at(position).reply_);
     }
 
     void clear()
@@ -221,15 +270,13 @@ struct Modbus_Queue
 
         while (read_.size())
         {
-            if (read_.front().reply_)
-                QObject::disconnect(read_.front().reply_, 0, 0, 0);
-            read_.pop_front();
+            read_.pop();
         }
     }
 
     void clear_by_address(int address)
     {
-        for (int i = 0; i < write_.size(); ++i)
+        for (std::size_t i = 0; i < write_.size(); ++i)
         {
             if (write_.front().server_address_ == address)
             {
@@ -240,16 +287,16 @@ struct Modbus_Queue
             }
         }
 
-        for (int i = 0; i < read_.size(); ++i)
+        std::queue<Modbus_Pack_Read_Manager> read;
+        while (read_.size())
         {
-            if (read_.front().server_address_ == address)
+            if (read_.front().packs_.front().server_address_ != address)
             {
-                if (read_.front().reply_)
-                    QObject::disconnect(read_.front().reply_, 0, 0, 0);
-                read_.erase(read_.begin() + i);
-                --i;
+                read.push(std::move(read_.front()));
             }
+            read_.pop();
         }
+        read_ = std::move(read);
     }
 };
 
@@ -447,10 +494,8 @@ bool Modbus_Plugin_Base::reconnect()
 void Modbus_Plugin_Base::read(const QVector<DeviceItem*>& dev_items)
 {
     Modbus_Pack_Builder<DeviceItem*> pack_builder(dev_items);
-    for (Modbus_Pack<DeviceItem*>& pack: pack_builder.container_)
-    {
-        queue_->read_.push_back(std::move(pack));
-    }
+    Modbus_Pack_Read_Manager mng(std::move(pack_builder.container_));
+    queue_->read_.push(std::move(mng));
 
     process_queue();
 }
@@ -486,12 +531,21 @@ void Modbus_Plugin_Base::process_queue()
         }
         else if (queue_->read_.size())
         {
-            Modbus_Pack<DeviceItem*>& pack = queue_->read_.front();
-            read_pack(pack.server_address_, pack.register_type_, pack.start_address_, pack.items_, &pack.reply_);
-            if (!pack.reply_)
+            Modbus_Pack_Read_Manager& modbus_pack_read_manager = queue_->read_.front();
+            ++modbus_pack_read_manager.position_;
+            if (modbus_pack_read_manager.position_ >= modbus_pack_read_manager.packs_.size())
             {
-                queue_->read_.pop_front();
+                queue_->read_.pop();
                 process_queue();
+            }
+            else
+            {
+                Modbus_Pack<DeviceItem*>& pack = modbus_pack_read_manager.packs_.at(modbus_pack_read_manager.position_);
+                read_pack(pack.server_address_, pack.register_type_, pack.start_address_, pack.items_, &pack.reply_);
+                if (!pack.reply_)
+                {
+                    process_queue();
+                }
             }
         }
     }
@@ -612,8 +666,9 @@ void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
     }
 
     if (queue_->read_.size())
-    {
-        Modbus_Pack<DeviceItem*>& pack = queue_->read_.front();
+    {        
+        Modbus_Pack_Read_Manager& modbus_pack_read_manager = queue_->read_.front();
+        Modbus_Pack<DeviceItem*>& pack = modbus_pack_read_manager.packs_.at(modbus_pack_read_manager.position_);
         if (reply == pack.reply_)
         {
             QVariant raw_data;
@@ -635,11 +690,10 @@ void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
                 else
                     raw_data.clear();
 
-                QMetaObject::invokeMethod(pack.items_.at(i), "setRawValue", Qt::QueuedConnection,
-                                          Q_ARG(const QVariant&, raw_data));
+                modbus_pack_read_manager.new_values_.at(pack.items_.at(i)) = raw_data;
+//                QMetaObject::invokeMethod(pack.items_.at(i), "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data));
             }
 
-            queue_->read_.pop_front();
         }
         else
             qCCritical(ModbusLog).noquote() << tr("Read finished but is not queue front") << reply << pack.reply_;
@@ -655,7 +709,7 @@ void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
             queue_->clear_by_address(pack.server_address_);
         }
         else
-        {
+        {            
             auto status_it = dev_status_cache_.find(std::make_pair(pack.server_address_, pack.register_type_));
             if (status_it != dev_status_cache_.end())
             {
