@@ -22,6 +22,16 @@
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_3">
       <item>
+       <widget class="Dai::Light_Indicator" name="light_indicator_" native="true">
+        <property name="minimumSize">
+         <size>
+          <width>26</width>
+          <height>0</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QLineEdit" name="portName">
         <property name="text">
          <string>/dev/pts/</string>
@@ -58,7 +68,7 @@
          <x>0</x>
          <y>0</y>
          <width>762</width>
-         <height>487</height>
+         <height>484</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout">
@@ -86,12 +96,20 @@
      <x>0</x>
      <y>0</y>
      <width>782</width>
-     <height>22</height>
+     <height>23</height>
     </rect>
    </property>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>Dai::Light_Indicator</class>
+   <extends>QWidget</extends>
+   <header>light_indicator.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources>
   <include location="main.qrc"/>
  </resources>

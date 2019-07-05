@@ -19,13 +19,15 @@ SOURCES += main.cpp \
     ../Database/db_manager.cpp \
     mainwindow.cpp \
     device_item_view.cpp \
-    units_table_model.cpp
+    units_table_model.cpp \
+    light_indicator.cpp
 
 HEADERS  += \ 
     ../Database/db_manager.h \
     mainwindow.h \
     device_item_view.h \
-    units_table_model.h
+    units_table_model.h \
+    light_indicator.h
 
 FORMS += \
     mainwindow.ui

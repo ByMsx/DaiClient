@@ -4,6 +4,8 @@
 #include <iterator>
 #include <type_traits>
 
+#include <QElapsedTimer>
+
 #include <QDebug>
 #include <QSettings>
 #include <QFile>
@@ -23,6 +25,8 @@
 
 namespace Dai {
 namespace Modbus {
+
+QElapsedTimer tt;
 
 Q_LOGGING_CATEGORY(ModbusLog, "modbus")
 
@@ -228,7 +232,8 @@ public:
     {
         if (packs_.size())
         {
-            packs_.front().items_.front()->device()->set_device_items_values(std::move(new_values_));
+            QMetaObject::invokeMethod(packs_.front().items_.front()->device(), "set_device_items_values",
+                                      QArgument<std::map<DeviceItem*, QVariant>>("std::map<DeviceItem*, QVariant>", new_values_));
             while (packs_.size())
             {
                 if (packs_.front().reply_)
@@ -253,10 +258,16 @@ struct Modbus_Queue
 
     bool is_active() const
     {
-        int position  = read_.front().position_;
+        if (!read_.empty())
+        {
+            int position  = read_.front().position_;
+            if (position > -1 && read_.front().packs_.at(position).reply_)
+            {
+                return true;
+            }
+        }
 
-        return (write_.size() && write_.front().reply_) ||
-                (read_.size() && position > -1 && read_.front().packs_.at(position).reply_);
+        return write_.size() && write_.front().reply_;
     }
 
     void clear()
@@ -493,6 +504,7 @@ bool Modbus_Plugin_Base::reconnect()
 
 void Modbus_Plugin_Base::read(const QVector<DeviceItem*>& dev_items)
 {
+    qWarning() << "->>>>   read" << tt.restart();
     Modbus_Pack_Builder<DeviceItem*> pack_builder(dev_items);
     Modbus_Pack_Read_Manager mng(std::move(pack_builder.container_));
     queue_->read_.push(std::move(mng));
@@ -610,12 +622,12 @@ void Modbus_Plugin_Base::write_finished(QModbusReply* reply)
     if (queue_->write_.size())
     {
         Modbus_Pack<Write_Cache_Item>& pack = queue_->write_.front();
-        if (reply == pack.reply_)
+        if (reply != pack.reply_)
         {
-            queue_->write_.pop_front();
-        }
-        else
             qCCritical(ModbusLog).noquote() << tr("Write finished but is not queue front") << reply << pack.reply_;
+        }
+
+        queue_->write_.pop_front();
 
         if (reply->error() != NoError)
         {
@@ -669,34 +681,35 @@ void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
     {        
         Modbus_Pack_Read_Manager& modbus_pack_read_manager = queue_->read_.front();
         Modbus_Pack<DeviceItem*>& pack = modbus_pack_read_manager.packs_.at(modbus_pack_read_manager.position_);
-        if (reply == pack.reply_)
+        if (reply != pack.reply_)
         {
-            QVariant raw_data;
-            const QModbusDataUnit unit = reply->result();
-            for (uint i = 0; i < pack.items_.size(); ++i)
+            qCCritical(ModbusLog).noquote() << tr("Read finished but is not queue front") << reply << pack.reply_;
+        }
+
+        pack.reply_ = nullptr;
+
+        QVariant raw_data;
+        const QModbusDataUnit unit = reply->result();
+        for (uint i = 0; i < pack.items_.size(); ++i)
+        {
+            if (reply->error() == NoError && i < unit.valueCount())
             {
-                if (reply->error() == NoError && i < unit.valueCount())
+                if (pack.register_type_ == QModbusDataUnit::Coils ||
+                        pack.register_type_ == QModbusDataUnit::DiscreteInputs)
                 {
-                    if (pack.register_type_ == QModbusDataUnit::Coils ||
-                            pack.register_type_ == QModbusDataUnit::DiscreteInputs)
-                    {
-                        raw_data = static_cast<bool>(unit.value(i));
-                    }
-                    else
-                    {
-                        raw_data = static_cast<qint32>(unit.value(i));
-                    }
+                    raw_data = static_cast<bool>(unit.value(i));
                 }
                 else
-                    raw_data.clear();
-
-                modbus_pack_read_manager.new_values_.at(pack.items_.at(i)) = raw_data;
-//                QMetaObject::invokeMethod(pack.items_.at(i), "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data));
+                {
+                    raw_data = static_cast<qint32>(unit.value(i));
+                }
             }
+            else
+                raw_data.clear();
 
+            modbus_pack_read_manager.new_values_.at(pack.items_.at(i)) = raw_data;
+//                QMetaObject::invokeMethod(pack.items_.at(i), "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data));
         }
-        else
-            qCCritical(ModbusLog).noquote() << tr("Read finished but is not queue front") << reply << pack.reply_;
 
         if (reply->error() != NoError)
         {
