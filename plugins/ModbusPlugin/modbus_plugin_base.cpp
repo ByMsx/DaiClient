@@ -299,13 +299,12 @@ struct Modbus_Queue
         }
 
         std::deque<Modbus_Pack_Read_Manager> read;
-        while (read_.size())
+        for (auto& it : read_)
         {
-            if (read_.front().packs_.front().server_address_ != address)
+            if (it.packs_.front().server_address_ != address)
             {
-                read.push_back(std::move(read_.front()));
+                read.push_back(std::move(it));
             }
-            read_.pop_front();
         }
         read_ = std::move(read);
     }
@@ -503,14 +502,19 @@ bool Modbus_Plugin_Base::reconnect()
 }
 
 void Modbus_Plugin_Base::read(const QVector<DeviceItem*>& dev_items)
-{    
-    Modbus_Pack_Builder<DeviceItem*> pack_builder(dev_items);
-    Modbus_Pack_Read_Manager mng(std::move(pack_builder.container_));    
+{
+//    qint64 elapsed = tt.restart();
+    //qWarning().nospace() << ">>>> read " << (elapsed < 100 ? (elapsed < 10 ? "  " : " ") : "") <<  elapsed << " \tsize " << dev_items.size() << ' ' << dev_items.front()->device()->toString();
+
+    if (dev_items.isEmpty())
+    {
+        return;
+    }
 
     bool is_found = false;
     for (auto& it : queue_->read_)
     {
-        if (it.packs_.front().server_address_ == mng.packs_.front().server_address_)
+        if (it.packs_.front().server_address_ == Modbus_Plugin_Base::address(dev_items.front()->device()))
         {
             is_found = true;
             break;
@@ -518,6 +522,8 @@ void Modbus_Plugin_Base::read(const QVector<DeviceItem*>& dev_items)
     }
     if (!is_found)
     {
+        Modbus_Pack_Builder<DeviceItem*> pack_builder(dev_items);
+        Modbus_Pack_Read_Manager mng(std::move(pack_builder.container_));
         queue_->read_.push_back(std::move(mng));
     }
 
@@ -565,8 +571,8 @@ void Modbus_Plugin_Base::process_queue()
             else
             {
                 Modbus_Pack<DeviceItem*>& pack = modbus_pack_read_manager.packs_.at(modbus_pack_read_manager.position_);
-                qint64 elapsed = tt.restart();
-                qWarning().nospace() << "->>>> read " << (elapsed < 100 ? (elapsed < 10 ? "  " : " ") : "") <<  elapsed << " \tsize " << pack.items_.size() << ' ' << pack.items_.front()->device()->toString();
+//                qint64 elapsed = tt.restart();
+//                qWarning().nospace() << "->>>> read " << (elapsed < 100 ? (elapsed < 10 ? "  " : " ") : "") <<  elapsed << " \tsize " << pack.items_.size() << ' ' << pack.items_.front()->device()->toString();
                 read_pack(pack.server_address_, pack.register_type_, pack.start_address_, pack.items_, &pack.reply_);                
 
                 if (!pack.reply_)
