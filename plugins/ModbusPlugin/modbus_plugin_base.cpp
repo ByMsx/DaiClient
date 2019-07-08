@@ -507,20 +507,15 @@ void Modbus_Plugin_Base::read(const QVector<DeviceItem*>& dev_items)
     Modbus_Pack_Builder<DeviceItem*> pack_builder(dev_items);
     Modbus_Pack_Read_Manager mng(std::move(pack_builder.container_));    
 
-    bool is_found = false;
     for (auto& it : queue_->read_)
     {
         if (it.packs_.front().server_address_ == mng.packs_.front().server_address_)
         {
-            is_found = true;
-            break;
+            return;
         }
     }
-    if (!is_found)
-    {
-        queue_->read_.push_back(std::move(mng));
-    }
 
+    queue_->read_.push_back(std::move(mng));
     process_queue();
 }
 

@@ -1,7 +1,15 @@
 #ifndef DAI_CLIENT_WORKER_H
 #define DAI_CLIENT_WORKER_H
 
+#include <qglobal.h>
+
+#ifdef QT_DEBUG
+#include <QApplication>
+typedef QApplication App_Type;
+#else
 #include <QGuiApplication>
+typedef QGuiApplication App_Type;
+#endif
 
 #include <Helpz/service.h>
 #include <Helpz/settingshelper.h>
@@ -151,7 +159,7 @@ private:
     std::pair<uint32_t,uint32_t> last_file_item_and_user_id_;
 };
 
-typedef Helpz::Service::Impl<Worker, QGuiApplication> Service;
+typedef Helpz::Service::Impl<Worker, App_Type> Service;
 
 } // namespace Dai
 

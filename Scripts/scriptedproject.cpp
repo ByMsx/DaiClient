@@ -8,6 +8,11 @@
 #include <QMetaEnum>
 #include <QProcess>
 
+#ifdef QT_DEBUG
+#include <QScriptEngineDebugger>
+#include <QMainWindow>
+#endif
+
 #include <Helpz/consolereader.h>
 
 #include "scriptedproject.h"
@@ -184,6 +189,13 @@ void ScriptedProject::registerTypes()
     qRegisterMetaType<AutomationHelper*>("AutomationHelper*");
 
     m_script_engine = new QScriptEngine(this);
+#ifdef QT_DEBUG
+    auto debugger = new QScriptEngineDebugger(this);
+    debugger->attachTo(m_script_engine);
+    qDebug() << "auto" << debugger->autoShowStandardWindow();
+    debugger->standardWindow()->show();
+#endif
+
     connect(m_script_engine, &QScriptEngine::signalHandlerException,
             this, &ScriptedProject::handlerException);
 

@@ -10,6 +10,7 @@ CONFIG -= app_bundle
 CONFIG (debug, debug|release) {
     CONFIG -= console
     CONFIG += app_bundle
+    QT += scripttools widgets
 }
 
 TEMPLATE = app
