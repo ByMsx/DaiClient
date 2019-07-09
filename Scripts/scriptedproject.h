@@ -1,5 +1,5 @@
-#ifndef SCRIPTEDPROJECT_H
-#define SCRIPTEDPROJECT_H
+#ifndef DAI_SCRIPTEDPROJECT_H
+#define DAI_SCRIPTEDPROJECT_H
 
 #include <QScriptEngine>
 #include <QtSerialBus/qmodbusdataunit.h>
@@ -13,6 +13,8 @@
 
 #include "tools/daytimehelper.h"
 #include "tools/automationhelper.h"
+
+QT_FORWARD_DECLARE_CLASS(QScriptEngineDebugger)
 
 class QScriptEngine;
 
@@ -131,6 +133,9 @@ private:
     QScriptValue callFunction(int handler_type, const QScriptValueList& args = QScriptValueList()) const;
 
     QScriptEngine *m_script_engine;
+#ifdef QT_DEBUG
+    QScriptEngineDebugger* debugger_;
+#endif
 
     DayTimeHelper m_dayTime;
 
@@ -145,4 +150,4 @@ private:
 
 } // namespace Dai
 
-#endif // SCRIPTEDPROJECT_H
+#endif // DAI_SCRIPTEDPROJECT_H

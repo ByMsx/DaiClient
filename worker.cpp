@@ -26,7 +26,8 @@ namespace Z = Helpz;
 using namespace std::placeholders;
 
 Worker::Worker(QObject *parent) :
-    QObject(parent)
+    QObject(parent),
+    project_thread_(nullptr), prj_(nullptr)
 {
     qRegisterMetaType<uint32_t>("uint32_t");
 
@@ -77,7 +78,14 @@ Worker::~Worker()
     net_protocol_thread_.quit(); net_protocol_thread_.wait();
     net_thread_.reset();
     stop_thread(&checker_th);
-    stop_thread(&prj);
+    if (!project_thread_ && prj_)
+    {
+        delete prj_;
+    }
+    else
+    {
+        stop_thread(&project_thread_);
+    }
 
     if (db_mng)
         delete db_mng;
@@ -167,16 +175,31 @@ void Worker::init_Project(QSettings* s)
 {
     Helpz::ConsoleReader* cr = nullptr;
     if (Service::instance().isImmediately())
+    {
         cr = new Helpz::ConsoleReader(this);
 
-//    qRegisterMetaType<std::shared_ptr<Dai::Prt::ServerInfo>>("std::shared_ptr<Dai::Prt::ServerInfo>");
+#ifdef QT_DEBUG
+        if (qApp->arguments().indexOf("-debugger") != -1)
+        {
+            auto server_conf = Helpz::SettingsHelper{
+                                s, "Server",
+                                Z::Param<QString>{"SSHHost", "80.89.129.98"},
+                                Z::Param<bool>{"AllowShell", false}
+                            }();
+            prj_ = new ScriptedProject(this, cr, std::get<0>(server_conf), std::get<1>(server_conf));
+        }
+#endif
+    }
 
-    prj = ScriptsThread()(s, "Server", this,
-                          cr,
-                          Z::Param<QString>{"SSHHost", "80.89.129.98"},
-                          Z::Param<bool>{"AllowShell", false}
-                          );
-    prj->start(QThread::HighPriority);
+    if (!prj_)
+    {
+        project_thread_ = ScriptsThread()(s, "Server", this,
+                              cr,
+                              Z::Param<QString>{"SSHHost", "80.89.129.98"},
+                              Z::Param<bool>{"AllowShell", false}
+                              );
+        project_thread_->start(QThread::HighPriority);
+    }
 }
 
 void Worker::init_Checker(QSettings* s)
@@ -192,7 +215,7 @@ void Worker::init_network_client(QSettings* s)
     net_protocol_thread_.start();
     structure_sync_.reset(new Client::Structure_Synchronizer{ db_pending_thread_.get() });
     structure_sync_->moveToThread(&net_protocol_thread_);
-    structure_sync_->set_project(prj->ptr());
+    structure_sync_->set_project(prj());
 
     qRegisterMetaType<Log_Value_Item>("Log_Value_Item");
     qRegisterMetaType<Log_Event_Item>("Log_Event_Item");
@@ -252,7 +275,7 @@ void Worker::init_LogTimer()
     item_values_timer.setInterval(5000);
     item_values_timer.setSingleShot(true);
 
-    log_timer_thread_ = new Log_Value_Save_Timer_Thread(prj->ptr(), db_pending());
+    log_timer_thread_ = new Log_Value_Save_Timer_Thread(prj(), db_pending());
     log_timer_thread_->start();
     connect(log_timer_thread_->ptr(), &Log_Value_Save_Timer::change, this, &Worker::change, Qt::QueuedConnection);
 }
@@ -352,7 +375,7 @@ void Worker::processCommands(const QStringList &args)
 
     if (parser.isSet(opt.at(0)))
     {
-        QMetaObject::invokeMethod(prj->ptr(), "console", Qt::QueuedConnection,
+        QMetaObject::invokeMethod(prj(), "console", Qt::QueuedConnection,
                                   Q_ARG(QString, parser.value(opt.at(0))));
     }
     else if (false) {
@@ -468,14 +491,14 @@ void Worker::saveServerData(const QUuid &devive_uuid, const QString &login, cons
 bool Worker::setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs)
 {
     bool res = false;
-    if (Section* sct = prj->ptr()->sectionById( section_id ))
+    if (Section* sct = prj()->sectionById( section_id ))
     {
         TimeRange tempRange( dayStartSecs, dayEndSecs );
         if (*sct->day_time() != tempRange)
             if (res = db_mng->setDayTime( section_id, tempRange ), res)
             {
                 *sct->day_time() = tempRange;
-                prj->ptr()->dayTimeChanged(/*sct*/);
+                prj()->dayTimeChanged(/*sct*/);
             }
     }
     return res;
@@ -483,7 +506,7 @@ bool Worker::setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs)
 
 void Worker::writeToItem(uint32_t user_id, uint32_t item_id, const QVariant &raw_data)
 {
-    if (DeviceItem* item = prj->ptr()->itemById( item_id ))
+    if (DeviceItem* item = prj()->itemById( item_id ))
     {
         if (item->register_type() == Item_Type::rtFile)
         {
@@ -500,7 +523,7 @@ void Worker::writeToItem(uint32_t user_id, uint32_t item_id, const QVariant &raw
 
 void Worker::write_to_item_file(const QString& file_name)
 {
-    if (DeviceItem* item = prj->ptr()->itemById( last_file_item_and_user_id_.first ))
+    if (DeviceItem* item = prj()->itemById( last_file_item_and_user_id_.first ))
     {
         QMetaObject::invokeMethod(item->group(), "writeToControl", Qt::QueuedConnection,
                                   Q_ARG(DeviceItem*, item), Q_ARG(QVariant, file_name), Q_ARG(uint32_t, 0), Q_ARG(uint32_t, last_file_item_and_user_id_.second));
@@ -515,13 +538,13 @@ bool Worker::setMode(uint32_t user_id, uint32_t mode_id, uint32_t group_id)
 {
     bool res = db_mng->setMode(mode_id, group_id);
     if (res)
-        QMetaObject::invokeMethod(prj->ptr(), "setMode", Qt::QueuedConnection, Q_ARG(uint32_t, user_id), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id) );
+        QMetaObject::invokeMethod(prj(), "setMode", Qt::QueuedConnection, Q_ARG(uint32_t, user_id), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id) );
     return res;
 }
 
 void Worker::set_group_param_values(uint32_t user_id, const QVector<Group_Param_Value> &pack)
 {
-    QMetaObject::invokeMethod(prj->ptr(), "set_group_param_values", Qt::QueuedConnection, Q_ARG(uint32_t, user_id), Q_ARG(QVector<Group_Param_Value>, pack));
+    QMetaObject::invokeMethod(prj(), "set_group_param_values", Qt::QueuedConnection, Q_ARG(uint32_t, user_id), Q_ARG(QVector<Group_Param_Value>, pack));
 
     QString dbg_msg = "Params changed:";
     for (const Group_Param_Value& item: pack)
@@ -598,7 +621,7 @@ void Worker::update_plugin_param_names(const QVector<Plugin_Type>& plugins)
     ds.device()->seek(0);
     structure_sync_->process_modify_message(0, STRUCT_TYPE_CHECKER_TYPES, ds.device());
 
-    for (Device* dev: prj->ptr()->devices())
+    for (Device* dev: prj()->devices())
     {
         for (const Plugin_Type& plugin: plugins)
         {
@@ -623,12 +646,12 @@ void Worker::newValue(DeviceItem *item, uint32_t user_id)
 
     Log_Value_Item pack_item{0, 0, user_id, item->id(), item->raw_value(), item->value()};
 
-    bool immediately = prj->ptr()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saSaveImmediately;
+    bool immediately = prj()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saSaveImmediately;
     if (immediately && !Database::Helper::save_log_changes(db_mng, pack_item))
     {
         qWarning(Service::Log).nospace() << user_id << "|Упущенное значение:" << item->toString() << item->value().toString();
         // TODO: Error event
-    } else if (prj->ptr()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saInvalid)
+    } else if (prj()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saInvalid)
         qWarning(Service::Log).nospace() << user_id << "|Неправильный параметр сохранения: " << item->toString();
 
     emit change(pack_item, immediately);
@@ -639,6 +662,11 @@ void Worker::newValue(DeviceItem *item, uint32_t user_id)
         QMetaObject::invokeMethod(webSock_th->ptr(), "sendDeviceItemValues", Qt::QueuedConnection,
                                   Q_ARG(Project_Info, websock_item.get()), Q_ARG(QVector<Log_Value_Item>, pack));
     }
+}
+
+ScriptedProject* Worker::prj()
+{
+    return project_thread_ ? project_thread_->ptr() : prj_;
 }
 
 } // namespace Dai

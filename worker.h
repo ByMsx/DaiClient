@@ -137,7 +137,9 @@ private:
     std::unique_ptr<Client::Structure_Synchronizer> structure_sync_;
 
     using ScriptsThread = Helpz::SettingsThreadHelper<ScriptedProject, Worker*, Helpz::ConsoleReader*, QString, bool>;
-    ScriptsThread::Type* prj;
+    ScriptsThread::Type* project_thread_;
+    ScriptedProject* prj();
+    ScriptedProject* prj_;
 
     friend class Checker;
     using CheckerThread = Helpz::SettingsThreadHelper<Checker, Worker*, QStringList>;

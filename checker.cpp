@@ -20,7 +20,7 @@ Checker::Checker(Worker *worker, const QStringList &plugins, QObject *parent) :
     QObject(parent),
     b_break(false), first_check_(true)
 {
-    prj = worker->prj->ptr();
+    prj = worker->prj();
 
     plugin_type_mng_ = prj->plugin_type_mng_;
     loadPlugins(plugins, worker);

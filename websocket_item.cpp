@@ -77,7 +77,7 @@ void Websocket_Item::parse_script_command(uint32_t user_id, const QString& scrip
     {
         Helpz::parse_out(*data, arguments);
     }
-    w->prj->ptr()->console(user_id, script, is_function, arguments);
+    w->prj()->console(user_id, script, is_function, arguments);
 }
 
 } // namespace Dai

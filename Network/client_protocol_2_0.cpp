@@ -33,13 +33,13 @@ void Protocol_2_0::connect_worker_signals()
 {
     qRegisterMetaType<QVector<Group_Param_Value>>("QVector<Group_Param_Value>");
 
-    prj_ = worker()->prj->ptr();
+    prj_ = worker()->prj();
 
     connect(this, &Protocol_2_0::restart, worker(), &Worker::restart_service_object, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::write_to_item, worker(), &Worker::writeToItem, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::set_mode, worker(), &Worker::setMode, Qt::QueuedConnection);
     connect(this, &Protocol_2_0::set_group_param_values, worker(), &Worker::set_group_param_values, Qt::QueuedConnection);
-    connect(this, &Protocol_2_0::exec_script_command, worker()->prj->ptr(), &ScriptedProject::console, Qt::QueuedConnection);
+    connect(this, &Protocol_2_0::exec_script_command, worker()->prj(), &ScriptedProject::console, Qt::QueuedConnection);
 
     connect(worker(), &Worker::modeChanged, this, &Protocol_2_0::send_mode, Qt::QueuedConnection);
     connect(worker(), &Worker::status_added, this, &Protocol_2_0::send_status_added, Qt::QueuedConnection);

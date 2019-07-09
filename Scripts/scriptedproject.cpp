@@ -95,6 +95,9 @@ ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleRe
     m_dayTime(this),
     m_uptime(QDateTime::currentMSecsSinceEpoch()),
     allow_shell_(allow_shell), ssh_host_(sshHost)
+#ifdef QT_DEBUG
+    , debugger_(nullptr)
+#endif
 {
     registerTypes();
 
@@ -124,6 +127,14 @@ ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleRe
 
 ScriptedProject::~ScriptedProject()
 {
+#ifdef QT_DEBUG
+    if (debugger_)
+    {
+        debugger_->standardWindow()->close();
+        debugger_->detach();
+        delete debugger_;
+    }
+#endif
 //    delete db();
 }
 
@@ -190,10 +201,12 @@ void ScriptedProject::registerTypes()
 
     m_script_engine = new QScriptEngine(this);
 #ifdef QT_DEBUG
-    auto debugger = new QScriptEngineDebugger(this);
-    debugger->attachTo(m_script_engine);
-    qDebug() << "auto" << debugger->autoShowStandardWindow();
-    debugger->standardWindow()->show();
+    if (qApp->thread() == thread())
+    {
+        debugger_ = new QScriptEngineDebugger(this);
+        debugger_->attachTo(m_script_engine);
+        debugger_->standardWindow()->show();
+    }
 #endif
 
     connect(m_script_engine, &QScriptEngine::signalHandlerException,
