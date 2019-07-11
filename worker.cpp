@@ -69,7 +69,7 @@ Worker::~Worker()
     QObject::disconnect(this, 0, 0, 0);
 
     websock_item.reset();
-    stop_thread(&webSock_th);
+    stop_thread(&websock_th_);
     stop_thread(&django_th);
 
     stop_thread(&log_timer_thread_);
@@ -293,21 +293,19 @@ void Worker::initWebSocketManager(QSettings *s)
     if (!std::get<0>(en_t))
         return;
 
-    webSock_th = WebSocketThread()(
+    websock_th_ = WebSocketThread()(
                 s, "WebSocket",
+                Helpz::Param<QByteArray>{"SecretKey", QByteArray()},
                 Helpz::Param<quint16>{"Port", 25589},
                 Helpz::Param<QString>{"CertPath", QString()},
                 Helpz::Param<QString>{"KeyPath", QString()});
-    webSock_th->start();
-
-    connect(webSock_th->ptr(), &Network::WebSocket::checkAuth,
-                     django_th->ptr(), &DjangoHelper::checkToken, Qt::BlockingQueuedConnection);
+    websock_th_->start();
 
     websock_item.reset(new Websocket_Item(this));
     connect(this, &Worker::event_message, websock_item.get(), &Websocket_Item::send_event_message, Qt::DirectConnection);
-    connect(webSock_th->ptr(), &Network::WebSocket::throughCommand,
-            websock_item.get(), &Websocket_Item::procCommand, Qt::BlockingQueuedConnection);
-    connect(websock_item.get(), &Websocket_Item::send, webSock_th->ptr(), &Network::WebSocket::send, Qt::QueuedConnection);
+    connect(websock_th_->ptr(), &Network::WebSocket::through_command,
+            websock_item.get(), &Websocket_Item::proc_command, Qt::BlockingQueuedConnection);
+    connect(websock_item.get(), &Websocket_Item::send, websock_th_->ptr(), &Network::WebSocket::send, Qt::QueuedConnection);
 }
 
 void Worker::restart_service_object(uint32_t user_id)
@@ -656,10 +654,10 @@ void Worker::newValue(DeviceItem *item, uint32_t user_id)
 
     emit change(pack_item, immediately);
 
-    if (webSock_th)
+    if (websock_th_)
     {
         QVector<Log_Value_Item> pack{pack_item};
-        QMetaObject::invokeMethod(webSock_th->ptr(), "sendDeviceItemValues", Qt::QueuedConnection,
+        QMetaObject::invokeMethod(websock_th_->ptr(), "sendDeviceItemValues", Qt::QueuedConnection,
                                   Q_ARG(Project_Info, websock_item.get()), Q_ARG(QVector<Log_Value_Item>, pack));
     }
 }

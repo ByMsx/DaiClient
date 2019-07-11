@@ -148,8 +148,8 @@ private:
     using DjangoThread = Helpz::SettingsThreadHelper<DjangoHelper, QString>;
     DjangoThread::Type* django_th = nullptr;
 
-    using WebSocketThread = Helpz::SettingsThreadHelper<Network::WebSocket, quint16, QString, QString>;
-    WebSocketThread::Type* webSock_th = nullptr;
+    using WebSocketThread = Helpz::SettingsThreadHelper<Network::WebSocket, QByteArray, quint16, QString, QString>;
+    WebSocketThread::Type* websock_th_ = nullptr;
     friend class Websocket_Item;
 
     using Log_Value_Save_Timer_Thread = Helpz::ParamThread<Log_Value_Save_Timer, Project*, Helpz::Database::Thread*>;
