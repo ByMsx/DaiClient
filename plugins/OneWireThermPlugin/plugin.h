@@ -3,17 +3,15 @@
 
 #include <memory>
 
-#include <QLoggingCategory>
 #include <QFile>
 
 #include "plugin_global.h"
 #include <Dai/checkerinterface.h>
-#include <map>
+#include <Helpz/simplethread.h>
+#include "one_wire_therm_task.h"
 
 namespace Dai {
 namespace OneWireTherm {
-
-Q_DECLARE_LOGGING_CATEGORY(OneWireThermLog)
 
 class ONEWIRETHERMPLUGINSHARED_EXPORT OneWireThermPlugin : public QObject, public Checker_Interface
 {
@@ -23,6 +21,7 @@ class ONEWIRETHERMPLUGINSHARED_EXPORT OneWireThermPlugin : public QObject, publi
 
 public:
     OneWireThermPlugin();
+    ~OneWireThermPlugin();
 
     // CheckerInterface interface
 public:
@@ -31,12 +30,8 @@ public:
     void stop() override;
     void write(std::vector<Write_Cache_Item>& items) override;
 private:
-    QFile file_;
-    std::map<int, QString> devices_map_;
-    void obtain_device_list() noexcept;
-    bool get_device_file_path(int unit, QString &path_out) noexcept;
-    bool try_open_file(const QString &path) noexcept;
-    bool check_and_open_file(int unit) noexcept;
+    using Therm_Task_Thread = Helpz::ParamThread<One_Wire_Therm_Task>;
+    Therm_Task_Thread* therm_thread_ = nullptr;
 };
 
 } // namespace OneWireTherm
