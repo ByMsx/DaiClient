@@ -52,7 +52,7 @@ void Log_Value_Save_Timer::process_items(int timer_id)
     {
         QDateTime cur_date = QDateTime::currentDateTime().toUTC();
         cur_date.setTime(QTime(cur_date.time().hour(), cur_date.time().minute(), 0));
-        pack_item.set_time_msecs(cur_date.toMSecsSinceEpoch());
+        pack_item.set_timestamp_msecs(cur_date.toMSecsSinceEpoch());
     }
 
     Item_Type_Manager* typeMng = &prj_->item_type_mng_;
@@ -77,11 +77,12 @@ void Log_Value_Save_Timer::process_items(int timer_id)
             else
                 continue;
 
-            pack_item.set_id(0);
             pack_item.set_item_id(dev_item->id());
             pack_item.set_raw_value(dev_item->raw_value());
             pack_item.set_value(dev_item->value());
             pack.push_back(pack_item);
+
+            pack_item.set_timestamp_msecs(pack_item.timestamp_msecs() + 1);
         }
     }
 
