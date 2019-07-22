@@ -14,9 +14,11 @@ VER_MIN = 1
 include(../../../common.pri)
 
 SOURCES += \
+    one_wire_therm_task.cpp \
     plugin.cpp
 
 HEADERS += \
+    one_wire_therm_task.h \
     plugin_global.h \
     plugin.h
 
