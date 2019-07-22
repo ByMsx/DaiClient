@@ -13,7 +13,7 @@ VER_MIN = 2
 include(../../common.pri)
 
 INCLUDEPATH += $${PWD}/..
-LIBS += -lDai -lDaiPlus -lHelpzBase -lHelpzService -lHelpzDBMeta -lHelpzDB -lHelpzNetwork -lbotan-2
+LIBS += -lDai -lDaiPlus -lHelpzBase -lHelpzService -lHelpzDBMeta -lHelpzDB -lHelpzNetwork -lbotan-2 -lboost_system
 
 SOURCES += main.cpp \
     ../Database/db_manager.cpp \
