@@ -1,5 +1,5 @@
-#ifndef DAI_PROTOCOL_2_0_H
-#define DAI_PROTOCOL_2_0_H
+#ifndef DAI_PROTOCOL_LATEST_H
+#define DAI_PROTOCOL_LATEST_H
 
 #include <Dai/project.h>
 
@@ -10,12 +10,12 @@
 namespace Dai {
 namespace Client {
 
-class Protocol_2_0 : public Protocol
+class Protocol_Latest : public Protocol
 {
     Q_OBJECT
 public:
-    Protocol_2_0(Worker* worker, Structure_Synchronizer* structure_synchronizer, const Authentication_Info &auth_info);
-    ~Protocol_2_0();
+    Protocol_Latest(Worker* worker, Structure_Synchronizer* structure_synchronizer, const Authentication_Info &auth_info);
+    ~Protocol_Latest();
 
 signals:
     void restart(uint32_t user_id);
@@ -55,4 +55,4 @@ private:
 } // namespace Client
 } // namespace Dai
 
-#endif // DAI_PROTOCOL_2_0_H
+#endif // DAI_PROTOCOL_LATEST_H

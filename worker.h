@@ -18,7 +18,7 @@ typedef QGuiApplication App_Type;
 
 #include "Database/db_manager.h"
 #include "checker.h"
-#include "Network/client_protocol_2_0.h"
+#include "Network/client_protocol_latest.h"
 #include "Scripts/scriptedproject.h"
 
 #include "plus/dai/djangohelper.h"
@@ -67,7 +67,7 @@ public:
 
     static std::unique_ptr<QSettings> settings();
 
-    std::shared_ptr<Client::Protocol_2_0> net_protocol();
+    std::shared_ptr<Client::Protocol> net_protocol();
 
     static void store_connection_id(const QUuid& connection_id);
 private:
@@ -129,7 +129,7 @@ private:
     std::unique_ptr<DB_Connection_Info> db_info_;
     DBManager* db_mng;
 
-    friend class Client::Protocol_2_0;
+    friend class Client::Protocol_Latest;
     friend class Client::Protocol;
     std::shared_ptr<Helpz::DTLS::Client_Thread> net_thread_;
     std::unique_ptr<Helpz::Database::Thread> db_pending_thread_;
