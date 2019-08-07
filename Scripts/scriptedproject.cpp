@@ -110,7 +110,7 @@ ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleRe
     connect(this, &T::modeChanged, worker, &Worker::modeChanged, Qt::QueuedConnection);
     connect(this, &T::status_added, worker, &Worker::status_added, Qt::QueuedConnection);
     connect(this, &T::status_removed, worker, &Worker::status_removed, Qt::QueuedConnection);
-    connect(this, &T::sctItemChanged, worker, &Worker::newValue);
+    connect(this, &T::sctItemChanged, worker, &Worker::newValue, Qt::QueuedConnection);
     connect(this, &T::add_event_message, worker, &Worker::add_event_message, Qt::QueuedConnection);
 //    connect(worker, &Worker::dumpSectionsInfo, this, &T::dumpInfo, Qt::BlockingQueuedConnection);
 
