@@ -6,7 +6,7 @@
 #include <Dai/db/auth_group.h>
 
 #include "worker.h"
-#include "Network/client_protocol_2_0.h"
+#include "Network/client_protocol.h"
 #include "structure_synchronizer.h"
 
 namespace Dai {
@@ -16,7 +16,7 @@ Structure_Synchronizer::Structure_Synchronizer(Helpz::Database::Thread *db_threa
     QObject(), Dai::Structure_Synchronizer(db_thread),
     protocol_(nullptr)
 {
-    qRegisterMetaType<std::shared_ptr<Client::Protocol_2_0>>("std::shared_ptr<Client::Protocol_2_0>");
+    qRegisterMetaType<std::shared_ptr<Client::Protocol>>("std::shared_ptr<Client::Protocol>");
 }
 
 void Structure_Synchronizer::set_project(Project *project)
@@ -48,7 +48,7 @@ void Structure_Synchronizer::send_status_delete(uint32_t user_id, uint32_t group
     }
 }
 
-void Structure_Synchronizer::set_protocol(std::shared_ptr<Protocol_2_0> protocol)
+void Structure_Synchronizer::set_protocol(std::shared_ptr<Protocol> protocol)
 {
     protocol_ = std::move(protocol);
 }

@@ -10,7 +10,7 @@
 namespace Dai {
 namespace Client {
 
-class Protocol_2_0;
+class Protocol;
 
 class Structure_Synchronizer : public QObject, public Dai::Structure_Synchronizer
 {
@@ -25,7 +25,7 @@ public:
     void send_status_delete(uint32_t user_id, uint32_t group_status_id);
 
 public slots:
-    void set_protocol(std::shared_ptr<Client::Protocol_2_0> protocol = {});
+    void set_protocol(std::shared_ptr<Client::Protocol> protocol = {});
     void send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev);
 private:
     void send_structure_items_hash(uint8_t struct_type, uint8_t msg_id);
@@ -40,7 +40,7 @@ private:
     void send_modify_response(uint8_t struct_type, const QByteArray &buffer) override;
 
     Project* prj_;
-    std::shared_ptr<Protocol_2_0> protocol_;
+    std::shared_ptr<Protocol> protocol_;
 };
 
 } // namespace Client

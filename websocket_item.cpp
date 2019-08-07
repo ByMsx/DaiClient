@@ -45,16 +45,16 @@ void Websocket_Item::proc_command(std::shared_ptr<Network::Websocket_Client> cli
 
     try {
         switch (cmd) {
-        case wsConnectInfo:
-            send(this, w->websock_th_->ptr()->prepare_connect_state_message(id(), "127.0.0.1", QDateTime::currentDateTime().timeZone(), 0));
+        case WS_CONNECTION_STATE:
+            send(*this, w->websock_th_->ptr()->prepare_connection_state_message(id(), CS_CONNECTED));
             break;
 
-        case wsRestart:                 Helpz::apply_parse(ds, &Worker::restart_service_object, w); break;
-        case wsWriteToDevItem:          Helpz::apply_parse(ds, &Worker::writeToItem, w); break;
-        case wsChangeGroupMode:         Helpz::apply_parse(ds, &Worker::setMode, w); break;
-        case wsChangeGroupParamValues:  Helpz::apply_parse(ds, &Worker::set_group_param_values, w); break;
-        case wsStructModify:            Helpz::apply_parse(ds, &Client::Structure_Synchronizer::process_modify_message, w->structure_sync_.get(), ds.device(), QString()); break;
-        case wsExecScript:              Helpz::apply_parse(ds, &Websocket_Item::parse_script_command, this, &ds); break;
+        case WS_RESTART:                  Helpz::apply_parse(ds, &Worker::restart_service_object, w); break;
+        case WS_WRITE_TO_DEV_ITEM:        Helpz::apply_parse(ds, &Worker::writeToItem, w); break;
+        case WS_CHANGE_GROUP_MODE:        Helpz::apply_parse(ds, &Worker::setMode, w); break;
+        case WS_CHANGE_GROUP_PARAM_VALUES:Helpz::apply_parse(ds, &Worker::set_group_param_values, w); break;
+        case WS_STRUCT_MODIFY:            Helpz::apply_parse(ds, &Client::Structure_Synchronizer::process_modify_message, w->structure_sync_.get(), ds.device(), QString()); break;
+        case WS_EXEC_SCRIPT:              Helpz::apply_parse(ds, &Websocket_Item::parse_script_command, this, &ds); break;
 
         default:
             qWarning() << "Unknown WebSocket Message:" << (WebSockCmd)cmd;

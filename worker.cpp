@@ -102,11 +102,11 @@ const DB_Connection_Info &Worker::database_info() const { return *db_info_; }
     return std::unique_ptr<QSettings>(new QSettings(configFileName, QSettings::NativeFormat));
 }
 
-std::shared_ptr<Client::Protocol_2_0> Worker::net_protocol()
+std::shared_ptr<Client::Protocol> Worker::net_protocol()
 {
     auto client = net_thread_->client();
     if (client)
-        return std::static_pointer_cast<Client::Protocol_2_0>(client->protocol());
+        return std::static_pointer_cast<Client::Protocol>(client->protocol());
     return {};
 }
 
@@ -236,6 +236,8 @@ void Worker::init_network_client(QSettings* s)
         return;
     }
 
+#define DAI_PROTOCOL_LATEST "dai/2.1"
+
     const QString default_dir = qApp->applicationDirPath() + '/';
     auto [ tls_policy_file, host, port, protocols, recpnnect_interval_sec ]
             = Helpz::SettingsHelper{
@@ -243,14 +245,20 @@ void Worker::init_network_client(QSettings* s)
                 Z::Param<QString>{"TlsPolicyFile", default_dir + "tls_policy.conf"},
                 Z::Param<QString>{"Host",               "deviceaccess.ru"},
                 Z::Param<QString>{"Port",               "25588"},
-                Z::Param<QString>{"Protocols",          "dai/2.0,dai/1.1"},
+                DAI_PROTOCOL_LATEST",dai/2.0", // Z::Param<QString>{"Protocols",          "dai/2.0,dai/1.1"},
                 Z::Param<uint32_t>{"ReconnectSeconds",       15}
             }();
 
-    Helpz::DTLS::Create_Client_Protocol_Func_T func = [this, auth_info](const std::string& /*app_protocol*/) -> std::shared_ptr<Helpz::Network::Protocol>
+    Helpz::DTLS::Create_Client_Protocol_Func_T func = [this, auth_info](const std::string& app_protocol) -> std::shared_ptr<Helpz::Network::Protocol>
     {
-        std::shared_ptr<Client::Protocol_2_0> ptr(new Client::Protocol_2_0{this, structure_sync_.get(), auth_info});
-        QMetaObject::invokeMethod(structure_sync_.get(), "set_protocol", Qt::BlockingQueuedConnection, Q_ARG(std::shared_ptr<Client::Protocol_2_0>, ptr));
+        if (app_protocol != DAI_PROTOCOL_LATEST)
+        {
+            qCritical(Service::Log) << "Server doesn't support protocol:" << DAI_PROTOCOL_LATEST << "server want:" << app_protocol.c_str();
+        }
+
+        std::shared_ptr<Client::Protocol_Latest> ptr(new Client::Protocol_Latest{this, structure_sync_.get(), auth_info});
+        QMetaObject::invokeMethod(structure_sync_.get(), "set_protocol", Qt::BlockingQueuedConnection,
+                                  Q_ARG(std::shared_ptr<Client::Protocol>, std::static_pointer_cast<Client::Protocol>(ptr)));
         return std::static_pointer_cast<Helpz::Network::Protocol>(ptr);
     };
 

@@ -29,13 +29,13 @@ SOURCES += main.cpp \
     Scripts/paramgroupprototype.cpp \
     Scripts/scriptedproject.cpp \
     Network/client_protocol.cpp \
-    Network/client_protocol_2_0.cpp \
     Network/log_sender.cpp \
     structure_synchronizer.cpp \
     Database/db_log_helper.cpp \
     websocket_item.cpp \
     log_value_save_timer.cpp \
-    id_timer.cpp
+    id_timer.cpp \
+    Network/client_protocol_latest.cpp
 
 HEADERS  += \
     worker.h \
@@ -51,13 +51,13 @@ HEADERS  += \
     Scripts/paramgroupclass.h \
     Scripts/scriptedproject.h \
     Network/client_protocol.h \
-    Network/client_protocol_2_0.h \
     Network/log_sender.h \
     structure_synchronizer.h \
     Database/db_log_helper.h \
     websocket_item.h \
     log_value_save_timer.h \
-    id_timer.h
+    id_timer.h \
+    Network/client_protocol_latest.h
 
 #Target version
 VER_MAJ = 1
