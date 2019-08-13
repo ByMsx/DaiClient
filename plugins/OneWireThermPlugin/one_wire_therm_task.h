@@ -26,6 +26,7 @@ private:
     bool get_device_file_path(int unit, QString &path_out) noexcept;
     bool try_open_file(const QString &path) noexcept;
     bool check_and_open_file(int unit) noexcept;
+    bool is_error_msg = false;
 public slots:
     void read_therm_data(Device *dev);
 signals:
