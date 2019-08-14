@@ -45,34 +45,25 @@ void One_Wire_Therm_Task::read_therm_data(Device *dev)
         {
             if (!check_and_open_file(unit))
             {
-                if (item->isConnected() && !is_error_msg)
+                if (item->isConnected())
                 {
                     qCWarning(OneWireThermLog) << "Read failed unit: " << unit << file_.fileName() << file_.errorString();
-                    is_error_msg = true;
                 }
                 new_values.emplace(item, QVariant());
             }
             else
             {
-                is_error_msg = false;
-                if (item->isConnected())
+                data_lines = file_.readAll().split('\n');
+                if (data_lines.size() >= 2 && data_lines.at(0).right(3).toUpper() == "YES")
                 {
-                    data_lines = file_.readAll().split('\n');
-                    if (data_lines.size() >= 2 && data_lines.at(0).right(3).toUpper() == "YES")
+                    idx = data_lines.at(1).indexOf("t=");
+                    if (idx != -1)
                     {
-                        idx = data_lines.at(1).indexOf("t=");
-                        if (idx != -1)
+                        t = data_lines.at(1).mid(idx + 2).toInt(&ok) / 1000.;
+                        if (ok)
                         {
-                            t = data_lines.at(1).mid(idx + 2).toInt(&ok) / 1000.;
-                            if (ok)
-                            {
-                                new_values.emplace(item, QVariant(t));
-                            }
+                            new_values.emplace(item, QVariant(t));
                         }
-                    }
-                    else
-                    {
-                        new_values.emplace(item, QVariant());
                     }
                 }
                 else
