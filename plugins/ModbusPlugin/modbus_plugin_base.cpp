@@ -314,7 +314,8 @@ struct Modbus_Queue
 
 Modbus_Plugin_Base::Modbus_Plugin_Base() :
     QModbusRtuSerialMaster(),
-    b_break(false)
+    b_break(false),
+    is_port_name_in_config_(false)
 {
     queue_ = new Modbus_Queue;
 }
@@ -395,8 +396,12 @@ void Modbus_Plugin_Base::configure(QSettings *settings, Project *)
     }
 #endif
 
-    if (config_.name.isEmpty())
+    is_port_name_in_config_ = !config_.name.isEmpty();
+    if (!is_port_name_in_config_)
+    {
+        qCDebug(ModbusLog) << "No port name in config file";
         config_.name = Config::getUSBSerial();
+    }
 
     qCDebug(ModbusLog).noquote() << "Used as serial port:" << config_.name << "available:" << config_.available_ports().join(", ");
 
@@ -460,6 +465,11 @@ void Modbus_Plugin_Base::read_finished_slot()
     read_finished(qobject_cast<QModbusReply*>(sender()));
 }
 
+void Modbus_Plugin_Base::clear_queue()
+{
+    queue_->clear();
+}
+
 void Modbus_Plugin_Base::print_cached(int server_address, QModbusDataUnit::RegisterType register_type, QModbusDevice::Error value, const QString& text)
 {
     auto request_pair = std::make_pair(server_address, register_type);
@@ -480,7 +490,12 @@ bool Modbus_Plugin_Base::reconnect()
 {
     disconnectDevice();
 
-    config_.name = Config::getUSBSerial();
+    if (!is_port_name_in_config_)
+    {
+        config_.name = Config::getUSBSerial();
+        qCDebug(ModbusLog) << "No port name in config file. Use:" << config_.name;
+    }
+
     if (!config_.name.isEmpty())
     {
         setConnectionParameter(SerialPortNameParameter, config_.name);
@@ -502,10 +517,7 @@ bool Modbus_Plugin_Base::reconnect()
 }
 
 void Modbus_Plugin_Base::read(const QVector<DeviceItem*>& dev_items)
-{
-//    qint64 elapsed = tt.restart();
-    //qWarning().nospace() << ">>>> read " << (elapsed < 100 ? (elapsed < 10 ? "  " : " ") : "") <<  elapsed << " \tsize " << dev_items.size() << ' ' << dev_items.front()->device()->toString();
-
+{    
     if (dev_items.isEmpty())
     {
         return;
@@ -518,6 +530,9 @@ void Modbus_Plugin_Base::read(const QVector<DeviceItem*>& dev_items)
             return;
         }
     }
+
+//    qint64 elapsed = tt.restart();
+//    qWarning().nospace() << ">>>> read " << (elapsed < 100 ? (elapsed < 10 ? "  " : " ") : "") <<  elapsed << " \tsize " << dev_items.size() << ' ' << dev_items.front()->device()->toString();
 
     Modbus_Pack_Builder<DeviceItem*> pack_builder(dev_items);
     Modbus_Pack_Read_Manager mng(std::move(pack_builder.container_));

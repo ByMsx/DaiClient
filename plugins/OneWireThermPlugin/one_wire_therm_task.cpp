@@ -49,10 +49,7 @@ void One_Wire_Therm_Task::read_therm_data(Device *dev)
                 {
                     qCWarning(OneWireThermLog) << "Read failed unit: " << unit << file_.fileName() << file_.errorString();
                 }
-                else
-                {
-                    new_values.emplace(item, QVariant());
-                }
+                new_values.emplace(item, QVariant());
             }
             else
             {

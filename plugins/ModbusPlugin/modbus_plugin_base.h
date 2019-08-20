@@ -50,6 +50,7 @@ private slots:
     void write_finished_slot();
     void read_finished_slot();
 protected:
+    void clear_queue();
     void print_cached(int server_address, QModbusDataUnit::RegisterType register_type, Error value, const QString& text);
     bool reconnect();
     void read(const QVector<DeviceItem *>& dev_items);
@@ -67,7 +68,7 @@ private:
 
     Modbus_Queue* queue_;
 
-    bool b_break;
+    bool b_break, is_port_name_in_config_;
 };
 
 } // namespace Modbus
