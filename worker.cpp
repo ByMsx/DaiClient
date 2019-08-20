@@ -16,6 +16,7 @@
 #include <Dai/commands.h>
 #include <Dai/checkerinterface.h>
 #include <Dai/db/group_status_item.h>
+#include <Dai/db/view.h>
 
 #include "websocket_item.h"
 #include "worker.h"
@@ -87,12 +88,12 @@ Worker::~Worker()
         stop_thread(&project_thread_);
     }
 
-    if (db_mng)
-        delete db_mng;
+    if (db_mng_)
+        delete db_mng_;
     db_pending_thread_.reset();
 }
 
-DBManager* Worker::database() const { return db_mng; }
+Database::Helper* Worker::database() const { return db_mng_; }
 Helpz::Database::Thread* Worker::db_pending() { return db_pending_thread_.get(); }
 const DB_Connection_Info &Worker::database_info() const { return *db_info_; }
 
@@ -162,7 +163,7 @@ void Worker::init_Database(QSettings* s)
     qRegisterMetaType<QVector<Group_Status_Item>>("QVector<Group_Status_Item>");
     qRegisterMetaType<QVector<View>>("QVector<View>");
     qRegisterMetaType<QVector<View_Item>>("QVector<View_Item>");
-    db_mng = new DBManager(*db_info_, "Worker_" + QString::number((quintptr)this));
+    db_mng_ = new Database::Helper(*db_info_, "Worker_" + QString::number((quintptr)this));
     connect(this, &Worker::status_added, this, &Worker::add_status, Qt::QueuedConnection);
     connect(this, &Worker::status_removed, this, &Worker::remove_status, Qt::QueuedConnection);
 
@@ -274,7 +275,7 @@ void Worker::init_LogTimer()
     connect(&item_values_timer, &QTimer::timeout, [this]()
     {
         for (auto it: waited_item_values)
-            if (!db_mng->setDevItemValue(it.first, it.second.first, it.second.second))
+            if (!db_mng_->setDevItemValue(it.first, it.second.first, it.second.second))
             {
                 // TODO: Do something
             }
@@ -318,8 +319,8 @@ void Worker::initWebSocketManager(QSettings *s)
 
 void Worker::restart_service_object(uint32_t user_id)
 {
-    Log_Event_Item event {0, user_id, QtInfoMsg, 0, Service::Log().categoryName(), "The service restarts."};
-    add_event_message(event);
+    Log_Event_Item event { QDateTime::currentDateTimeUtc().toMSecsSinceEpoch(), user_id, false, QtInfoMsg, Service::Log().categoryName(), "The service restarts."};
+    add_event_message(std::move(event));
     QTimer::singleShot(50, this, SIGNAL(serviceRestart()));
 }
 
@@ -330,22 +331,22 @@ void Worker::logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QStr
         return;
     }
 
-    Log_Event_Item event{0, 0, 0, type, ctx.category(), str};
+    Log_Event_Item event{ QDateTime::currentDateTimeUtc().toMSecsSinceEpoch(), 0, false, type, ctx.category(), str };
 
     static QRegularExpression re("^(\\d+)\\|");
     QRegularExpressionMatch match = re.match(str);
     if (match.hasMatch())
     {
         event.set_user_id(match.captured(1).toUInt());
-        event.set_msg(str.right(str.size() - (match.capturedEnd(1) + 1)));
+        event.set_text(str.right(str.size() - (match.capturedEnd(1) + 1)));
     }
 
-    add_event_message(event);
+    add_event_message(std::move(event));
 }
 
-void Worker::add_event_message(const Log_Event_Item& event)
+void Worker::add_event_message(Log_Event_Item event)
 {
-    if (db_mng->eventLog(const_cast<Log_Event_Item&>(event)))
+    if (db_mng_->eventLog(event))
     {
         event_message(event);
     }
@@ -501,11 +502,15 @@ bool Worker::setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs)
     {
         TimeRange tempRange( dayStartSecs, dayEndSecs );
         if (*sct->day_time() != tempRange)
-            if (res = db_mng->setDayTime( section_id, tempRange ), res)
+        {
+            res = db_mng_->update({Helpz::Database::db_table_name<Section>(), {}, {"dayStart", "dayEnd"}},
+                {tempRange.start(), tempRange.end()}, "id=" + QString::number(section_id));
+            if (res)
             {
                 *sct->day_time() = tempRange;
                 prj()->dayTimeChanged(/*sct*/);
             }
+        }
     }
     return res;
 }
@@ -542,7 +547,7 @@ void Worker::write_to_item_file(const QString& file_name)
 
 bool Worker::setMode(uint32_t user_id, uint32_t mode_id, uint32_t group_id)
 {
-    bool res = db_mng->setMode(mode_id, group_id);
+    bool res = db_mng_->setMode(mode_id, group_id);
     if (res)
         QMetaObject::invokeMethod(prj(), "setMode", Qt::QueuedConnection, Q_ARG(uint32_t, user_id), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id) );
     return res;
@@ -555,12 +560,12 @@ void Worker::set_group_param_values(uint32_t user_id, const QVector<Group_Param_
     QString dbg_msg = "Params changed:";
     for (const Group_Param_Value& item: pack)
     {
-        db_mng->save_group_param_value(item.group_param_id(), item.value());
+        db_mng_->save_group_param_value(item.group_param_id(), item.value());
         dbg_msg += "\n " + QString::number(item.group_param_id()) + ": \"" + item.value().left(16) + "\"";
     }
 
-    Log_Event_Item event {0, user_id, QtDebugMsg, 0, Service::Log().categoryName(), dbg_msg};
-    add_event_message(event);
+    Log_Event_Item event { QDateTime::currentDateTimeUtc().toMSecsSinceEpoch(), user_id, false, QtDebugMsg, Service::Log().categoryName(), dbg_msg};
+    add_event_message(std::move(event));
 
     emit group_param_values_changed(user_id, pack);
 }
@@ -650,23 +655,24 @@ void Worker::newValue(DeviceItem *item, uint32_t user_id)
     if (!item_values_timer.isActive())
         item_values_timer.start();
 
-    Log_Value_Item pack_item{0, 0, user_id, item->id(), item->raw_value(), item->value()};
-
     bool immediately = prj()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saSaveImmediately;
-    if (immediately && !Database::Helper::save_log_changes(db_mng, pack_item))
+
+    Log_Value_Item pack_item{ QDateTime::currentDateTimeUtc().toMSecsSinceEpoch(), user_id, immediately, item->id(), item->raw_value(), item->value() };
+
+    if (immediately && !Database::Helper::save_log_changes(db_mng_, pack_item))
     {
         qWarning(Service::Log).nospace() << user_id << "|Упущенное значение:" << item->toString() << item->value().toString();
         // TODO: Error event
-    } else if (prj()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saInvalid)
+    }
+    else if (prj()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saInvalid)
         qWarning(Service::Log).nospace() << user_id << "|Неправильный параметр сохранения: " << item->toString();
 
     emit change(pack_item, immediately);
 
     if (websock_th_)
     {
-        QVector<Log_Value_Item> pack{pack_item};
         QMetaObject::invokeMethod(websock_th_->ptr(), "sendDeviceItemValues", Qt::QueuedConnection,
-                                  Q_ARG(Project_Info, websock_item.get()), Q_ARG(QVector<Log_Value_Item>, pack));
+                                  Q_ARG(Project_Info, websock_item.get()), Q_ARG(QVector<Log_Value_Item>, QVector<Log_Value_Item>{pack_item}));
     }
 }
 

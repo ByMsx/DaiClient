@@ -18,7 +18,6 @@ TEMPLATE = app
 SOURCES += main.cpp \
     worker.cpp \
     checker.cpp \
-    Database/db_manager.cpp \
     Scripts/tools/pidcontroller.cpp \
     Scripts/tools/automationhelper.cpp \
     Scripts/tools/severaltimeshelper.cpp \
@@ -40,7 +39,6 @@ SOURCES += main.cpp \
 HEADERS  += \
     worker.h \
     checker.h \
-    Database/db_manager.h \
     Scripts/tools/pidcontroller.h \
     Scripts/tools/automationhelper.h \
     Scripts/tools/severaltimeshelper.h \

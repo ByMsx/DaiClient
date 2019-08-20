@@ -11,7 +11,8 @@
 #include <vector>
 
 //#include "simplemodbusdevice.h"
-#include "Database/db_manager.h"
+#include <plus/dai/database.h>
+
 #include "Dai/project.h"
 #include "Dai/type_managers.h"
 
@@ -98,7 +99,7 @@ private:
 
     Ui::Main_Window *ui_;
 
-    Dai::DBManager db_manager_;
+    Dai::Database::Helper db_manager_;
     Dai::Project dai_project_;
 
     QTimer temp_timer_;
