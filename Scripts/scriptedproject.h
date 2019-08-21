@@ -25,7 +25,6 @@ class ConsoleReader;
 namespace Dai {
 
 class Worker;
-class DBManager;
 
 class AutomationHelper;
 class DayTimeHelper;
@@ -73,7 +72,7 @@ signals:
     void modbusStop();
     void modbusStart();
 
-    void add_event_message(const Log_Event_Item& event);
+    void add_event_message(Log_Event_Item event);
 //    QVariantList modbusRead(int serverAddress, uchar registerType = QModbusDataUnit::InputRegisters,
 //                                                 int startAddress = 0, quint16 unitCount = 1);
 //    void modbusWrite(int server, uchar registerType, int unit, quint16 state);
@@ -133,9 +132,6 @@ private:
     QScriptValue callFunction(int handler_type, const QScriptValueList& args = QScriptValueList()) const;
 
     QScriptEngine *m_script_engine;
-#ifdef QT_DEBUG
-    QScriptEngineDebugger* debugger_;
-#endif
 
     DayTimeHelper m_dayTime;
 
@@ -146,6 +142,10 @@ private:
     bool allow_shell_;
     QString ssh_host_;
     qint64 pid = -1;
+
+#ifdef QT_DEBUG
+    QScriptEngineDebugger* debugger_;
+#endif
 };
 
 } // namespace Dai

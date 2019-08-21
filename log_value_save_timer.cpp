@@ -48,12 +48,7 @@ void Log_Value_Save_Timer::process_items(int timer_id)
 //    if (timer_.interval() != (period_ * 1000))
 //        timer_.setInterval(period_ * 1000);
 
-    Log_Value_Item pack_item;
-    {
-        QDateTime cur_date = QDateTime::currentDateTime().toUTC();
-        cur_date.setTime(QTime(cur_date.time().hour(), cur_date.time().minute(), 0));
-        pack_item.set_time_msecs(cur_date.toMSecsSinceEpoch());
-    }
+    Log_Value_Item pack_item{QDateTime::currentDateTimeUtc().toMSecsSinceEpoch()};
 
     Item_Type_Manager* typeMng = &prj_->item_type_mng_;
 
@@ -77,17 +72,17 @@ void Log_Value_Save_Timer::process_items(int timer_id)
             else
                 continue;
 
-            pack_item.set_id(0);
             pack_item.set_item_id(dev_item->id());
             pack_item.set_raw_value(dev_item->raw_value());
             pack_item.set_value(dev_item->value());
             pack.push_back(pack_item);
+
+            pack_item.set_timestamp_msecs(pack_item.timestamp_msecs() + 1);
         }
     }
 
     if (pack.size())
         db_thread_->add_query(std::bind(&Log_Value_Save_Timer::save, this, std::placeholders::_1, std::move(pack)));
-
 }
 
 void Log_Value_Save_Timer::save(Helpz::Database::Base* db, QVector<Log_Value_Item> pack)

@@ -16,7 +16,8 @@ typedef QGuiApplication App_Type;
 
 #include <Helpz/dtls_client_thread.h>
 
-#include "Database/db_manager.h"
+#include <plus/dai/database.h>
+
 #include "checker.h"
 #include "Network/client_protocol_latest.h"
 #include "Scripts/scriptedproject.h"
@@ -61,7 +62,7 @@ public:
     explicit Worker(QObject *parent = 0);
     ~Worker();
 
-    DBManager* database() const;
+    Database::Helper* database() const;
     Helpz::Database::Thread* db_pending();
     const DB_Connection_Info& database_info() const;
 
@@ -100,7 +101,7 @@ signals:
 public slots:
     void restart_service_object(uint32_t user_id);
     void logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QString &str);
-    void add_event_message(const Log_Event_Item& event);
+    void add_event_message(Log_Event_Item event);
     void processCommands(const QStringList& args);
 
     QString getUserDevices();
@@ -127,7 +128,7 @@ public slots:
     void newValue(DeviceItem* item, uint32_t user_id = 0);
 private:
     std::unique_ptr<DB_Connection_Info> db_info_;
-    DBManager* db_mng;
+    Database::Helper* db_mng_;
 
     friend class Client::Protocol_Latest;
     friend class Client::Protocol;

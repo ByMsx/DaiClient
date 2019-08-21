@@ -24,7 +24,6 @@
 #include "tools/inforegisterhelper.h"
 
 #include "worker.h"
-#include "Database/db_manager.h"
 
 Q_DECLARE_METATYPE(std::string)
 Q_DECLARE_METATYPE(Dai::SectionPtr)
@@ -416,11 +415,9 @@ QScriptValue ScriptedProject::valueFromVariant(const QVariant &data) const
 
 void ScriptedProject::log(const QString &msg, uint8_t type_id, uint32_t user_id, bool inform_flag)
 {
-    if (inform_flag)
-        type_id |= Log_Event_Item::EVENT_NEED_TO_INFORM;
-    Log_Event_Item event{0, 0, user_id, type_id, ScriptLog().categoryName(), msg};
-    std::cerr << "[script] " << event.msg().toStdString() << std::endl;
-    add_event_message(event);
+    Log_Event_Item event{ QDateTime::currentDateTimeUtc().toMSecsSinceEpoch(), user_id, inform_flag, type_id, ScriptLog().categoryName(), msg };
+    std::cerr << "[script] " << event.text().toStdString() << std::endl;
+    add_event_message(std::move(event));
 }
 
 void ScriptedProject::console(uint32_t user_id, const QString &cmd, bool is_function, const QVariantList& arguments)
@@ -466,9 +463,10 @@ void ScriptedProject::console(uint32_t user_id, const QString &cmd, bool is_func
             is_error = true;
         }
     }
-    Log_Event_Item event{0, 0, user_id, is_error ? QtCriticalMsg : QtInfoMsg, ScriptLog().categoryName(), "CONSOLE [" + script + "] >" + res.toString()};
-    std::cerr << event.msg().toStdString() << std::endl;
-    add_event_message(event);
+    Log_Event_Item event{ QDateTime::currentDateTimeUtc().toMSecsSinceEpoch(), user_id, false, is_error ? QtCriticalMsg : QtInfoMsg,
+                ScriptLog().categoryName(), "CONSOLE [" + script + "] >" + res.toString() };
+    std::cerr << event.text().toStdString() << std::endl;
+    add_event_message(std::move(event));
 }
 
 //void ScriptedProject::evaluateFile(const QString& fileName)

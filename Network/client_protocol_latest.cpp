@@ -77,12 +77,12 @@ void Protocol_Latest::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &d
     case Cmd::VERSION:                  send_version(msg_id);   break;
     case Cmd::TIME_INFO:                send_time_info(msg_id); break;
 
-    case Cmd::LOG_RANGE:                Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_log_range, &log_sender_, msg_id);    break;
+    case Cmd::LOG_RANGE_COUNT:          Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_log_range, &log_sender_, msg_id);    break;
     case Cmd::LOG_DATA:                 Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_log_data, &log_sender_, msg_id);     break;
 
     case Cmd::RESTART:                  apply_parse(data_dev, &Protocol_Latest::restart);                          break;
     case Cmd::WRITE_TO_ITEM:            apply_parse(data_dev, &Protocol_Latest::write_to_item);                    break;
-    case Cmd::WRITE_TO_ITEM_FILE:       process_item_file(data_dev);                                            break;
+    case Cmd::WRITE_TO_ITEM_FILE:       process_item_file(data_dev);                                               break;
     case Cmd::SET_MODE:                 apply_parse(data_dev, &Protocol_Latest::set_mode);                         break;
     case Cmd::SET_GROUP_PARAM_VALUES:   apply_parse(data_dev, &Protocol_Latest::set_group_param_values);           break;
     case Cmd::EXEC_SCRIPT_COMMAND:      apply_parse(data_dev, &Protocol_Latest::parse_script_command, &data_dev);  break;

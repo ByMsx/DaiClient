@@ -18,8 +18,8 @@ class Log_Sender : public QObject
 public:
     explicit Log_Sender(Protocol* protocol);
 
-    void send_log_range(Log_Type_Wrapper log_type, qint64 date_ms, uint8_t msg_id);
-    void send_log_data(Log_Type_Wrapper log_type, QPair<quint32, quint32> range, uint8_t msg_id);
+    void send_log_range(Log_Type_Wrapper log_type, qint64 from_time_ms, qint64 to_time_ms, uint8_t msg_id);
+    void send_log_data(Log_Type_Wrapper log_type, qint64 from_time_ms, qint64 to_time_ms, uint8_t msg_id);
 
 public slots:
     void send_value_log(const Log_Value_Item &item, bool immediately = false);

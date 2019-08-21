@@ -18,7 +18,6 @@ class Log_Helper
 public:
     Log_Helper(Helpz::Database::Thread* db_thread);
 
-    void log_range(quint8 log_type, qint64 date_ms, std::function<void (const QPair<quint32, quint32>&)> callback);
     void log_value_data(const QPair<quint32, quint32>& range, std::function<void (const QVector<quint32>&, const QVector<Log_Value_Item>&)> callback);
     void log_event_data(const QPair<quint32, quint32>& range, std::function<void (const QVector<quint32>&, const QVector<Log_Event_Item>&)> callback);
 

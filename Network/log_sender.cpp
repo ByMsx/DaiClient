@@ -1,3 +1,4 @@
+#include <Helpz/db_builder.h>
 
 #include <Dai/commands.h>
 
@@ -25,36 +26,42 @@ Log_Sender::Log_Sender(Protocol* protocol) :
     connect(w, &Worker::event_message, this, &Log_Sender::send_event_log, Qt::QueuedConnection);
 }
 
-void Log_Sender::send_log_range(Log_Type_Wrapper log_type, qint64 date_ms, uint8_t msg_id)
+void Log_Sender::send_log_range(Log_Type_Wrapper log_type, qint64 from_time_ms, qint64 to_time_ms, uint8_t msg_id)
 {
     if (log_type.is_valid())
     {
-        db_helper_.log_range(log_type, date_ms, [=](const QPair<quint32, quint32>& range)
+        QString table_name = log_table_name(log_type),
+                where = "timestamp_msecs >= " + QString::number(from_time_ms) +
+                        " AND timestamp_msecs <= " + QString::number(to_time_ms);
+        protocol_->worker()->db_pending()->add([this, table_name, where, msg_id](Helpz::Database::Base* db)
         {
-            protocol_->send_answer(Cmd::LOG_RANGE, msg_id) << log_type << range;
+            protocol_->send_answer(Cmd::LOG_RANGE_COUNT, msg_id) << db->row_count(table_name, where);
         });
     }
 }
 
-void Log_Sender::send_log_data(Log_Type_Wrapper log_type, QPair<quint32, quint32> range, uint8_t msg_id)
+void Log_Sender::send_log_data(Log_Type_Wrapper log_type, qint64 from_time_ms, qint64 to_time_ms, uint8_t msg_id)
 {
     if (!log_type.is_valid())
     {
         return;
     }
 
+    QString where = "WHERE timestamp_msecs >= " + QString::number(from_time_ms) +
+                    " AND timestamp_msecs <= " + QString::number(to_time_ms);
+
     if (log_type == LOG_VALUE)
     {
-        db_helper_.log_value_data(range, [this, msg_id](const QVector<quint32>& not_found, const QVector<Log_Value_Item>& data_value)
+        protocol_->worker()->db_pending()->add([this, where, msg_id](Helpz::Database::Base* db)
         {
-            protocol_->send_answer(Cmd::LOG_DATA, msg_id) << uint8_t(LOG_VALUE) << not_found << data_value;
+            protocol_->send_answer(Cmd::LOG_DATA, msg_id) << Helpz::Database::db_build_list<Log_Value_Item>(*db, where);
         });
     }
     else // log_type == LOG_EVENT
     {
-        db_helper_.log_event_data(range, [this, msg_id](const QVector<quint32>& not_found, const QVector<Log_Event_Item>& data_event)
+        protocol_->worker()->db_pending()->add([this, where, msg_id](Helpz::Database::Base* db)
         {
-            protocol_->send_answer(Cmd::LOG_DATA, msg_id) << uint8_t(LOG_EVENT) << not_found << data_event;
+            protocol_->send_answer(Cmd::LOG_DATA, msg_id) << Helpz::Database::db_build_list<Log_Event_Item>(*db, where);
         });
     }
 }
@@ -62,12 +69,16 @@ void Log_Sender::send_log_data(Log_Type_Wrapper log_type, QPair<quint32, quint32
 void Log_Sender::send_value_log(const Log_Value_Item& item, bool immediately)
 {
     value_pack_.push_back(item);
-    timer_.start(immediately ? 10 : 250);
+
+    if (immediately && (!timer_.isActive() || timer_.interval() != 10))
+        timer_.start(10);
+    else
+        timer_.start(250);
 }
 
 void Log_Sender::send_event_log(const Log_Event_Item& item)
 {
-    if (item.type() == QtDebugMsg && item.who().startsWith("net"))
+    if (item.type_id() == QtDebugMsg && item.category().startsWith("net"))
     {
         return;
     }
