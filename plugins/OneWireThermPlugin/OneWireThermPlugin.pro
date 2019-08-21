@@ -10,7 +10,7 @@ DESTDIR = $${OUT_PWD}/../../..
 
 #Target version
 VER_MAJ = 1
-VER_MIN = 1
+VER_MIN = 2
 include(../../../common.pri)
 
 SOURCES += \

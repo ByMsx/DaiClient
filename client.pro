@@ -59,7 +59,7 @@ HEADERS  += \
 
 #Target version
 VER_MAJ = 1
-VER_MIN = 3
+VER_MIN = 4
 include(../common.pri)
 
 unix {

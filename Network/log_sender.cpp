@@ -69,7 +69,11 @@ void Log_Sender::send_log_data(Log_Type_Wrapper log_type, qint64 from_time_ms, q
 void Log_Sender::send_value_log(const Log_Value_Item& item, bool immediately)
 {
     value_pack_.push_back(item);
-    timer_.start(immediately ? 10 : 250);
+
+    if (immediately && (!timer_.isActive() || timer_.interval() != 10))
+        timer_.start(10);
+    else
+        timer_.start(250);
 }
 
 void Log_Sender::send_event_log(const Log_Event_Item& item)
