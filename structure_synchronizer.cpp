@@ -108,7 +108,7 @@ void Structure_Synchronizer::send_structure_items_hash(uint8_t struct_type, uint
         {
             Helpz::Network::Protocol_Sender helper = protocol_->send_answer(Cmd::GET_PROJECT, msg_id);
             helper << uint8_t(struct_type | STRUCT_TYPE_FLAGS);
-            helper.timeout(nullptr, std::chrono::minutes(5), std::chrono::seconds(90));
+//            helper.timeout(nullptr, std::chrono::minutes(5), std::chrono::seconds(90)); // Пока нет возможности отправлять ответ на ответ
             add_structure_items_hash(struct_type, helper, *db);
         }
     });
@@ -127,7 +127,7 @@ void Structure_Synchronizer::send_structure_items(const QVector<uint32_t>& id_ve
         {
             Helpz::Network::Protocol_Sender helper = protocol_->send_answer(Cmd::GET_PROJECT, msg_id);
             helper << uint8_t(struct_type | STRUCT_TYPE_ITEM_FLAG);
-            helper.timeout(nullptr, std::chrono::minutes(5), std::chrono::seconds(90));
+//            helper.timeout(nullptr, std::chrono::minutes(5), std::chrono::seconds(90)); // Пока нет возможности отправлять ответ на ответ
             add_structure_items_data(struct_type, id_vect, helper, *db);
         }
     });
@@ -159,7 +159,7 @@ void Structure_Synchronizer::send_structure(uint8_t struct_type, uint8_t msg_id,
     {
         Helpz::Network::Protocol_Sender sender = protocol_->send_answer(Cmd::GET_PROJECT, msg_id);
         sender << struct_type;
-        sender.timeout(nullptr, std::chrono::minutes(5), std::chrono::seconds(90));
+//        sender.timeout(nullptr, std::chrono::minutes(5), std::chrono::seconds(90)); // Пока нет возможности отправлять ответ на ответ
         add_structure_data(struct_type, sender, db);
     }
 }
