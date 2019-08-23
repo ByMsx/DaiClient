@@ -88,7 +88,7 @@ void Protocol_Latest::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &d
     case Cmd::EXEC_SCRIPT_COMMAND:      apply_parse(data_dev, &Protocol_Latest::parse_script_command, &data_dev);  break;
 
     case Cmd::GET_PROJECT:              Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::send_project_structure, structure_sync_, msg_id, &data_dev); break;
-    case Cmd::MODIFY_PROJECT:           Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::process_modify_message, structure_sync_, &data_dev, QString()); break;
+    case Cmd::MODIFY_PROJECT:           Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::process_modify_message, structure_sync_, &data_dev, QString(), nullptr); break;
 
     default:
         if (cmd >= Helpz::Network::Cmd::USER_COMMAND)
