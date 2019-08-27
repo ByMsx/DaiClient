@@ -150,7 +150,9 @@ void Protocol_Latest::process_item_file(QIODevice& data_dev)
         }
     }
 
-    if (!file_name.isEmpty())
+    if (file_name.isEmpty())
+        qCWarning(NetClientLog) << "Attempt to write broken file. Size:" << data_dev.size();
+    else
         QMetaObject::invokeMethod(worker(), "write_to_item_file", Qt::QueuedConnection, Q_ARG(QString, file_name));
 }
 
@@ -166,7 +168,7 @@ void Protocol_Latest::start_authentication()
 
 void Protocol_Latest::process_authentication(bool authorized, const QUuid& connection_id)
 {
-    qDebug(NetClientLog) << "Authentication status:" << authorized;
+    qCDebug(NetClientLog) << "Authentication status:" << authorized;
     if (authorized)
     {
         if (connection_id != auth_info().device_id())

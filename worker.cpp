@@ -536,6 +536,7 @@ void Worker::write_to_item_file(const QString& file_name)
 {
     if (DeviceItem* item = prj()->itemById( last_file_item_and_user_id_.first ))
     {
+        qCDebug(Service::Log) << "write_to_item_file" << file_name;
         QMetaObject::invokeMethod(item->group(), "writeToControl", Qt::QueuedConnection,
                                   Q_ARG(DeviceItem*, item), Q_ARG(QVariant, file_name), Q_ARG(uint32_t, 0), Q_ARG(uint32_t, last_file_item_and_user_id_.second));
     }
