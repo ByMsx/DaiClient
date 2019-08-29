@@ -218,7 +218,7 @@ void Protocol_Latest::send_group_param_values(uint32_t user_id, const QVector<Gr
 // -----------------------
 
 #if 0
-#include <botan/parsing.h>
+#include <botan-2/botan/parsing.h>
 
 class Client : public QObject, public Helpz::Network::Protocol
 {

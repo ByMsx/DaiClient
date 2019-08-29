@@ -8,7 +8,7 @@
 #include <QJsonDocument>
 #include <QRegularExpression>
 
-#include <botan/parsing.h>
+#include <botan-2/botan/parsing.h>
 
 #include <Helpz/consolereader.h>
 #include <Helpz/dtls_client.h>
