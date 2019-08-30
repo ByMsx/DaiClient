@@ -391,7 +391,7 @@ void Modbus_Plugin_Base::configure(QSettings *settings, Project *)
         else
         {
             QString overTCP = "/home/kirill/vmodem0";
-            config_.name = QFile::exists(overTCP) ? overTCP : "";//"/dev/pts/10";
+            config_.name = QFile::exists(overTCP) ? overTCP : config_.name;//"/dev/pts/10";
         }
     }
 #endif
