@@ -20,6 +20,7 @@ class Protocol : public QObject, public Helpz::Network::Protocol
     Q_OBJECT
 public:
     Protocol(Worker* worker, const Authentication_Info &auth_info);
+    ~Protocol();
 
     Worker* worker() const;
 

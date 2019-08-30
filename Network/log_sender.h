@@ -1,6 +1,10 @@
 #ifndef DAI_LOG_SENDER_H
 #define DAI_LOG_SENDER_H
 
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
 #include <QTimer>
 
 #include <Dai/log/log_type.h>
@@ -25,16 +29,23 @@ public:
 public slots:
     void send_value_log(const Log_Value_Item &item, bool immediately = false);
     void send_event_log(const Log_Event_Item &item);
-private slots:
-    void send_log_packs();
 private:
+    void start_timer(int new_interval_value);
+    void timer_run();
+    void send_log_packs();
     Protocol* protocol_;
     Database::Log_Helper db_helper_;
 
-    QTimer timer_;
+//    QTimer timer_;
 
     QVector<Log_Value_Item> value_pack_;
     QVector<Log_Event_Item> event_pack_;
+
+    bool timer_break_;
+    std::mutex mutex_;
+    std::condition_variable cond_;
+    std::chrono::system_clock::time_point timer_wakeup_;
+    std::thread timer_thread_;
 };
 
 } // namespace Client

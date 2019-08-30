@@ -12,26 +12,28 @@ namespace Client {
 Log_Sender::Log_Sender(Protocol* protocol) :
     QObject(),
     protocol_(protocol),
-    db_helper_(protocol->worker()->db_pending())
+    db_helper_(protocol->worker()->db_pending()),
+    timer_break_(false),
+    timer_wakeup_(std::chrono::system_clock::now()),
+    timer_thread_(&Log_Sender::timer_run, this)
 {
-    moveToThread(protocol->thread());
-    timer_.moveToThread(protocol->thread());
-
-    connect(protocol->thread(), &QThread::finished, &timer_, &QTimer::stop, Qt::DirectConnection);
-    connect(&timer_, &QTimer::timeout, this, &Log_Sender::send_log_packs);
-    timer_.setSingleShot(true);
-
     auto w = protocol->worker();
-    connect(w, &Worker::change, this, &Log_Sender::send_value_log, Qt::QueuedConnection);
-    connect(w, &Worker::event_message, this, &Log_Sender::send_event_log, Qt::QueuedConnection);
+    connect(w, &Worker::change, this, &Log_Sender::send_value_log, Qt::DirectConnection);
+    connect(w, &Worker::event_message, this, &Log_Sender::send_event_log, Qt::DirectConnection);
 }
 
 Log_Sender::~Log_Sender()
 {
-    disconnect(&timer_, nullptr, nullptr, nullptr);
-    QMetaObject::invokeMethod(&timer_, "stop", Qt::BlockingQueuedConnection);
-    timer_.moveToThread(QThread::currentThread());
-    moveToThread(QThread::currentThread());
+    {
+        std::lock_guard lock(mutex_);
+        timer_break_ = true;
+        cond_.notify_one();
+    }
+
+    if (timer_thread_.joinable())
+    {
+        timer_thread_.join();
+    }
 }
 
 void Log_Sender::send_log_range(Log_Type_Wrapper log_type, qint64 from_time_ms, qint64 to_time_ms, uint8_t msg_id)
@@ -76,12 +78,9 @@ void Log_Sender::send_log_data(Log_Type_Wrapper log_type, qint64 from_time_ms, q
 
 void Log_Sender::send_value_log(const Log_Value_Item& item, bool immediately)
 {
+    std::lock_guard lock(mutex_);
     value_pack_.push_back(item);
-
-    if (immediately && (!timer_.isActive() || timer_.interval() != 10))
-        timer_.start(10);
-    else
-        timer_.start(250);
+    start_timer(immediately ? 10 : 250);
 }
 
 void Log_Sender::send_event_log(const Log_Event_Item& item)
@@ -90,8 +89,35 @@ void Log_Sender::send_event_log(const Log_Event_Item& item)
     {
         return;
     }
+
+    std::lock_guard lock(mutex_);
     event_pack_.push_back(item);
-    timer_.start(1000);
+    start_timer(1000);
+}
+
+void Log_Sender::start_timer(int new_interval_value)
+{
+    std::chrono::milliseconds new_interval(new_interval_value);
+    auto now = std::chrono::system_clock::now();
+    if (timer_wakeup_ <= now || timer_wakeup_ - now > new_interval)
+    {
+        timer_wakeup_ = now + new_interval;
+        cond_.notify_one();
+    }
+}
+
+void Log_Sender::timer_run()
+{
+    std::unique_lock lock(mutex_);
+    while (!timer_break_)
+    {
+        send_log_packs();
+
+        if (timer_wakeup_ > std::chrono::system_clock::now())
+            cond_.wait_until(lock, timer_wakeup_);
+        else
+            cond_.wait(lock);
+    }
 }
 
 void Log_Sender::send_log_packs()
