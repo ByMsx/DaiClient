@@ -14,11 +14,6 @@ Protocol::Protocol(Worker* worker, const Authentication_Info &auth_info) :
     moveToThread(&worker->net_protocol_thread_);
 }
 
-Protocol::~Protocol()
-{
-    moveToThread(QThread::currentThread());
-}
-
 Worker* Protocol::worker() const
 {
     return worker_;
