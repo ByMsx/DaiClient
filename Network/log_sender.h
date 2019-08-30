@@ -17,6 +17,7 @@ class Log_Sender : public QObject
     Q_OBJECT
 public:
     explicit Log_Sender(Protocol* protocol);
+    ~Log_Sender();
 
     void send_log_range(Log_Type_Wrapper log_type, qint64 from_time_ms, qint64 to_time_ms, uint8_t msg_id);
     void send_log_data(Log_Type_Wrapper log_type, qint64 from_time_ms, qint64 to_time_ms, uint8_t msg_id);

@@ -26,6 +26,14 @@ Log_Sender::Log_Sender(Protocol* protocol) :
     connect(w, &Worker::event_message, this, &Log_Sender::send_event_log, Qt::QueuedConnection);
 }
 
+Log_Sender::~Log_Sender()
+{
+    disconnect(&timer_, nullptr, nullptr, nullptr);
+    QMetaObject::invokeMethod(&timer_, "stop", Qt::BlockingQueuedConnection);
+    timer_.moveToThread(QThread::currentThread());
+    moveToThread(QThread::currentThread());
+}
+
 void Log_Sender::send_log_range(Log_Type_Wrapper log_type, qint64 from_time_ms, qint64 to_time_ms, uint8_t msg_id)
 {
     if (log_type.is_valid())
