@@ -163,7 +163,7 @@ void Protocol_Latest::start_authentication()
         apply_parse(data_dev, &Protocol_Latest::process_authentication);
     }).timeout([]() {
         std::cout << "Authentication timeout" << std::endl;
-    }, std::chrono::seconds(15)) << auth_info() << structure_sync_->modified();
+    }, std::chrono::seconds(45), std::chrono::seconds(15)) << auth_info() << structure_sync_->modified();
 }
 
 void Protocol_Latest::process_authentication(bool authorized, const QUuid& connection_id)
