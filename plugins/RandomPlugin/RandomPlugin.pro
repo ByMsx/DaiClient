@@ -23,6 +23,8 @@ OTHER_FILES = checkerinfo.json
 LIBS += -lDai
 
 unix {
+    CONFIG += unversioned_libname unversioned_soname
+
     target.path = /opt/dai/plugins
     INSTALLS += target
 }
