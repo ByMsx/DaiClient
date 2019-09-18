@@ -128,7 +128,6 @@ private:
 
     void registerTypes();
     void scriptsInitialization();
-//    void evaluateFile(const QString &fileName);
     QScriptValue callFunction(int handler_type, const QScriptValueList& args = QScriptValueList()) const;
 
     QScriptEngine *m_script_engine;

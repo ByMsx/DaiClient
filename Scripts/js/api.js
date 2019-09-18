@@ -1,4 +1,6 @@
 var api = {
+    version: 200,
+
     actDevice: function(group, type, newState, user_id) {
         group.writeToControl(type, newState, api.type.mode.automatic, user_id)
     },
@@ -34,7 +36,59 @@ var api = {
         group_status: undefined,
         initialized: undefined,
     },
-}
+};
+
+api.extend = function(Child, Parent)
+{
+    var F = function() {};
+    F.prototype = Parent.prototype;
+    Child.prototype = new F();
+    Child.prototype.constructor = Child;
+    Child.superclass = Parent.prototype;
+};
+
+api.mixin = function(dst, src)
+{
+    var tobj = {};
+    for(var x in src)
+        if((typeof tobj[x] == "undefined") || (tobj[x] != src[x]))
+            dst[x] = src[x];
+};
+
+api.get_type_name = function(type_id, types)
+{
+    for (var i in types)
+        if (types[i] === type_id)
+            return i;
+    return '[unknown_type]';
+};
+
+api.connect_if_exist = function(signal, obj, func_name)
+{
+    if (typeof obj[func_name] === 'function')
+        signal.connect(obj, obj[func_name]);
+};
+
+api.init_as_group_manager = function(obj, group)
+{
+    obj.group = group;
+    obj.param = group.param;
+    obj.item = {};
+
+    var items = group.items;
+    for (var i in items)
+    {
+        var item = items[i];
+        var type_name = api.get_type_name(item.type, api.type.item);
+        obj.item[type_name] = item;
+
+        api.connect_if_exist(item.valueChanged, obj, 'on_' + type_name); // args: user_id
+    }
+
+    api.connect_if_exist(group.modeChanged , obj, 'on_mode_changed');  // args: user_id, mode_id
+    api.connect_if_exist(group.itemChanged , obj, 'on_item_changed');  // args: item, user_id
+    api.connect_if_exist(group.paramChanged, obj, 'on_param_changed'); // args: param, user_id
+};
 
 var modbus = {
 
