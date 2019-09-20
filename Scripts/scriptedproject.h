@@ -64,7 +64,7 @@ public:
 
     QScriptValue valueFromVariant(const QVariant& data) const;
 signals:
-    void sctItemChanged(DeviceItem*, uint32_t user_id);
+    void sctItemChanged(DeviceItem*, uint32_t user_id, const QVariant& old_raw_value);
 
     void status_added(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t user_id);
     void status_removed(quint32 group_id, quint32 info_id, uint32_t user_id);
@@ -95,7 +95,7 @@ private slots:
 
     void groupModeChanged(uint32_t user_id, uint32_t mode, uint32_t group_id);
     void group_param_changed(Param *param, uint32_t user_id = 0);
-    void itemChanged(DeviceItem* item, uint32_t user_id);
+    void itemChanged(DeviceItem* item, uint32_t user_id, const QVariant& old_raw_value);
     void handlerException(const QScriptValue &exception);
 private:
     QString handler_full_name(int handler_type) const;

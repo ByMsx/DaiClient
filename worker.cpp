@@ -650,7 +650,7 @@ void Worker::update_plugin_param_names(const QVector<Plugin_Type>& plugins)
     }
 }
 
-void Worker::newValue(DeviceItem *item, uint32_t user_id)
+void Worker::newValue(DeviceItem *item, uint32_t user_id, const QVariant& old_raw_value)
 {
     waited_item_values[item->id()] = std::make_pair(item->raw_value(), item->value());
     if (!item_values_timer.isActive())

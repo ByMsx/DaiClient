@@ -125,7 +125,7 @@ public slots:
 
     void update_plugin_param_names(const QVector<Plugin_Type>& plugins);
 public slots:
-    void newValue(DeviceItem* item, uint32_t user_id = 0);
+    void newValue(DeviceItem* item, uint32_t user_id = 0, const QVariant& old_raw_value = QVariant());
 private:
     std::unique_ptr<DB_Connection_Info> db_info_;
     Database::Helper* db_mng_;

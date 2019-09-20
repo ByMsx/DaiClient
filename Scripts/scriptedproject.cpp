@@ -499,7 +499,7 @@ void ScriptedProject::group_param_changed(Param* /*param*/, uint32_t user_id)
 }
 
 QElapsedTimer t;
-void ScriptedProject::itemChanged(DeviceItem *item, uint32_t user_id)
+void ScriptedProject::itemChanged(DeviceItem *item, uint32_t user_id, const QVariant& old_raw_value)
 {
     auto group = static_cast<ItemGroup*>(sender());
     if (!group)
@@ -508,15 +508,17 @@ void ScriptedProject::itemChanged(DeviceItem *item, uint32_t user_id)
     QScriptValue groupObj = m_script_engine->newQObject(group);
     QScriptValue itemObj = m_script_engine->newQObject(item);
 
+    QScriptValueList args { groupObj, itemObj, user_id, valueFromVariant(old_raw_value) };
+
     t.restart();
-    callFunction(FUNC_CHANGED_ITEM, { groupObj, itemObj, user_id });
+    callFunction(FUNC_CHANGED_ITEM, args);
 
     if (item->isControl())
-        callFunction(FUNC_CHANGED_CONTROL, { groupObj, itemObj, user_id });
+        callFunction(FUNC_CHANGED_CONTROL, args);
     else
-        callFunction(FUNC_CHANGED_SENSOR, { groupObj, itemObj, user_id });
+        callFunction(FUNC_CHANGED_SENSOR, args);
 
-    callFunction(FUNC_COUNT + group->type_id(), { groupObj, itemObj, user_id });
+    callFunction(FUNC_COUNT + group->type_id(), args);
 
 //    eng->collectGarbage();
 
