@@ -17,6 +17,7 @@
 #include <Dai/checkerinterface.h>
 #include <Dai/db/group_status_item.h>
 #include <Dai/db/view.h>
+#include <plus/dai/jwt_helper.h>
 
 #include "websocket_item.h"
 #include "worker.h"
@@ -298,13 +299,20 @@ void Worker::initDjango(QSettings *s)
 
 void Worker::initWebSocketManager(QSettings *s)
 {
-    std::tuple<bool> en_t = Helpz::SettingsHelper<Helpz::Param<bool>>(s, "WebSocket", Helpz::Param<bool>{"Enabled", true})();
+    std::tuple<bool, QByteArray> en_t = Helpz::SettingsHelper<Helpz::Param<bool>, Helpz::Param<QByteArray>
+            >(s, "WebSocket",
+              Helpz::Param<bool>{"Enabled", true},
+              Helpz::Param<QByteArray>{"SecretKey", QByteArray()}
+              )();
     if (!std::get<0>(en_t))
         return;
 
+    QByteArray secret_key = std::get<1>(en_t);
+    std::shared_ptr<JWT_Helper> jwt_helper = std::make_shared<JWT_Helper>(std::string{secret_key.constData(), static_cast<std::size_t>(secret_key.size())});
+
     websock_th_ = WebSocketThread()(
                 s, "WebSocket",
-                Helpz::Param<QByteArray>{"SecretKey", QByteArray()},
+                jwt_helper,
                 Helpz::Param<quint16>{"Port", 25589},
                 Helpz::Param<QString>{"CertPath", QString()},
                 Helpz::Param<QString>{"KeyPath", QString()});

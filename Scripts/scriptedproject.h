@@ -79,7 +79,8 @@ signals:
 
     void dayTimeChanged(/*Section* sct*/);
 public slots:
-    void log(const QString& msg, uint8_t type_id, uint32_t user_id = 0, bool inform_flag = false);
+    QStringList backtrace() const;
+    void log(const QString& msg, uint8_t type_id, uint32_t user_id = 0, bool inform_flag = false, bool print_backtrace = false);
     void console(uint32_t user_id, const QString& cmd, bool is_function = false, const QVariantList& arguments = {});
     void reinitialization(const Helpz::Database::Connection_Info &db_info);
     void afterAllInitialization();

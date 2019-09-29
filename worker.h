@@ -149,7 +149,7 @@ private:
     using DjangoThread = Helpz::SettingsThreadHelper<DjangoHelper, QString>;
     DjangoThread::Type* django_th = nullptr;
 
-    using WebSocketThread = Helpz::SettingsThreadHelper<Network::WebSocket, QByteArray, quint16, QString, QString>;
+    using WebSocketThread = Helpz::SettingsThreadHelper<Network::WebSocket, std::shared_ptr<JWT_Helper>, quint16, QString, QString>;
     WebSocketThread::Type* websock_th_ = nullptr;
     friend class Websocket_Item;
 

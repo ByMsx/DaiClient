@@ -38,6 +38,33 @@ var api = {
     },
 };
 
+api.get_number = function(value, default_value)
+{
+    if (typeof value !== 'number')
+        value = parseFloat(value);
+    if (value === value)
+        return value;
+    return default_value;
+};
+
+api.get_number_from_property = function(item, anyway_renurn_zero, prop_name)
+{
+    var default_value = anyway_renurn_zero ? 0 : undefined;
+    if (item && item.isConnected())
+        return api.get_number(item[prop_name], default_value);
+    return default_value;
+};
+
+api.get_number_value = function(item, anyway_renurn_zero)
+{
+    return api.get_number_from_property(item, anyway_renurn_zero, 'value');
+};
+
+api.get_number_raw_value = function(item, anyway_renurn_zero)
+{
+    return api.get_number_from_property(item, anyway_renurn_zero, 'raw_value');
+};
+
 api.extend = function(Child, Parent)
 {
     var F = function() {};
@@ -114,12 +141,12 @@ var modbus = {
 }
 
 var console = {
-    'log': function(text, user_id, inform) { api.mng.log(text, 0, user_id, inform) },
-    'info': function(text, user_id, inform) { api.mng.log(text, 4, user_id, inform) },
-    'warn': function(text, user_id, inform) { api.mng.log(text, 1, user_id, inform) },
-    'critical': function(text, user_id, inform) { api.mng.log(text, 2, user_id, inform) },
-    'error': function(text, user_id, inform) { api.mng.log(text, 2, user_id, inform) },
-    'err': function(text, user_id, inform) { api.mng.log(text, 2, user_id, inform) },
+    'log': function(text, user_id, inform, print_backtrace) { api.mng.log(text, 0, user_id, inform, print_backtrace) },
+    'info': function(text, user_id, inform, print_backtrace) { api.mng.log(text, 4, user_id, inform, print_backtrace) },
+    'warn': function(text, user_id, inform, print_backtrace) { api.mng.log(text, 1, user_id, inform, print_backtrace) },
+    'critical': function(text, user_id, inform, print_backtrace) { api.mng.log(text, 2, user_id, inform, print_backtrace) },
+    'error': function(text, user_id, inform, print_backtrace) { api.mng.log(text, 2, user_id, inform, print_backtrace) },
+    'err': function(text, user_id, inform, print_backtrace) { api.mng.log(text, 2, user_id, inform, print_backtrace) },
 }
 
 console.warning = console.warn;

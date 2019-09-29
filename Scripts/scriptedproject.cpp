@@ -409,9 +409,16 @@ QScriptValue ScriptedProject::valueFromVariant(const QVariant &data) const
     }
 }
 
-void ScriptedProject::log(const QString &msg, uint8_t type_id, uint32_t user_id, bool inform_flag)
+QStringList ScriptedProject::backtrace() const
+{
+    return m_script_engine->currentContext()->backtrace();
+}
+
+void ScriptedProject::log(const QString &msg, uint8_t type_id, uint32_t user_id, bool inform_flag, bool print_backtrace)
 {
     Log_Event_Item event{ QDateTime::currentDateTimeUtc().toMSecsSinceEpoch(), user_id, inform_flag, type_id, ScriptLog().categoryName(), msg };
+    if (print_backtrace)
+        event.set_text(event.text() + "\n\n" + m_script_engine->currentContext()->backtrace().join('\n'));
     std::cerr << "[script] " << event.text().toStdString() << std::endl;
     add_event_message(std::move(event));
 }
