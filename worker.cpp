@@ -43,7 +43,6 @@ Worker::Worker(QObject *parent) :
     init_LogTimer(); // сохранение статуса устройства по таймеру
 
     // используется для подключения к Orange на прямую
-    initDjango(s.get());
     initWebSocketManager(s.get());
 
     emit started();
@@ -72,7 +71,6 @@ Worker::~Worker()
 
     websock_item.reset();
     stop_thread(&websock_th_);
-    stop_thread(&django_th);
 
     stop_thread(&log_timer_thread_);
     item_values_timer.stop();
@@ -288,13 +286,6 @@ void Worker::init_LogTimer()
     log_timer_thread_ = new Log_Value_Save_Timer_Thread(prj(), db_pending());
     log_timer_thread_->start();
     connect(log_timer_thread_->ptr(), &Log_Value_Save_Timer::change, this, &Worker::change, Qt::QueuedConnection);
-}
-
-void Worker::initDjango(QSettings *s)
-{
-    django_th = DjangoThread()(s, "Django",
-                             Helpz::Param<QString>{"manage", "/var/www/dai/manage.py"});
-    django_th->start();
 }
 
 void Worker::initWebSocketManager(QSettings *s)
