@@ -11,6 +11,7 @@
 #include <vector>
 
 //#include "simplemodbusdevice.h"
+#include "device_table_item.h"
 #include <plus/dai/database.h>
 
 #include "Dai/project.h"
@@ -72,7 +73,7 @@ private slots:
     void on_openBtn_toggled(bool open);
     void on_socatReset_clicked();
 
-private:    
+private:
 
     struct Socat_Info
     {
@@ -87,7 +88,7 @@ private:
     {
         QModbusRtuSerialSlave* modbus_device_;
         QSerialPort* serial_port_;
-        Device_Item_View* device_item_view_;
+        DeviceTableItem* device_table_item_;
 
         void operator =(const Socat_Info& info)
         {

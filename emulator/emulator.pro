@@ -16,15 +16,23 @@ INCLUDEPATH += $${PWD}/..
 LIBS += -lDai -lDaiPlus -lHelpzBase -lHelpzService -lHelpzDBMeta -lHelpzDB -lHelpzNetwork -lbotan-2 -lboost_system
 
 SOURCES += main.cpp \
+    device_item_table_item.cpp \
+    device_table_item.cpp \
+    devices_table_item.cpp \
+    devices_table_model.cpp \
     mainwindow.cpp \
-    device_item_view.cpp \
-    units_table_model.cpp \
+    register_table_item.cpp \
+    registers_vector_item.cpp \
     light_indicator.cpp
 
-HEADERS  += \ 
+HEADERS  += \
+    device_item_table_item.h \
+    device_table_item.h \
+    devices_table_item.h \
+    devices_table_model.h \
     mainwindow.h \
-    device_item_view.h \
-    units_table_model.h \
+    register_table_item.h \
+    registers_vector_item.h \
     light_indicator.h
 
 FORMS += \

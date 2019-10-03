@@ -7,6 +7,7 @@
 #include <QHostAddress>
 #include <QInputDialog>
 #include <QGroupBox>
+#include <QTreeView>
 
 #include <csignal>
 #include <iostream>
@@ -110,6 +111,12 @@ void Main_Window::fill_data() noexcept
     int dev_address;
     QVariant address_var;
 
+    QTreeView* treeView = new QTreeView();
+    box->addWidget(treeView);
+
+    DevicesTableModel* devicesTableModel = new DevicesTableModel(&dai_project_.item_type_mng_);
+    treeView->setModel(devicesTableModel);
+
     for (GH::Device* dev: dai_project_.devices())
     {
         if (dev->items().size() > 0)
@@ -151,20 +158,28 @@ void Main_Window::fill_data() noexcept
 
                 connect(modbus_device_item.serial_port_, &QSerialPort::readyRead, this, &Main_Window::socketDataReady);
 
-                modbus_device_item.device_item_view_ = new Device_Item_View(&dai_project_.item_type_mng_, dev, modbus_device_item.modbus_device_, ui_->content);
-                box->addWidget(modbus_device_item.device_item_view_);
+                // modbus_device_item.device_item_view_ = new Device_Item_View(&dai_project_.item_type_mng_, dev, modbus_device_item.modbus_device_, ui_->content);
+                // box->addWidget(modbus_device_item.device_item_view_); // ByMsx: here we adding a new widget for device
+
+                modbus_device_item.device_table_item_ = new DeviceTableItem(&dai_project_.item_type_mng_, modbus_device_item.modbus_device_, dev);
+                devicesTableModel->appendChild(modbus_device_item.device_table_item_);
 
                 modbus_list_.emplace(dev_address, modbus_device_item);
             }
-            else
-            {
-                Device_Item_View* device_view = map_it->second.device_item_view_;
-                if (device_view != nullptr)
-                {
-                    device_view->add_device(dev);
-                }
-            }
+//            else
+//            {
+//                Device_Item_View* device_view = map_it->second.device_item_view_;
+//                if (device_view != nullptr)
+//                {
+//                    device_view->add_device(dev);
+//                }
+//            }
         }
+    }
+
+    treeView->expandAll();
+    for (int column = 0; column < devicesTableModel->columnCount(); ++column) {
+        treeView->resizeColumnToContents(column);
     }
 }
 
@@ -289,7 +304,7 @@ void Main_Window::proccessData()
     auto it = modbus_list_.find( (uchar)buff.at(0) );
     if (it != modbus_list_.cend())
     {
-        if (it->second.device_item_view_->is_use())
+        if (it->second.device_table_item_->isUse())
         {
             it->second.serial_port_->write(buff);
         }
