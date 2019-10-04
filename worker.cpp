@@ -388,10 +388,9 @@ void Worker::processCommands(const QStringList &args)
 
     parser.process(args);
 
-    if (parser.isSet(opt.at(0)))
+    if (opt.size() > 0 && parser.isSet(opt.at(0)))
     {
-        QMetaObject::invokeMethod(prj(), "console", Qt::QueuedConnection,
-                                  Q_ARG(QString, parser.value(opt.at(0))));
+        QMetaObject::invokeMethod(prj(), "console", Qt::QueuedConnection, Q_ARG(uint32_t, 0), Q_ARG(QString, parser.value(opt.at(0))));
     }
     else if (false) {
 
