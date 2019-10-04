@@ -8,13 +8,6 @@
 
 class DeviceItemTableItem : public DevicesTableItem
 {
-    enum Column
-    {
-        UNIT_TYPE = 0,
-        UNIT_NAME,
-        UNIT_VALUE
-    };
-
     Dai::Database::Item_Type_Manager* item_type_manager_;
     QModbusServer* modbus_server_;
 public:

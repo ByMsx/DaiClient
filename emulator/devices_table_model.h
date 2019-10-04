@@ -12,20 +12,10 @@
 
 class DevicesTableModel : public QAbstractItemModel
 {
-    enum Column
-    {
-        UNIT_TYPE = 0,
-        UNIT_NAME,
-        UNIT_VALUE
-    };
-
     Q_OBJECT
 private:
     typedef std::vector<Dai::DeviceItem*> Device_Items_Vector;
     typedef QVector<Dai::Device*> Devices_Vector;
-
-//    std::map<QModbusDataUnit::RegisterType, Device_Items_Vector> modbus_units_map_;
-//    Devices_Vector modbus_devices_vector_;
 
     QVector<DeviceTableItem*> modbus_devices_vector_;
     Dai::Database::Item_Type_Manager* item_type_manager_;

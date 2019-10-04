@@ -4,20 +4,6 @@
 #include <Dai/deviceitem.h>
 #include <Dai/type_managers.h>
 #include <Dai/section.h>
-#include <QDebug>
-
-static QModbusDataUnit::RegisterType row_to_register_type(int row)
-{
-    switch (row) {
-    case 0: return QModbusDataUnit::DiscreteInputs;
-    case 1: return QModbusDataUnit::Coils;
-    case 2: return QModbusDataUnit::InputRegisters;
-    case 3: return QModbusDataUnit::HoldingRegisters;
-    default:
-        break;
-    }
-    return QModbusDataUnit::Invalid;
-}
 
 DevicesTableModel::DevicesTableModel(Dai::Database::Item_Type_Manager* mng, const QVector<Dai::Device *> *devices_vector, QModbusServer *modbus_server, QObject* parent)
     : QAbstractItemModel(parent), item_type_manager_(mng)
@@ -57,16 +43,14 @@ QVariant DevicesTableModel::headerData(int section, Qt::Orientation orientation,
         {
             switch (section)
             {
-                case Column::UNIT_TYPE:
+                case DeviceTableItem::Column::UNIT_TYPE:
                     return "Type";
-                case Column::UNIT_NAME:
+                case DeviceTableItem::Column::UNIT_NAME:
                     return "Name";
-                case Column::UNIT_VALUE:
+                case DeviceTableItem::Column::UNIT_VALUE:
                     return "Value";
             }
-        }
-        else
-        {
+        } else {
             return QString("%1").arg(section + 1);
         }
     }
@@ -103,7 +87,6 @@ bool DevicesTableModel::setData(const QModelIndex &index, const QVariant &value,
     {
         if (index.column() == 0 && role == Qt::CheckStateRole) {
             auto deviceTableItem = static_cast<DeviceTableItem*>(index.internalPointer());
-            qDebug() << "index.col() == 0";
             if (!deviceTableItem) {
                 return false;
             }
@@ -152,7 +135,6 @@ bool DevicesTableModel::setData(const QModelIndex &index, const QVariant &value,
 
 QModelIndex DevicesTableModel::index(int row, int column, const QModelIndex &parent) const {
     if (parent.isValid()) {
-        qDebug() << "#index " << row << column << "valid";
         if (column < 0 || column > 3 || row < 0) {
             return QModelIndex();
         }
@@ -162,8 +144,6 @@ QModelIndex DevicesTableModel::index(int row, int column, const QModelIndex &par
 
         return createIndex(row, column, childPtr);
     }
-
-    qDebug() << "#index" << row << column << "invalid";
 
     if (column == 0) {
         DevicesTableItem* ptr = this->modbus_devices_vector_.at(row);
@@ -177,7 +157,6 @@ QModelIndex DevicesTableModel::parent(const QModelIndex &child) const
     if (!child.isValid()) {
         return QModelIndex();
     }
-    qDebug() << "#parent";
 
     DevicesTableItem* itemPtr = static_cast<DevicesTableItem*>(child.internalPointer());
     if (!itemPtr) {

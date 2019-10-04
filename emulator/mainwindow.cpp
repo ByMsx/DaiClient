@@ -19,10 +19,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QGroupBox>
-
-#include "device_item_view.h"
-
-#include "device_item_view.h"
+#include "devices_table_model.h"
 
 namespace GH = ::Dai;
 
@@ -158,22 +155,11 @@ void Main_Window::fill_data() noexcept
 
                 connect(modbus_device_item.serial_port_, &QSerialPort::readyRead, this, &Main_Window::socketDataReady);
 
-                // modbus_device_item.device_item_view_ = new Device_Item_View(&dai_project_.item_type_mng_, dev, modbus_device_item.modbus_device_, ui_->content);
-                // box->addWidget(modbus_device_item.device_item_view_); // ByMsx: here we adding a new widget for device
-
                 modbus_device_item.device_table_item_ = new DeviceTableItem(&dai_project_.item_type_mng_, modbus_device_item.modbus_device_, dev);
                 devicesTableModel->appendChild(modbus_device_item.device_table_item_);
 
                 modbus_list_.emplace(dev_address, modbus_device_item);
             }
-//            else
-//            {
-//                Device_Item_View* device_view = map_it->second.device_item_view_;
-//                if (device_view != nullptr)
-//                {
-//                    device_view->add_device(dev);
-//                }
-//            }
         }
     }
 

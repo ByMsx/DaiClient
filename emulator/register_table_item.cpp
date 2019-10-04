@@ -14,16 +14,16 @@ QVariant RegisterTableItem::data(const QModelIndex &index, int role) const {
         if (index.column() == 0) {
             auto register_type = static_cast<RegistersVectorItem*>(this->itemData_)->type();
             switch (register_type) {
-            case QModbusDataUnit::RegisterType::Coils:
-                return "Coils";
-            case QModbusDataUnit::RegisterType::DiscreteInputs:
-                return "Discrete Inputs";
-            case QModbusDataUnit::RegisterType::InputRegisters:
-                return "Input Registers";
-            case QModbusDataUnit::RegisterType::HoldingRegisters:
-                return "Holding Registers";
-            default:
-                return QVariant();
+                case QModbusDataUnit::RegisterType::Coils:
+                    return "Coils";
+                case QModbusDataUnit::RegisterType::DiscreteInputs:
+                    return "Discrete Inputs";
+                case QModbusDataUnit::RegisterType::InputRegisters:
+                    return "Input Registers";
+                case QModbusDataUnit::RegisterType::HoldingRegisters:
+                    return "Holding Registers";
+                default:
+                    return QVariant();
             }
         }
     }

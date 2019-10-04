@@ -19,7 +19,6 @@
 
 class QProcess;
 class QSettings;
-class Device_Item_View;
 
 void term_handler(int);
 

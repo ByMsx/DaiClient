@@ -22,51 +22,51 @@ QVariant DeviceItemTableItem::data(const QModelIndex &index, int role) const {
         const Dai::DeviceItem* device_item = static_cast<Dai::DeviceItem*>(this->itemData_);
 
         switch (index.column()) {
-        case UNIT_TYPE:
-            if (role == Qt::DisplayRole) {
-                return unit(device_item);
+            case UNIT_TYPE:
+                if (role == Qt::DisplayRole) {
+                    return unit(device_item);
+                }
+                break;
+            case UNIT_NAME: {
+                if (role == Qt::DisplayRole) {
+                    QString name("%1  %2");
+                    return name.arg(device_item->id()).arg(device_item->displayName());
+                }
+                break;
             }
-            break;
-        case UNIT_NAME: {
-            if (role == Qt::DisplayRole) {
-                QString name("%1  %2");
-                return name.arg(device_item->id()).arg(device_item->displayName());
-            }
-            break;
-        }
-        case UNIT_VALUE: {
-            auto reg_type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->register_type(device_item->type_id()));
-            if (reg_type > QModbusDataUnit::Coils)
-            {
-                if (role == Qt::EditRole || role == Qt::DisplayRole)
+            case UNIT_VALUE: {
+                auto reg_type = static_cast<QModbusDataUnit::RegisterType>(item_type_manager_->register_type(device_item->type_id()));
+                if (reg_type > QModbusDataUnit::Coils)
                 {
-                    if (!device_item->raw_value().isNull())
+                    if (role == Qt::EditRole || role == Qt::DisplayRole)
+                    {
+                        if (!device_item->raw_value().isNull())
+                        {
+                            return device_item->raw_value();
+                        }
+                        return 0;
+                    }
+                }
+                else if (reg_type > QModbusDataUnit::Invalid)
+                {
+                    if (role == Qt::CheckStateRole)
+                    {
+                        bool result = false;
+                        if (!device_item->raw_value().isNull())
+                        {
+                            result = device_item->raw_value().toBool();//( > 0);// && device_item->raw_value() <= 2);
+                        }
+                        return static_cast<int>(result ? Qt::Checked : Qt::Unchecked);
+                    }
+                }
+                else
+                {
+                    if (role == Qt::DisplayRole)
                     {
                         return device_item->raw_value();
                     }
-                    return 0;
                 }
             }
-            else if (reg_type > QModbusDataUnit::Invalid)
-            {
-                if (role == Qt::CheckStateRole)
-                {
-                    bool result = false;
-                    if (!device_item->raw_value().isNull())
-                    {
-                        result = device_item->raw_value().toBool();//( > 0);// && device_item->raw_value() <= 2);
-                    }
-                    return static_cast<int>(result ? Qt::Checked : Qt::Unchecked);
-                }
-            }
-            else
-            {
-                if (role == Qt::DisplayRole)
-                {
-                    return device_item->raw_value();
-                }
-            }
-        }
         }
     }
 
