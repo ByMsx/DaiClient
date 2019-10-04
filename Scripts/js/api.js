@@ -1,4 +1,6 @@
 var api = {
+    version: 200,
+
     actDevice: function(group, type, newState, user_id) {
         group.writeToControl(type, newState, api.type.mode.automatic, user_id)
     },
@@ -33,8 +35,89 @@ var api = {
         check_value: undefined,
         group_status: undefined,
         initialized: undefined,
+        can_restart: undefined,
+        stop: undefined
     },
-}
+};
+
+api.get_number = function(value, default_value)
+{
+    if (typeof value !== 'number')
+        value = parseFloat(value);
+    if (value === value)
+        return value;
+    return default_value;
+};
+
+api.get_number_from_property = function(item, anyway_renurn_zero, prop_name)
+{
+    var default_value = anyway_renurn_zero ? 0 : undefined;
+    if (item && item.isConnected())
+        return api.get_number(item[prop_name], default_value);
+    return default_value;
+};
+
+api.get_number_value = function(item, anyway_renurn_zero)
+{
+    return api.get_number_from_property(item, anyway_renurn_zero, 'value');
+};
+
+api.get_number_raw_value = function(item, anyway_renurn_zero)
+{
+    return api.get_number_from_property(item, anyway_renurn_zero, 'raw_value');
+};
+
+api.extend = function(Child, Parent)
+{
+    var F = function() {};
+    F.prototype = Parent.prototype;
+    Child.prototype = new F();
+    Child.prototype.constructor = Child;
+    Child.superclass = Parent.prototype;
+};
+
+api.mixin = function(dst, src)
+{
+    var tobj = {};
+    for(var x in src)
+        if((typeof tobj[x] == "undefined") || (tobj[x] != src[x]))
+            dst[x] = src[x];
+};
+
+api.get_type_name = function(type_id, types)
+{
+    for (var i in types)
+        if (types[i] === type_id)
+            return i;
+    return '[unknown_type]';
+};
+
+api.connect_if_exist = function(signal, obj, func_name)
+{
+    if (typeof obj[func_name] === 'function')
+        signal.connect(obj, obj[func_name]);
+};
+
+api.init_as_group_manager = function(obj, group)
+{
+    obj.group = group;
+    obj.param = group.param;
+    obj.item = {};
+
+    var items = group.items;
+    for (var i in items)
+    {
+        var item = items[i];
+        var type_name = api.get_type_name(item.type, api.type.item);
+        obj.item[type_name] = item;
+
+        api.connect_if_exist(item.valueChanged, obj, 'on_' + type_name); // args: user_id
+    }
+
+    api.connect_if_exist(group.modeChanged , obj, 'on_mode_changed');  // args: user_id, mode_id
+    api.connect_if_exist(group.itemChanged , obj, 'on_item_changed');  // args: item, user_id
+    api.connect_if_exist(group.paramChanged, obj, 'on_param_changed'); // args: param, user_id
+};
 
 var modbus = {
 
@@ -60,12 +143,12 @@ var modbus = {
 }
 
 var console = {
-    'log': function(text, user_id, inform) { api.mng.log(text, 0, user_id, inform) },
-    'info': function(text, user_id, inform) { api.mng.log(text, 4, user_id, inform) },
-    'warn': function(text, user_id, inform) { api.mng.log(text, 1, user_id, inform) },
-    'critical': function(text, user_id, inform) { api.mng.log(text, 2, user_id, inform) },
-    'error': function(text, user_id, inform) { api.mng.log(text, 2, user_id, inform) },
-    'err': function(text, user_id, inform) { api.mng.log(text, 2, user_id, inform) },
+    'log': function(text, user_id, inform, print_backtrace) { api.mng.log(text, 0, user_id, inform, print_backtrace) },
+    'info': function(text, user_id, inform, print_backtrace) { api.mng.log(text, 4, user_id, inform, print_backtrace) },
+    'warn': function(text, user_id, inform, print_backtrace) { api.mng.log(text, 1, user_id, inform, print_backtrace) },
+    'critical': function(text, user_id, inform, print_backtrace) { api.mng.log(text, 2, user_id, inform, print_backtrace) },
+    'error': function(text, user_id, inform, print_backtrace) { api.mng.log(text, 2, user_id, inform, print_backtrace) },
+    'err': function(text, user_id, inform, print_backtrace) { api.mng.log(text, 2, user_id, inform, print_backtrace) },
 }
 
 console.warning = console.warn;

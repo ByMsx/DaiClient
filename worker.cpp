@@ -17,6 +17,7 @@
 #include <Dai/checkerinterface.h>
 #include <Dai/db/group_status_item.h>
 #include <Dai/db/view.h>
+#include <plus/dai/jwt_helper.h>
 
 #include "websocket_item.h"
 #include "worker.h"
@@ -42,7 +43,6 @@ Worker::Worker(QObject *parent) :
     init_LogTimer(); // сохранение статуса устройства по таймеру
 
     // используется для подключения к Orange на прямую
-    initDjango(s.get());
     initWebSocketManager(s.get());
 
     emit started();
@@ -71,7 +71,6 @@ Worker::~Worker()
 
     websock_item.reset();
     stop_thread(&websock_th_);
-    stop_thread(&django_th);
 
     stop_thread(&log_timer_thread_);
     item_values_timer.stop();
@@ -289,22 +288,22 @@ void Worker::init_LogTimer()
     connect(log_timer_thread_->ptr(), &Log_Value_Save_Timer::change, this, &Worker::change, Qt::QueuedConnection);
 }
 
-void Worker::initDjango(QSettings *s)
-{
-    django_th = DjangoThread()(s, "Django",
-                             Helpz::Param<QString>{"manage", "/var/www/dai/manage.py"});
-    django_th->start();
-}
-
 void Worker::initWebSocketManager(QSettings *s)
 {
-    std::tuple<bool> en_t = Helpz::SettingsHelper<Helpz::Param<bool>>(s, "WebSocket", Helpz::Param<bool>{"Enabled", true})();
+    std::tuple<bool, QByteArray> en_t = Helpz::SettingsHelper<Helpz::Param<bool>, Helpz::Param<QByteArray>
+            >(s, "WebSocket",
+              Helpz::Param<bool>{"Enabled", true},
+              Helpz::Param<QByteArray>{"SecretKey", QByteArray()}
+              )();
     if (!std::get<0>(en_t))
         return;
 
+    QByteArray secret_key = std::get<1>(en_t);
+    std::shared_ptr<JWT_Helper> jwt_helper = std::make_shared<JWT_Helper>(std::string{secret_key.constData(), static_cast<std::size_t>(secret_key.size())});
+
     websock_th_ = WebSocketThread()(
                 s, "WebSocket",
-                Helpz::Param<QByteArray>{"SecretKey", QByteArray()},
+                jwt_helper,
                 Helpz::Param<quint16>{"Port", 25589},
                 Helpz::Param<QString>{"CertPath", QString()},
                 Helpz::Param<QString>{"KeyPath", QString()});
@@ -380,10 +379,9 @@ void Worker::processCommands(const QStringList &args)
 
     parser.process(args);
 
-    if (parser.isSet(opt.at(0)))
+    if (opt.size() > 0 && parser.isSet(opt.at(0)))
     {
-        QMetaObject::invokeMethod(prj(), "console", Qt::QueuedConnection,
-                                  Q_ARG(QString, parser.value(opt.at(0))));
+        QMetaObject::invokeMethod(prj(), "console", Qt::QueuedConnection, Q_ARG(uint32_t, 0), Q_ARG(QString, parser.value(opt.at(0))));
     }
     else if (false) {
 
@@ -650,7 +648,7 @@ void Worker::update_plugin_param_names(const QVector<Plugin_Type>& plugins)
     }
 }
 
-void Worker::newValue(DeviceItem *item, uint32_t user_id)
+void Worker::newValue(DeviceItem *item, uint32_t user_id, const QVariant& old_raw_value)
 {
     waited_item_values[item->id()] = std::make_pair(item->raw_value(), item->value());
     if (!item_values_timer.isActive())

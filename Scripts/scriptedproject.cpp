@@ -274,23 +274,19 @@ void initTypes(QScriptValue& parent, const QString& prop_name, Database::Base_Ty
 
 void ScriptedProject::scriptsInitialization()
 {
-    auto readScriptFile = [](const QString& fileBase) -> QString
+    auto read_script_file = [this](const QString& file_base, const QString& name = QString(), const QString& base_path = ":/Scripts/js")
     {
-        QString content;
-
-        QFile scriptFile(":/Scripts/js/" + fileBase + ".js");
-        if (scriptFile.exists())
+        QFile script_file(base_path + '/' + file_base + ".js");
+        if (script_file.exists())
         {
-            scriptFile.open(QIODevice::ReadOnly | QFile::Text);
-            QTextStream stream(&scriptFile);
-            content = stream.readAll();
-            scriptFile.close();
+            script_file.open(QIODevice::ReadOnly | QFile::Text);
+            QTextStream stream(&script_file);
+            check_error(name.isEmpty() ? file_base : name, stream.readAll());
+            script_file.close();
         }
-
-        return content;
     };
 
-    check_error( "API", readScriptFile("api") );
+    read_script_file("api", "API");
 
     QScriptValue api = get_api_obj();
     api.setProperty("mng", m_script_engine->newQObject(this));
@@ -366,11 +362,11 @@ void ScriptedProject::scriptsInitialization()
         }
     }
 
-//    QDir scripts(":/Scripts/js");
-//    auto js_list = scripts.entryInfoList(QDir::Files | QDir::NoSymLinks, QDir::Name);
-//    for (auto fileInfo: js_list)
-//        if (fileInfo.suffix() == "js" && fileInfo.baseName() != "api")
-//            evaluateFile( fileInfo.filePath() );
+    QDir scripts(qApp->applicationDirPath() + "/scripts/");
+    QFileInfoList js_list = scripts.entryInfoList(QDir::Files | QDir::NoSymLinks, QDir::Name);
+    for (const QFileInfo& fileInfo: js_list)
+        if (fileInfo.suffix() == "js" && fileInfo.baseName() != "api")
+            read_script_file( fileInfo.baseName(), QString(), fileInfo.absolutePath() );
 
     QScriptValue checker_list = api.property("checker");
     if (checker_list.isArray())
@@ -413,9 +409,16 @@ QScriptValue ScriptedProject::valueFromVariant(const QVariant &data) const
     }
 }
 
-void ScriptedProject::log(const QString &msg, uint8_t type_id, uint32_t user_id, bool inform_flag)
+QStringList ScriptedProject::backtrace() const
+{
+    return m_script_engine->currentContext()->backtrace();
+}
+
+void ScriptedProject::log(const QString &msg, uint8_t type_id, uint32_t user_id, bool inform_flag, bool print_backtrace)
 {
     Log_Event_Item event{ QDateTime::currentDateTimeUtc().toMSecsSinceEpoch(), user_id, inform_flag, type_id, ScriptLog().categoryName(), msg };
+    if (print_backtrace)
+        event.set_text(event.text() + "\n\n" + m_script_engine->currentContext()->backtrace().join('\n'));
     std::cerr << "[script] " << event.text().toStdString() << std::endl;
     add_event_message(std::move(event));
 }
@@ -469,17 +472,6 @@ void ScriptedProject::console(uint32_t user_id, const QString &cmd, bool is_func
     add_event_message(std::move(event));
 }
 
-//void ScriptedProject::evaluateFile(const QString& fileName)
-//{
-//    QFile scriptFile(fileName);
-//    scriptFile.open(QIODevice::ReadOnly);
-//    QTextStream stream(&scriptFile);
-//    QString contents = stream.readAll();
-//    scriptFile.close();
-
-//    check_error( fileName, eng->evaluate(contents, fileName) );
-//}
-
 QScriptValue ScriptedProject::callFunction(int handler_type, const QScriptValueList& args) const
 {
     QScriptValue handler = get_handler(handler_type);
@@ -514,7 +506,7 @@ void ScriptedProject::group_param_changed(Param* /*param*/, uint32_t user_id)
 }
 
 QElapsedTimer t;
-void ScriptedProject::itemChanged(DeviceItem *item, uint32_t user_id)
+void ScriptedProject::itemChanged(DeviceItem *item, uint32_t user_id, const QVariant& old_raw_value)
 {
     auto group = static_cast<ItemGroup*>(sender());
     if (!group)
@@ -523,15 +515,17 @@ void ScriptedProject::itemChanged(DeviceItem *item, uint32_t user_id)
     QScriptValue groupObj = m_script_engine->newQObject(group);
     QScriptValue itemObj = m_script_engine->newQObject(item);
 
+    QScriptValueList args { groupObj, itemObj, user_id, valueFromVariant(old_raw_value) };
+
     t.restart();
-    callFunction(FUNC_CHANGED_ITEM, { groupObj, itemObj, user_id });
+    callFunction(FUNC_CHANGED_ITEM, args);
 
     if (item->isControl())
-        callFunction(FUNC_CHANGED_CONTROL, { groupObj, itemObj, user_id });
+        callFunction(FUNC_CHANGED_CONTROL, args);
     else
-        callFunction(FUNC_CHANGED_SENSOR, { groupObj, itemObj, user_id });
+        callFunction(FUNC_CHANGED_SENSOR, args);
 
-    callFunction(FUNC_COUNT + group->type_id(), { groupObj, itemObj, user_id });
+    callFunction(FUNC_COUNT + group->type_id(), args);
 
 //    eng->collectGarbage();
 

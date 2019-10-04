@@ -32,6 +32,8 @@ OTHER_FILES = checkerinfo.json
 LIBS += -lDai
 
 unix {
+    CONFIG(debug, debug|release): QT += dbus
+
     CONFIG += unversioned_libname unversioned_soname
 
     target.path = /opt/dai/plugins

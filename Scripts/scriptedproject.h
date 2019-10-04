@@ -64,7 +64,7 @@ public:
 
     QScriptValue valueFromVariant(const QVariant& data) const;
 signals:
-    void sctItemChanged(DeviceItem*, uint32_t user_id);
+    void sctItemChanged(DeviceItem*, uint32_t user_id, const QVariant& old_raw_value);
 
     void status_added(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t user_id);
     void status_removed(quint32 group_id, quint32 info_id, uint32_t user_id);
@@ -79,7 +79,8 @@ signals:
 
     void dayTimeChanged(/*Section* sct*/);
 public slots:
-    void log(const QString& msg, uint8_t type_id, uint32_t user_id = 0, bool inform_flag = false);
+    QStringList backtrace() const;
+    void log(const QString& msg, uint8_t type_id, uint32_t user_id = 0, bool inform_flag = false, bool print_backtrace = false);
     void console(uint32_t user_id, const QString& cmd, bool is_function = false, const QVariantList& arguments = {});
     void reinitialization(const Helpz::Database::Connection_Info &db_info);
     void afterAllInitialization();
@@ -95,7 +96,7 @@ private slots:
 
     void groupModeChanged(uint32_t user_id, uint32_t mode, uint32_t group_id);
     void group_param_changed(Param *param, uint32_t user_id = 0);
-    void itemChanged(DeviceItem* item, uint32_t user_id);
+    void itemChanged(DeviceItem* item, uint32_t user_id, const QVariant& old_raw_value);
     void handlerException(const QScriptValue &exception);
 private:
     QString handler_full_name(int handler_type) const;
@@ -128,7 +129,6 @@ private:
 
     void registerTypes();
     void scriptsInitialization();
-//    void evaluateFile(const QString &fileName);
     QScriptValue callFunction(int handler_type, const QScriptValueList& args = QScriptValueList()) const;
 
     QScriptEngine *m_script_engine;

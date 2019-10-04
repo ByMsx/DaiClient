@@ -22,7 +22,6 @@ typedef QGuiApplication App_Type;
 #include "Network/client_protocol_latest.h"
 #include "Scripts/scriptedproject.h"
 
-#include "plus/dai/djangohelper.h"
 #include "plus/dai/websocket.h"
 #include "plus/dai/proj_info.h"
 
@@ -79,8 +78,6 @@ private:
     void init_network_client(QSettings* s);
     void init_LogTimer();
 
-    void initDjango(QSettings *s);
-
     std::shared_ptr<Websocket_Item> websock_item;
     void initWebSocketManager(QSettings *s);
 signals:
@@ -125,7 +122,7 @@ public slots:
 
     void update_plugin_param_names(const QVector<Plugin_Type>& plugins);
 public slots:
-    void newValue(DeviceItem* item, uint32_t user_id = 0);
+    void newValue(DeviceItem* item, uint32_t user_id = 0, const QVariant& old_raw_value = QVariant());
 private:
     std::unique_ptr<DB_Connection_Info> db_info_;
     Database::Helper* db_mng_;
@@ -146,10 +143,7 @@ private:
     using CheckerThread = Helpz::SettingsThreadHelper<Checker, Worker*, QStringList>;
     CheckerThread::Type* checker_th = nullptr;
 
-    using DjangoThread = Helpz::SettingsThreadHelper<DjangoHelper, QString>;
-    DjangoThread::Type* django_th = nullptr;
-
-    using WebSocketThread = Helpz::SettingsThreadHelper<Network::WebSocket, QByteArray, quint16, QString, QString>;
+    using WebSocketThread = Helpz::SettingsThreadHelper<Network::WebSocket, std::shared_ptr<JWT_Helper>, quint16, QString, QString>;
     WebSocketThread::Type* websock_th_ = nullptr;
     friend class Websocket_Item;
 
