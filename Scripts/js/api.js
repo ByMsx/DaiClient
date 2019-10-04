@@ -35,6 +35,8 @@ var api = {
         check_value: undefined,
         group_status: undefined,
         initialized: undefined,
+        can_restart: undefined,
+        stop: undefined
     },
 };
 

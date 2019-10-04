@@ -22,7 +22,6 @@ typedef QGuiApplication App_Type;
 #include "Network/client_protocol_latest.h"
 #include "Scripts/scriptedproject.h"
 
-#include "plus/dai/djangohelper.h"
 #include "plus/dai/websocket.h"
 #include "plus/dai/proj_info.h"
 
@@ -78,8 +77,6 @@ private:
     void init_Checker(QSettings* s);
     void init_network_client(QSettings* s);
     void init_LogTimer();
-
-    void initDjango(QSettings *s);
 
     std::shared_ptr<Websocket_Item> websock_item;
     void initWebSocketManager(QSettings *s);
@@ -145,9 +142,6 @@ private:
     friend class Checker;
     using CheckerThread = Helpz::SettingsThreadHelper<Checker, Worker*, QStringList>;
     CheckerThread::Type* checker_th = nullptr;
-
-    using DjangoThread = Helpz::SettingsThreadHelper<DjangoHelper, QString>;
-    DjangoThread::Type* django_th = nullptr;
 
     using WebSocketThread = Helpz::SettingsThreadHelper<Network::WebSocket, std::shared_ptr<JWT_Helper>, quint16, QString, QString>;
     WebSocketThread::Type* websock_th_ = nullptr;
