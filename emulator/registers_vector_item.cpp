@@ -4,12 +4,21 @@ RegistersVectorItem::RegistersVectorItem(Dai::Database::Item_Type_Manager* mng,
                                          QModbusServer* modbus_server,
                                          QModbusDataUnit::RegisterType type,
                                          const QVector<Dai::DeviceItem*>& items,
-                                         QObject* parent): QObject(parent), type_(type), itemTypeManager_(mng), modbus_server_(modbus_server) {
+                                         QObject* parent): QObject(parent), type_(type), itemTypeManager_(mng), modbus_server_(modbus_server)
+{
+    assign(items);
+}
+
+QVector<Dai::DeviceItem*> RegistersVectorItem::assign(const QVector<Dai::DeviceItem*>& items)
+{
+    QVector<Dai::DeviceItem*> result;
     for (const auto& ptr : items) {
-        if (mng->register_type(ptr->type_id()) == type) {
+        if (itemTypeManager_->register_type(ptr->type_id()) == type_) {
             items_.push_back(ptr);
+            result.push_back(ptr);
         }
     }
+    return result;
 }
 
 QModbusDataUnit::RegisterType RegistersVectorItem::type() const {

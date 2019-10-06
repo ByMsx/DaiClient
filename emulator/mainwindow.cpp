@@ -161,6 +161,14 @@ void Main_Window::fill_data() noexcept
 
                 modbus_list_.emplace(dev_address, modbus_device_item);
             }
+            else
+            {
+                DeviceTableItem* device_table_item = map_it->second.device_table_item_;
+                if (device_table_item != nullptr)
+                {
+                    device_table_item->assign(dev);
+                }
+            }
         }
     }
 

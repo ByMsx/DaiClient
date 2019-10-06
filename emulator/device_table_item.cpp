@@ -23,6 +23,18 @@ DeviceTableItem::DeviceTableItem(Dai::Item_Type_Manager *mng, QModbusServer* mod
     this->appendChild(holdingsItem);
 }
 
+void DeviceTableItem::assign(Dai::Device* device)
+{
+    for (int i = 0; i < childCount(); ++i)
+    {
+        RegisterTableItem* item = dynamic_cast<RegisterTableItem*>(child(0));
+        if (item)
+        {
+            item->assign(device->items());
+        }
+    }
+}
+
 Qt::ItemFlags DeviceTableItem::flags(const QModelIndex &index) const {
     Qt::ItemFlags flags = Qt::ItemFlag::ItemIsEnabled;
 

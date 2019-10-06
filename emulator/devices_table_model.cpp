@@ -145,7 +145,7 @@ QModelIndex DevicesTableModel::index(int row, int column, const QModelIndex &par
         return createIndex(row, column, childPtr);
     }
 
-    if (column == 0) {
+    if (column == 0 && modbus_devices_vector_.size() > row) {
         DevicesTableItem* ptr = this->modbus_devices_vector_.at(row);
         return createIndex(row, column, ptr);
     }

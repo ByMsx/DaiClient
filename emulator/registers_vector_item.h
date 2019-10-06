@@ -16,6 +16,7 @@ class RegistersVectorItem : public QObject {
     Dai::Database::Item_Type_Manager* itemTypeManager_;
 public:
     RegistersVectorItem(Dai::Database::Item_Type_Manager* mng, QModbusServer* modbus_server, QModbusDataUnit::RegisterType type, const QVector<Dai::DeviceItem*>& items, QObject* parent = nullptr);
+    QVector<Dai::DeviceItem*> assign(const QVector<Dai::DeviceItem*>& items);
 
     QModbusDataUnit::RegisterType type() const;
     QVector<Dai::DeviceItem*> items() const;

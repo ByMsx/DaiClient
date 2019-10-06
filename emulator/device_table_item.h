@@ -13,6 +13,8 @@ public:
     DeviceTableItem(Dai::Item_Type_Manager *mng, QModbusServer* modbus_server, Dai::Device *device, DevicesTableItem* parent = nullptr);
     ~DeviceTableItem() override = default;
 
+    void assign(Dai::Device *device);
+
     Qt::ItemFlags flags(const QModelIndex& index) const override;
     QVariant data(const QModelIndex &index, int role) const override;
     bool isUse() const noexcept;

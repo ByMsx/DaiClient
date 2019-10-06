@@ -4,9 +4,13 @@
 RegisterTableItem::RegisterTableItem(RegistersVectorItem* data, DevicesTableItem* parent)
     : DevicesTableItem(data, parent)
 {
-    for (auto& item : data->items()) {
-        this->appendChild(new DeviceItemTableItem(data->manager(), data->modbus_server(), item, this));
-    }
+    append_childs(data->items());
+}
+
+void RegisterTableItem::assign(const QVector<Dai::DeviceItem*>& items)
+{
+    const QVector<Dai::DeviceItem*> assigned_vect = static_cast<RegistersVectorItem*>(this->itemData_)->assign(items);
+    append_childs(assigned_vect);
 }
 
 QVariant RegisterTableItem::data(const QModelIndex &index, int role) const {
@@ -29,4 +33,13 @@ QVariant RegisterTableItem::data(const QModelIndex &index, int role) const {
     }
 
     return QVariant();
+}
+
+void RegisterTableItem::append_childs(const QVector<Dai::DeviceItem*>& items)
+{
+    auto data = static_cast<RegistersVectorItem*>(this->itemData_);
+    for (auto& item : items)
+    {
+        this->appendChild(new DeviceItemTableItem(data->manager(), data->modbus_server(), item, this));
+    }
 }
