@@ -99,7 +99,8 @@ void Main_Window::init_database() noexcept
                 Helpz::Param<QString>{"ConnectOptions", QString()}
     ).obj<Helpz::Database::Connection_Info>();
 
-    qDebug() << "Open SQL is" << db_manager_.create_connection(db_info);
+    db_manager_.set_connection_info(db_info);
+    qDebug() << "Open SQL is" << db_manager_.create_connection();
 }
 
 void Main_Window::fill_data() noexcept
