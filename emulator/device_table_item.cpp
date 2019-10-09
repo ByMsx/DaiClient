@@ -27,7 +27,7 @@ void DeviceTableItem::assign(Dai::Device* device)
 {
     for (int i = 0; i < childCount(); ++i)
     {
-        RegisterTableItem* item = dynamic_cast<RegisterTableItem*>(child(0));
+        RegisterTableItem* item = dynamic_cast<RegisterTableItem*>(child(i));
         if (item)
         {
             item->assign(device->items());

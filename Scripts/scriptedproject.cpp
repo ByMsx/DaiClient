@@ -409,6 +409,22 @@ QScriptValue ScriptedProject::valueFromVariant(const QVariant &data) const
     }
 }
 
+bool ScriptedProject::stop(uint32_t user_id)
+{
+    QScriptValue can_restart = get_api_obj().property("handlers").property("can_restart");
+    if (can_restart.isFunction())
+    {
+        QScriptValue ret = can_restart.call(QScriptValue(), QScriptValueList{user_id});
+        if (ret.isBool() && !ret.toBool())
+        {
+            return false;
+        }
+    }
+
+    modbusStop();
+    return true;
+}
+
 QStringList ScriptedProject::backtrace() const
 {
     return m_script_engine->currentContext()->backtrace();

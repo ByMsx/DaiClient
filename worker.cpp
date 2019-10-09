@@ -7,6 +7,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QRegularExpression>
+#include <QTimer>
 
 #include <botan-2/botan/parsing.h>
 
@@ -214,6 +215,7 @@ void Worker::init_network_client(QSettings* s)
 {
     net_protocol_thread_.start();
     structure_sync_.reset(new Client::Structure_Synchronizer{ db_pending_thread_.get() });
+    connect(structure_sync_.get(), &Client::Structure_Synchronizer::client_modified, this, &Worker::restart_service_object, Qt::QueuedConnection);
     structure_sync_->moveToThread(&net_protocol_thread_);
     structure_sync_->set_project(prj());
 
@@ -318,9 +320,25 @@ void Worker::initWebSocketManager(QSettings *s)
 
 void Worker::restart_service_object(uint32_t user_id)
 {
+    if (prj())
+    {
+        if (!stop_scripts(user_id))
+        {
+            QTimer::singleShot(3000, [this, user_id](){ restart_service_object(user_id); });
+            return;
+        }
+    }
+
     Log_Event_Item event { QDateTime::currentDateTimeUtc().toMSecsSinceEpoch(), user_id, false, QtInfoMsg, Service::Log().categoryName(), "The service restarts."};
     add_event_message(std::move(event));
     QTimer::singleShot(50, this, SIGNAL(serviceRestart()));
+}
+
+bool Worker::stop_scripts(uint32_t user_id)
+{
+    bool is_stoped = true;
+    QMetaObject::invokeMethod(prj(), "stop", Qt::QueuedConnection, Q_RETURN_ARG(bool, is_stoped), Q_ARG(uint32_t, user_id));
+    return is_stoped;
 }
 
 void Worker::logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QString &str)
@@ -355,9 +373,9 @@ void Worker::processCommands(const QStringList &args)
 {
     QList<QCommandLineOption> opt{
         { { "c", "console" }, QCoreApplication::translate("main", "Execute command in JS console."), "script" },
+        { { "s", "stop_scripts"}, QCoreApplication::translate("main", "Stop scripts")},
 
         { { "d", "dev", "device" }, QCoreApplication::translate("main", "Device"), "ethX" },
-
 
         // A boolean option with a single name (-p)
         {"p",
@@ -383,8 +401,9 @@ void Worker::processCommands(const QStringList &args)
     {
         QMetaObject::invokeMethod(prj(), "console", Qt::QueuedConnection, Q_ARG(uint32_t, 0), Q_ARG(QString, parser.value(opt.at(0))));
     }
-    else if (false) {
-
+    else if (opt.size() > 1 && parser.isSet(opt.at(1)))
+    {
+        stop_scripts();
     }
     else
         qCInfo(Service::Log) << args << parser.helpText();

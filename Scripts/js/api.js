@@ -35,17 +35,19 @@ var api = {
         check_value: undefined,
         group_status: undefined,
         initialized: undefined,
-        can_restart: undefined,
-        stop: undefined
+        can_restart: undefined
     },
 };
 
 api.get_number = function(value, default_value)
 {
-    if (typeof value !== 'number')
-        value = parseFloat(value);
-    if (value === value)
-        return value;
+    if (value !== undefined)
+    {
+        if (typeof value !== 'number')
+            value = parseFloat(value.valueOf());
+        if (value === value)
+            return value;
+    }
     return default_value;
 };
 

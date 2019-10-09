@@ -96,7 +96,9 @@ signals:
 
     void event_message(const Log_Event_Item&);
 public slots:
-    void restart_service_object(uint32_t user_id);
+    void restart_service_object(uint32_t user_id = 0);
+    bool stop_scripts(uint32_t user_id = 0);
+
     void logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QString &str);
     void add_event_message(Log_Event_Item event);
     void processCommands(const QStringList& args);

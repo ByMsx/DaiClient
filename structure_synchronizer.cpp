@@ -164,7 +164,7 @@ void Structure_Synchronizer::send_structure(uint8_t struct_type, uint8_t msg_id,
     }
 }
 
-void Structure_Synchronizer::send_modify_response(uint8_t struct_type, const QByteArray &buffer)
+void Structure_Synchronizer::send_modify_response(uint8_t struct_type, const QByteArray &buffer, uint32_t user_id)
 {
     if (protocol_)
     {
@@ -179,6 +179,7 @@ void Structure_Synchronizer::send_modify_response(uint8_t struct_type, const QBy
 
         protocol_->send(Cmd::MODIFY_PROJECT).writeRawData(buffer.constData(), buffer.size());
     }
+    emit client_modified(user_id);
 }
 
 } // namespace Client
