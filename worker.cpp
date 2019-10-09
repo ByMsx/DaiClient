@@ -337,7 +337,7 @@ void Worker::restart_service_object(uint32_t user_id)
 bool Worker::stop_scripts(uint32_t user_id)
 {
     bool is_stoped = true;
-    QMetaObject::invokeMethod(prj(), "stop", Qt::QueuedConnection, Q_RETURN_ARG(bool, is_stoped), Q_ARG(uint32_t, user_id));
+    QMetaObject::invokeMethod(prj(), "stop", Qt::BlockingQueuedConnection, Q_RETURN_ARG(bool, is_stoped), Q_ARG(uint32_t, user_id));
     return is_stoped;
 }
 
