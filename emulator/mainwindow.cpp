@@ -375,7 +375,7 @@ void Main_Window::on_socatReset_clicked()
         ui_->portName->setText(pathFrom);
         ui_->openBtn->setChecked(true);
 
-        ui_->statusbar->showMessage("Server port address is " + pathTo);
+        ui_->statusbar->showMessage("Server port address is " + pathTo + " speed " + QString::number(config_.baud_rate_));
     }
 }
 

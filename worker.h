@@ -152,8 +152,9 @@ private:
     using Log_Value_Save_Timer_Thread = Helpz::ParamThread<Log_Value_Save_Timer, Project*, Helpz::Database::Thread*>;
     Log_Value_Save_Timer_Thread* log_timer_thread_ = nullptr;
 
-    std::map<quint32, std::pair<QVariant, QVariant>> waited_item_values;
-    QTimer item_values_timer;
+    bool restart_timer_started_;
+    std::map<quint32, std::pair<QVariant, QVariant>> waited_item_values_;
+    QTimer item_values_timer_;
 
     std::pair<uint32_t,uint32_t> last_file_item_and_user_id_;
 };

@@ -30,7 +30,8 @@ using namespace std::placeholders;
 
 Worker::Worker(QObject *parent) :
     QObject(parent),
-    project_thread_(nullptr), prj_(nullptr)
+    project_thread_(nullptr), prj_(nullptr),
+    restart_timer_started_(false)
 {
     qRegisterMetaType<uint32_t>("uint32_t");
 
@@ -74,7 +75,7 @@ Worker::~Worker()
     stop_thread(&websock_th_);
 
     stop_thread(&log_timer_thread_);
-    item_values_timer.stop();
+    item_values_timer_.stop();
 
     net_protocol_thread_.quit(); net_protocol_thread_.wait();
     net_thread_.reset();
@@ -273,17 +274,17 @@ void Worker::init_network_client(QSettings* s)
 
 void Worker::init_LogTimer()
 {
-    connect(&item_values_timer, &QTimer::timeout, [this]()
+    connect(&item_values_timer_, &QTimer::timeout, [this]()
     {
-        for (auto it: waited_item_values)
+        for (auto it: waited_item_values_)
             if (!db_mng_->setDevItemValue(it.first, it.second.first, it.second.second))
             {
                 // TODO: Do something
             }
-        waited_item_values.clear();
+        waited_item_values_.clear();
     });
-    item_values_timer.setInterval(5000);
-    item_values_timer.setSingleShot(true);
+    item_values_timer_.setInterval(5000);
+    item_values_timer_.setSingleShot(true);
 
     log_timer_thread_ = new Log_Value_Save_Timer_Thread(prj(), db_pending());
     log_timer_thread_->start();
@@ -320,11 +321,22 @@ void Worker::initWebSocketManager(QSettings *s)
 
 void Worker::restart_service_object(uint32_t user_id)
 {
+    if (restart_timer_started_)
+    {
+        return;
+    }
+
+    restart_timer_started_ = true;
+
     if (prj())
     {
         if (!stop_scripts(user_id))
         {
-            QTimer::singleShot(3000, [this, user_id](){ restart_service_object(user_id); });
+            QTimer::singleShot(3000, [this, user_id]()
+            {
+                restart_timer_started_ = false;
+                restart_service_object(user_id);
+            });
             return;
         }
     }
@@ -669,9 +681,9 @@ void Worker::update_plugin_param_names(const QVector<Plugin_Type>& plugins)
 
 void Worker::newValue(DeviceItem *item, uint32_t user_id, const QVariant& old_raw_value)
 {
-    waited_item_values[item->id()] = std::make_pair(item->raw_value(), item->value());
-    if (!item_values_timer.isActive())
-        item_values_timer.start();
+    waited_item_values_[item->id()] = std::make_pair(item->raw_value(), item->value());
+    if (!item_values_timer_.isActive())
+        item_values_timer_.start();
 
     bool immediately = prj()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saSaveImmediately;
 
