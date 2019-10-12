@@ -29,6 +29,11 @@ Protocol_Latest::~Protocol_Latest()
     QMetaObject::invokeMethod(structure_sync_, "set_protocol", Qt::QueuedConnection);
 }
 
+Log_Sender &Protocol_Latest::log_sender()
+{
+    return log_sender_;
+}
+
 void Protocol_Latest::connect_worker_signals()
 {
     qRegisterMetaType<QVector<Group_Param_Value>>("QVector<Group_Param_Value>");

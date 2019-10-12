@@ -67,7 +67,7 @@ public:
 
     static std::unique_ptr<QSettings> settings();
 
-    std::shared_ptr<Client::Protocol> net_protocol();
+    std::shared_ptr<Client::Protocol_Latest> net_protocol();
 
     static void store_connection_id(const QUuid& connection_id);
 private:
@@ -94,7 +94,6 @@ signals:
 
     void group_param_values_changed(uint32_t user_id, const QVector<Group_Param_Value>& pack);
 
-    void event_message(const Log_Event_Item&);
 public slots:
     void restart_service_object(uint32_t user_id = 0);
     bool stop_scripts(uint32_t user_id = 0);
@@ -124,7 +123,7 @@ public slots:
 
     void update_plugin_param_names(const QVector<Plugin_Type>& plugins);
 public slots:
-    void newValue(DeviceItem* item, uint32_t user_id = 0, const QVariant& old_raw_value = QVariant());
+    void newValue(DeviceItem* item, uint32_t user_id = 0);
 private:
     std::unique_ptr<DB_Connection_Info> db_info_;
     Database::Helper* db_mng_;
@@ -155,6 +154,9 @@ private:
     bool restart_timer_started_;
     std::map<quint32, std::pair<QVariant, QVariant>> waited_item_values_;
     QTimer item_values_timer_;
+
+    std::vector<Log_Value_Item> to_save_log_value_vect_;
+    std::vector<Log_Event_Item> to_save_log_event_vect_;
 
     std::pair<uint32_t,uint32_t> last_file_item_and_user_id_;
 };

@@ -17,6 +17,7 @@ public:
     Protocol_Latest(Worker* worker, Structure_Synchronizer* structure_synchronizer, const Authentication_Info &auth_info);
     ~Protocol_Latest();
 
+    Log_Sender& log_sender();
 signals:
     void restart(uint32_t user_id);
     void write_to_item(uint32_t user_id, uint32_t item_id, const QVariant& raw_data);

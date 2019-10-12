@@ -104,11 +104,11 @@ const DB_Connection_Info &Worker::database_info() const { return *db_info_; }
     return std::unique_ptr<QSettings>(new QSettings(configFileName, QSettings::NativeFormat));
 }
 
-std::shared_ptr<Client::Protocol> Worker::net_protocol()
+std::shared_ptr<Client::Protocol_Latest> Worker::net_protocol()
 {
     auto client = net_thread_->client();
     if (client)
-        return std::static_pointer_cast<Client::Protocol>(client->protocol());
+        return std::static_pointer_cast<Client::Protocol_Latest>(client->protocol());
     return {};
 }
 
@@ -313,7 +313,6 @@ void Worker::initWebSocketManager(QSettings *s)
     websock_th_->start();
 
     websock_item.reset(new Websocket_Item(this));
-    connect(this, &Worker::event_message, websock_item.get(), &Websocket_Item::send_event_message, Qt::DirectConnection);
     connect(websock_th_->ptr(), &Network::WebSocket::through_command,
             websock_item.get(), &Websocket_Item::proc_command, Qt::BlockingQueuedConnection);
     connect(websock_item.get(), &Websocket_Item::send, websock_th_->ptr(), &Network::WebSocket::send, Qt::QueuedConnection);
@@ -375,9 +374,29 @@ void Worker::logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QStr
 
 void Worker::add_event_message(Log_Event_Item event)
 {
-    if (db_mng_->eventLog(event))
+    if (to_save_log_event_vect_.size() >= 100)
     {
-        event_message(event);
+        //TODO: save all log
+    }
+    to_save_log_event_vect_.push_back(event);
+    auto proto = net_protocol();
+    if (proto)
+    {
+        proto->log_sender().send(event);
+    }
+    else
+    {
+        // TODO: save all log
+
+        if (!db_mng_->eventLog(event))
+        {
+            // TODO: Error event
+        }
+    }
+
+    if (websock_item)
+    {
+        websock_item->send_event_message(event);
     }
 }
 
@@ -679,30 +698,52 @@ void Worker::update_plugin_param_names(const QVector<Plugin_Type>& plugins)
     }
 }
 
-void Worker::newValue(DeviceItem *item, uint32_t user_id, const QVariant& old_raw_value)
+void Worker::newValue(DeviceItem *item, uint32_t user_id)
 {
-    waited_item_values_[item->id()] = std::make_pair(item->raw_value(), item->value());
-    if (!item_values_timer_.isActive())
-        item_values_timer_.start();
-
     bool immediately = prj()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saSaveImmediately;
 
-    Log_Value_Item pack_item{ QDateTime::currentDateTimeUtc().toMSecsSinceEpoch(), user_id, immediately, item->id(), item->raw_value(), item->value() };
-
-    if (immediately && !Database::Helper::save_log_changes(db_mng_, pack_item))
+    waited_item_values_[item->id()] = std::make_pair(item->raw_value(), item->value());
+    if (!item_values_timer_.isActive() || (immediately && item_values_timer_.remainingTime() > 500))
     {
-        qWarning(Service::Log).nospace() << user_id << "|Упущенное значение:" << item->toString() << item->value().toString();
-        // TODO: Error event
+        item_values_timer_.start(immediately ? 500 : 5000);
+    }
+
+    if (to_save_log_value_vect_.size() >= 100)
+    {
+        // TODO: save all log
+    }
+
+    Log_Value_Item log_value_item{ QDateTime::currentDateTimeUtc().toMSecsSinceEpoch(), user_id, immediately, item->id(), item->raw_value(), item->value() };
+
+    if (immediately)
+    {
+        to_save_log_value_vect_.push_back(log_value_item);
     }
     else if (prj()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saInvalid)
         qWarning(Service::Log).nospace() << user_id << "|Неправильный параметр сохранения: " << item->toString();
 
-    emit change(pack_item, immediately);
+    auto proto = net_protocol();
+    if (proto)
+    {
+        proto->log_sender().send(log_value_item);
+    }
+    else
+    {
+        // TODO: save all log
+
+        if (!Database::Helper::save_log_changes(db_mng_, log_value_item))
+        {
+            qWarning(Service::Log).nospace() << user_id << "|Упущенное значение:" << item->toString() << item->value().toString();
+            // TODO: Error event
+        }
+    }
+
+    emit change(log_value_item, immediately);
 
     if (websock_th_)
     {
         QMetaObject::invokeMethod(websock_th_->ptr(), "sendDeviceItemValues", Qt::QueuedConnection,
-                                  Q_ARG(Project_Info, websock_item.get()), Q_ARG(QVector<Log_Value_Item>, QVector<Log_Value_Item>{pack_item}));
+                                  Q_ARG(Project_Info, websock_item.get()), Q_ARG(QVector<Log_Value_Item>, QVector<Log_Value_Item>{log_value_item}));
     }
 }
 

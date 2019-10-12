@@ -16,9 +16,8 @@
 namespace Dai {
 namespace Client {
 
-class Log_Sender : public QObject
+class Log_Sender
 {
-    Q_OBJECT
 public:
     explicit Log_Sender(Protocol* protocol);
     ~Log_Sender();
@@ -26,9 +25,8 @@ public:
     void send_log_range(Log_Type_Wrapper log_type, qint64 from_time_ms, qint64 to_time_ms, uint8_t msg_id);
     void send_log_data(Log_Type_Wrapper log_type, qint64 from_time_ms, qint64 to_time_ms, uint8_t msg_id);
 
-public slots:
-    void send_value_log(const Log_Value_Item &item, bool immediately = false);
-    void send_event_log(const Log_Event_Item &item);
+    void send(const Log_Value_Item &item);
+    void send(const Log_Event_Item &item);
 private:
     void start_timer(int new_interval_value);
     void timer_run();

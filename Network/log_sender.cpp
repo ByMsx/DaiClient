@@ -10,16 +10,12 @@ namespace Dai {
 namespace Client {
 
 Log_Sender::Log_Sender(Protocol* protocol) :
-    QObject(),
     protocol_(protocol),
     db_helper_(protocol->worker()->db_pending()),
     timer_break_(false),
     timer_wakeup_(std::chrono::system_clock::now()),
     timer_thread_(&Log_Sender::timer_run, this)
 {
-    auto w = protocol->worker();
-    connect(w, &Worker::change, this, &Log_Sender::send_value_log, Qt::DirectConnection);
-    connect(w, &Worker::event_message, this, &Log_Sender::send_event_log, Qt::DirectConnection);
 }
 
 Log_Sender::~Log_Sender()
@@ -76,14 +72,14 @@ void Log_Sender::send_log_data(Log_Type_Wrapper log_type, qint64 from_time_ms, q
     }
 }
 
-void Log_Sender::send_value_log(const Log_Value_Item& item, bool immediately)
+void Log_Sender::send(const Log_Value_Item& item)
 {
     std::lock_guard lock(mutex_);
     value_pack_.push_back(item);
-    start_timer(immediately ? 10 : 250);
+    start_timer(item.need_to_save() ? 10 : 250);
 }
 
-void Log_Sender::send_event_log(const Log_Event_Item& item)
+void Log_Sender::send(const Log_Event_Item& item)
 {
     if (item.type_id() == QtDebugMsg && item.category().startsWith("net"))
     {

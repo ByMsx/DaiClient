@@ -119,6 +119,7 @@ api.init_as_group_manager = function(obj, group)
     api.connect_if_exist(group.modeChanged , obj, 'on_mode_changed');  // args: user_id, mode_id
     api.connect_if_exist(group.itemChanged , obj, 'on_item_changed');  // args: item, user_id
     api.connect_if_exist(group.paramChanged, obj, 'on_param_changed'); // args: param, user_id
+    api.connect_if_exist(group.is_can_change, obj, 'on_item_change_check'); // args: item, raw_data, user_id
 };
 
 var modbus = {
