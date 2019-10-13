@@ -13,7 +13,7 @@
 class DevicesTableModel : public QAbstractItemModel
 {
     Q_OBJECT
-private:
+
     typedef std::vector<Dai::DeviceItem*> Device_Items_Vector;
     typedef QVector<Dai::Device*> Devices_Vector;
 
@@ -21,6 +21,8 @@ private:
     Dai::Database::Item_Type_Manager* item_type_manager_;
 
     void add_items(const Devices_Vector* devices, QModbusServer* modbus_server);
+public slots:
+    void child_item_changed(DeviceTableItem* child_item);
 public:
     DevicesTableModel(Dai::Database::Item_Type_Manager* mng, const QVector<Dai::Device *> *devices_vector, QModbusServer *modbus_server, QObject *parent = nullptr);
     DevicesTableModel(Dai::Database::Item_Type_Manager* mng, QObject *parent = nullptr);

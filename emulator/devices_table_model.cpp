@@ -171,6 +171,8 @@ QModelIndex DevicesTableModel::parent(const QModelIndex &child) const
 }
 
 void DevicesTableModel::appendChild(DeviceTableItem *item) {
+    connect(item, &DeviceTableItem::data_changed, this, &DevicesTableModel::child_item_changed);
+
     this->modbus_devices_vector_.push_back(item);
     QModelIndex index = createIndex(this->modbus_devices_vector_.count() - 2, 0, item);
     emit dataChanged(index, index);
@@ -180,4 +182,10 @@ void DevicesTableModel::add_items(const Devices_Vector *devices, QModbusServer* 
     for (auto& device : *devices) {
         this->modbus_devices_vector_.push_back(new DeviceTableItem(item_type_manager_, modbus_server, device));
     }
+}
+
+void DevicesTableModel::child_item_changed(DeviceTableItem *child_item)
+{
+    // TODO: here we can optimize if needed
+    emit dataChanged(index(0, 0), index(rowCount() - 1, columnCount() - 1));
 }

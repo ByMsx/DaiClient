@@ -7,8 +7,10 @@
 #include <QModelIndex>
 #include <typeinfo>
 
-class DevicesTableItem
+class DevicesTableItem : public QObject
 {
+    Q_OBJECT
+
     QVector<DevicesTableItem*> child_;
     DevicesTableItem* parent_;
 protected:

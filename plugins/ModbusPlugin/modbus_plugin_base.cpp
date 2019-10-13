@@ -573,7 +573,7 @@ void Modbus_Plugin_Base::process_queue()
         {
             Modbus_Pack_Read_Manager& modbus_pack_read_manager = queue_->read_.front();
             ++modbus_pack_read_manager.position_;
-            if (modbus_pack_read_manager.position_ >= modbus_pack_read_manager.packs_.size())
+            if (modbus_pack_read_manager.position_ >= static_cast<int>(modbus_pack_read_manager.packs_.size()))
             {
                 queue_->read_.pop_front();
                 process_queue();

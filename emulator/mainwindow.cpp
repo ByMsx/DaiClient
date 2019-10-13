@@ -285,7 +285,7 @@ QElapsedTimer t;
 QByteArray buff;
 
 void Main_Window::proccessData()
-{    
+{
     ui_->light_indicator_->toggle();
 
     if (!t.isValid())
