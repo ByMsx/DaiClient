@@ -12,7 +12,7 @@ int unit(const Dai::DeviceItem *a)
 }
 
 DeviceItemTableItem::DeviceItemTableItem(Dai::Database::Item_Type_Manager *mng, QModbusServer* modbus_server, Dai::DeviceItem *item, DevicesTableItem *parent)
-    : DevicesTableItem(item, parent), item_type_manager_(mng), modbus_server_(modbus_server)
+    : DevicesTableItem(item, parent), item_type_manager_(mng), modbus_server_(modbus_server), dev_item_(item)
 {
 
 }
@@ -87,8 +87,18 @@ Qt::ItemFlags DeviceItemTableItem::flags(const QModelIndex& index) const {
     }
 
     return flags;
-};
+}
 
 QModbusServer* DeviceItemTableItem::modbus_server() const {
     return this->modbus_server_;
+}
+
+bool DeviceItemTableItem::is_favorite() const
+{
+    return dev_item_->param("is_favorite").toBool();
+}
+
+void DeviceItemTableItem::set_is_favorite(bool is_favorite)
+{
+    dev_item_->set_param("is_favorite", is_favorite);
 }

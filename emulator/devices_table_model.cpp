@@ -1,5 +1,6 @@
 #include "devices_table_model.h"
 #include "device_item_table_item.h"
+#include "register_table_item.h"
 
 #include <Dai/deviceitem.h>
 #include <Dai/type_managers.h>
@@ -176,6 +177,13 @@ void DevicesTableModel::appendChild(DeviceTableItem *item) {
     this->modbus_devices_vector_.push_back(item);
     QModelIndex index = createIndex(this->modbus_devices_vector_.count() - 2, 0, item);
     emit dataChanged(index, index);
+}
+
+void DevicesTableModel::set_use_favorites_only(bool use_favorites_only)
+{
+    beginResetModel();
+    RegisterTableItem::set_use_favorites_only(use_favorites_only);
+    endResetModel();
 }
 
 void DevicesTableModel::add_items(const Devices_Vector *devices, QModbusServer* modbus_server) {

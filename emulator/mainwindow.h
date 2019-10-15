@@ -19,6 +19,7 @@
 
 class QProcess;
 class QSettings;
+class QTreeView;
 
 void term_handler(int);
 
@@ -55,6 +56,7 @@ public:
     Q_INVOKABLE QString ttyPath() const;
 };
 
+class DevicesTableModel;
 class Main_Window : public QMainWindow
 {
     Q_OBJECT
@@ -71,6 +73,8 @@ private slots:
     void socketDataReady();
     void on_openBtn_toggled(bool open);
     void on_socatReset_clicked();
+
+    void on_favorites_only_toggled(bool checked);
 
 private:
 
@@ -120,6 +124,9 @@ private:
 
     Socat_Info create_socat();
     void init_client_connection();
+
+    DevicesTableModel* devices_table_model_;
+    QTreeView* tree_view_;
 
     friend void term_handler(int);
 };

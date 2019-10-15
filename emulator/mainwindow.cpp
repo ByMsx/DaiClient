@@ -57,7 +57,29 @@ Main_Window::Main_Window(QWidget *parent) : QMainWindow(parent), ui_(new Ui::Mai
     init();              
 }
 
+Main_Window::~Main_Window()
+{
+    QStringList favorites_list;
+    for (Dai::Device* dev: dai_project_.devices())
+    {
+        for (Dai::DeviceItem* dev_item: dev->items())
+        {
+            if (dev_item->param("is_favorite").toBool())
+            {
+                favorites_list.push_back(QString::number(dev_item->id()));
+            }
+        }
+    }
 
+    QSettings s;
+    s.setValue("portName", ui_->portName->text());
+    s.setValue("favorites_only", ui_->favorites_only->isChecked());
+    s.setValue("favorites_list", favorites_list.join(','));
+
+    term_handler(0);
+
+    delete ui_;
+}
 
 void Main_Window::init() noexcept
 {
@@ -105,15 +127,23 @@ void Main_Window::init_database() noexcept
 
 void Main_Window::fill_data() noexcept
 {
+    QSettings dai_settings;
+
+    bool favorites_only = dai_settings.value("favorites_only", false).toBool();
+//    dai_settings.setValue("favorites_list", "164,167,228,229,175,275,176,184,198,201,230,231,209,276,210,218");
+    QStringList favorites_list = dai_settings.value("favorites_list").toString().split(',');
+
     auto box = static_cast<QGridLayout*>(ui_->content->layout());
     int dev_address;
     QVariant address_var;
 
-    QTreeView* treeView = new QTreeView();
-    box->addWidget(treeView);
+    tree_view_ = new QTreeView();
+    box->addWidget(tree_view_);
 
-    DevicesTableModel* devicesTableModel = new DevicesTableModel(&dai_project_.item_type_mng_);
-    treeView->setModel(devicesTableModel);
+    devices_table_model_ = new DevicesTableModel(&dai_project_.item_type_mng_);
+    ui_->favorites_only->setChecked(favorites_only && !favorites_list.isEmpty());
+    devices_table_model_->set_use_favorites_only(ui_->favorites_only->isChecked());
+    tree_view_->setModel(devices_table_model_);
 
     for (GH::Device* dev: dai_project_.devices())
     {
@@ -123,6 +153,19 @@ void Main_Window::fill_data() noexcept
             if (!address_var.isValid() || address_var.isNull())
             {
                 continue;
+            }
+
+            for (Dai::DeviceItem* dev_item: dev->items())
+            {
+                for (auto it = favorites_list.begin(); it != favorites_list.end(); ++it)
+                {
+                    if (dev_item->id() == it->toUInt())
+                    {
+                        dev_item->set_param("is_favorite", true);
+                        favorites_list.erase(it);
+                        break;
+                    }
+                }
             }
 
             dev_address = address_var.toInt();
@@ -157,7 +200,7 @@ void Main_Window::fill_data() noexcept
                 connect(modbus_device_item.serial_port_, &QSerialPort::readyRead, this, &Main_Window::socketDataReady);
 
                 modbus_device_item.device_table_item_ = new DeviceTableItem(&dai_project_.item_type_mng_, modbus_device_item.modbus_device_, dev);
-                devicesTableModel->appendChild(modbus_device_item.device_table_item_);
+                devices_table_model_->appendChild(modbus_device_item.device_table_item_);
 
                 modbus_list_.emplace(dev_address, modbus_device_item);
             }
@@ -172,9 +215,9 @@ void Main_Window::fill_data() noexcept
         }
     }
 
-    treeView->expandAll();
-    for (int column = 0; column < devicesTableModel->columnCount(); ++column) {
-        treeView->resizeColumnToContents(column);
+    tree_view_->expandAll();
+    for (int column = 0; column < devices_table_model_->columnCount(); ++column) {
+        tree_view_->resizeColumnToContents(column);
     }
 }
 
@@ -379,12 +422,12 @@ void Main_Window::on_socatReset_clicked()
     }
 }
 
-Main_Window::~Main_Window()
+void Main_Window::on_favorites_only_toggled(bool checked)
 {
-    QSettings s;
-    s.setValue("portName", ui_->portName->text());
+    devices_table_model_->set_use_favorites_only(checked);
 
-    term_handler(0);
-
-    delete ui_;
+    tree_view_->expandAll();
+    for (int column = 0; column < devices_table_model_->columnCount(); ++column) {
+        tree_view_->resizeColumnToContents(column);
+    }
 }

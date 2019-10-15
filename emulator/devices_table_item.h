@@ -27,10 +27,10 @@ public:
     QObject* item() const;
 
     DevicesTableItem* parent() const;
-    DevicesTableItem* child(int row) const;
+    virtual DevicesTableItem* child(int row) const;
 
     bool hasChild() const;
-    int childCount() const;
+    virtual int childCount() const;
     void appendChild(DevicesTableItem* item);
 
     int row() const;

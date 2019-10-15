@@ -37,6 +37,8 @@ public:
     QModelIndex parent(const QModelIndex &child = QModelIndex()) const override;
 
     void appendChild(DeviceTableItem* item);
+
+    void set_use_favorites_only(bool use_favorites_only);
 };
 
 #endif // DEVICETABLEMODEL_H
