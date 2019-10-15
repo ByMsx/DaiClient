@@ -38,6 +38,7 @@ public:
 
     void appendChild(DeviceTableItem* item);
 
+    bool set_is_favorite(const QModelIndex &index, bool state);
     void set_use_favorites_only(bool use_favorites_only);
 };
 

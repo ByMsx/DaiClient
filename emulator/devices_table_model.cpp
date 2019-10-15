@@ -179,6 +179,29 @@ void DevicesTableModel::appendChild(DeviceTableItem *item) {
     emit dataChanged(index, index);
 }
 
+bool DevicesTableModel::set_is_favorite(const QModelIndex &index, bool state)
+{
+    if (index.isValid() && index.parent().isValid())
+    {
+        auto deviceTableItem = dynamic_cast<DeviceItemTableItem*>(static_cast<DevicesTableItem*>(index.internalPointer()));
+        if (deviceTableItem)
+        {
+            if (RegisterTableItem::use_favorites_only())
+            {
+                beginResetModel();
+                deviceTableItem->set_is_favorite(state);
+                endResetModel();
+                return true;
+            }
+            else
+            {
+                deviceTableItem->set_is_favorite(state);
+            }
+        }
+    }
+    return false;
+}
+
 void DevicesTableModel::set_use_favorites_only(bool use_favorites_only)
 {
     beginResetModel();

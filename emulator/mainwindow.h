@@ -73,8 +73,8 @@ private slots:
     void socketDataReady();
     void on_openBtn_toggled(bool open);
     void on_socatReset_clicked();
-
     void on_favorites_only_toggled(bool checked);
+    void on_tree_view_customContextMenuRequested(const QPoint &pos);
 
 private:
 
@@ -125,8 +125,9 @@ private:
     Socat_Info create_socat();
     void init_client_connection();
 
+    void expand_tree_view();
+
     DevicesTableModel* devices_table_model_;
-    QTreeView* tree_view_;
 
     friend void term_handler(int);
 };

@@ -8,6 +8,7 @@
 #include <QInputDialog>
 #include <QGroupBox>
 #include <QTreeView>
+#include <QMenu>
 
 #include <csignal>
 #include <iostream>
@@ -20,6 +21,7 @@
 #include "ui_mainwindow.h"
 #include <QGroupBox>
 #include "devices_table_model.h"
+#include "device_item_table_item.h"
 
 namespace GH = ::Dai;
 
@@ -133,17 +135,13 @@ void Main_Window::fill_data() noexcept
 //    dai_settings.setValue("favorites_list", "164,167,228,229,175,275,176,184,198,201,230,231,209,276,210,218");
     QStringList favorites_list = dai_settings.value("favorites_list").toString().split(',');
 
-    auto box = static_cast<QGridLayout*>(ui_->content->layout());
     int dev_address;
     QVariant address_var;
-
-    tree_view_ = new QTreeView();
-    box->addWidget(tree_view_);
 
     devices_table_model_ = new DevicesTableModel(&dai_project_.item_type_mng_);
     ui_->favorites_only->setChecked(favorites_only && !favorites_list.isEmpty());
     devices_table_model_->set_use_favorites_only(ui_->favorites_only->isChecked());
-    tree_view_->setModel(devices_table_model_);
+    ui_->tree_view->setModel(devices_table_model_);
 
     for (GH::Device* dev: dai_project_.devices())
     {
@@ -215,10 +213,7 @@ void Main_Window::fill_data() noexcept
         }
     }
 
-    tree_view_->expandAll();
-    for (int column = 0; column < devices_table_model_->columnCount(); ++column) {
-        tree_view_->resizeColumnToContents(column);
-    }
+    expand_tree_view();
 }
 
 void Main_Window::init_client_connection()
@@ -243,6 +238,14 @@ void Main_Window::init_client_connection()
     }
 
     on_socatReset_clicked();
+}
+
+void Main_Window::expand_tree_view()
+{
+    ui_->tree_view->expandAll();
+    for (int column = 0; column < devices_table_model_->columnCount(); ++column) {
+        ui_->tree_view->resizeColumnToContents(column);
+    }
 }
 
 Main_Window::Socat_Info Main_Window::create_socat()
@@ -425,9 +428,33 @@ void Main_Window::on_socatReset_clicked()
 void Main_Window::on_favorites_only_toggled(bool checked)
 {
     devices_table_model_->set_use_favorites_only(checked);
+    expand_tree_view();
+}
 
-    tree_view_->expandAll();
-    for (int column = 0; column < devices_table_model_->columnCount(); ++column) {
-        tree_view_->resizeColumnToContents(column);
+void Main_Window::on_tree_view_customContextMenuRequested(const QPoint &pos)
+{
+    QModelIndex index = ui_->tree_view->indexAt(pos);
+    if (index.isValid() && index.parent().isValid())
+    {
+        auto deviceTableItem = dynamic_cast<DeviceItemTableItem*>(static_cast<DevicesTableItem*>(index.internalPointer()));
+        if (deviceTableItem)
+        {
+            bool is_favorite = deviceTableItem->is_favorite();
+            QMenu menu;
+            QAction* act;
+            if (is_favorite)
+            {
+                act = menu.addAction(QIcon(":/img/del.png"), "Убрать из избранного");
+            }
+            else
+            {
+                act = menu.addAction(QIcon(":/img/star.png"), "Добавить в избранное");
+            }
+            QAction* res_act = menu.exec(ui_->tree_view->viewport()->mapToGlobal(pos));
+            if (res_act == act && devices_table_model_->set_is_favorite(index, !is_favorite))
+            {
+                expand_tree_view();
+            }
+        }
     }
 }
