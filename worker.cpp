@@ -700,7 +700,12 @@ void Worker::update_plugin_param_names(const QVector<Plugin_Type>& plugins)
 
 void Worker::newValue(DeviceItem *item, uint32_t user_id)
 {
-    bool immediately = prj()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saSaveImmediately;
+    uint8_t save_algorithm = prj()->item_type_mng_.save_algorithm(item->type_id());
+    if (save_algorithm == Item_Type::saInvalid)
+    {
+        qWarning(Service::Log).nospace() << user_id << "|Неправильный параметр сохранения: " << item->toString();
+    }
+    bool immediately = save_algorithm == Item_Type::saSaveImmediately;
 
     waited_item_values_[item->id()] = std::make_pair(item->raw_value(), item->value());
     if (!item_values_timer_.isActive() || (immediately && item_values_timer_.remainingTime() > 500))
@@ -719,8 +724,6 @@ void Worker::newValue(DeviceItem *item, uint32_t user_id)
     {
         to_save_log_value_vect_.push_back(log_value_item);
     }
-    else if (prj()->item_type_mng_.save_algorithm(item->type_id()) == Item_Type::saInvalid)
-        qWarning(Service::Log).nospace() << user_id << "|Неправильный параметр сохранения: " << item->toString();
 
     auto proto = net_protocol();
     if (proto)
