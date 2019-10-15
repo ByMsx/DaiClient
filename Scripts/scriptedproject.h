@@ -89,6 +89,8 @@ public slots:
 
     void ssh(quint16 port = 22, quint32 remote_port = 25589);
     QVariantMap run_command(const QString& programm, const QVariantList& args = QVariantList(), int timeout_msec = 5000) const;
+
+    void connect_group_is_can_change(ItemGroup *group, const QScriptValue& obj, const QScriptValue& func);
 private slots:
     void groupInitialized(ItemGroup* group);
     QVariant normalize(const QVariant& val);

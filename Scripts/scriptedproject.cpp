@@ -592,6 +592,19 @@ QVariantMap ScriptedProject::run_command(const QString &programm, const QVariant
     return result;
 }
 
+void ScriptedProject::connect_group_is_can_change(ItemGroup* group, const QScriptValue& obj, const QScriptValue& func)
+{
+    if (group && func.isFunction())
+    {
+        connect(group, &ItemGroup::is_can_change, [this, obj, func](DeviceItem* item, const QVariant& raw_data, uint32_t user_id) -> bool
+        {
+            QScriptValue f = func;
+            QScriptValue res = f.call(obj, QScriptValueList{ m_script_engine->newQObject(item), valueFromVariant(raw_data), user_id });
+            return res.toBool();
+        });
+    }
+}
+
 void ScriptedProject::groupInitialized(ItemGroup* group)
 {
     QString group_type_name = group_type_mng_.name(group->type_id()),
