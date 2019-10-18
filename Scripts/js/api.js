@@ -1,5 +1,5 @@
 var api = {
-    version: 200,
+    version: 201,
 
     actDevice: function(group, type, newState, user_id) {
         group.writeToControl(type, newState, api.type.mode.automatic, user_id)

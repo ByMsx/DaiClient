@@ -76,7 +76,11 @@ Main_Window::~Main_Window()
     QSettings s;
     s.setValue("portName", ui_->portName->text());
     s.setValue("favorites_only", ui_->favorites_only->isChecked());
-    s.setValue("favorites_list", favorites_list.join(','));
+    if (db_manager_.is_open() || !favorites_list.isEmpty())
+    {
+        std::cerr << "Save favorites: " << favorites_list.join(',').toStdString() << std::endl;
+        s.setValue("favorites_list", favorites_list.join(','));
+    }
 
     term_handler(0);
 
@@ -134,6 +138,7 @@ void Main_Window::fill_data() noexcept
     bool favorites_only = dai_settings.value("favorites_only", false).toBool();
 //    dai_settings.setValue("favorites_list", "164,167,228,229,175,275,176,184,198,201,230,231,209,276,210,218");
     QStringList favorites_list = dai_settings.value("favorites_list").toString().split(',');
+    qDebug() << "Favorites:" << favorites_list;
 
     int dev_address;
     QVariant address_var;
