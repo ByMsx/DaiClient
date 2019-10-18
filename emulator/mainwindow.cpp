@@ -105,7 +105,7 @@ void Main_Window::init() noexcept
 
     connect(&temp_timer_, &QTimer::timeout, this, &Main_Window::changeTemperature);
     temp_timer_.setInterval(3000);
-    temp_timer_.start();
+//    temp_timer_.start();
 }
 
 void Main_Window::init_database() noexcept
@@ -160,6 +160,14 @@ void Main_Window::fill_data() noexcept
 
             for (Dai::DeviceItem* dev_item: dev->items())
             {
+                const uint8_t reg_type = dai_project_.item_type_mng_.register_type(dev_item->type_id());
+                if (reg_type == Dai::Item_Type::rtHoldingRegisters ||
+                    reg_type == Dai::Item_Type::rtInputRegisters)
+                {
+                    auto val = dev_item->needNormalize() ? (qrand() % 100) + 240 : (qrand() % 3000) + 50;
+                    dev_item->setData(val, val);
+                }
+
                 for (auto it = favorites_list.begin(); it != favorites_list.end(); ++it)
                 {
                     if (dev_item->id() == it->toUInt())
