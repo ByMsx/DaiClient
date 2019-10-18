@@ -111,7 +111,7 @@ bool DevicesTableModel::setData(const QModelIndex &index, const QVariant &value,
             {
                 if (reg_type > QModbusDataUnit::Invalid && reg_type <= QModbusDataUnit::Coils)
                 {
-                    device_item->setRawValue(value);
+                    device_item->set_raw_value(value);
                     emit dataChanged(index, index);
                     deviceTableItem->modbus_server()->setData(reg_type, unit(device_item), value.toBool());
                     return true;
@@ -122,7 +122,7 @@ bool DevicesTableModel::setData(const QModelIndex &index, const QVariant &value,
             {
                 if (reg_type > QModbusDataUnit::Coils)
                 {
-                    device_item->setRawValue(value);
+                    device_item->set_raw_value(value);
                     emit dataChanged(index, index);
                     deviceTableItem->modbus_server()->setData(reg_type, unit(device_item), value.toInt());
                     return true;

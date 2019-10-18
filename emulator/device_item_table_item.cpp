@@ -30,7 +30,7 @@ QVariant DeviceItemTableItem::data(const QModelIndex &index, int role) const {
             case UNIT_NAME: {
                 if (role == Qt::DisplayRole) {
                     QString name("%1  %2");
-                    return name.arg(device_item->id()).arg(device_item->displayName());
+                    return name.arg(device_item->id()).arg(device_item->display_name());
                 }
                 break;
             }

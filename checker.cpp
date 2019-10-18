@@ -238,12 +238,12 @@ void Checker::checkDevices()
                     {
                         if (is_virtual)
                         {
-                            if (dev_item->isConnected())
+                            if (dev_item->is_connected())
                                 continue;
                             else if (first_check_)
                                 value = 0; // Init virtual item
                         }
-                        else if (!dev_item->isConnected()) // else disconnect
+                        else if (!dev_item->is_connected()) // else disconnect
                             continue;
 
                         QMetaObject::invokeMethod(dev_item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, value));

@@ -45,7 +45,7 @@ void One_Wire_Therm_Task::read_therm_data(Device *dev)
         {
             if (!check_and_open_file(unit))
             {
-                if (item->isConnected())
+                if (item->is_connected())
                 {
                     qCWarning(OneWireThermLog) << "Read failed unit: " << unit << file_.fileName() << file_.errorString();
                 }

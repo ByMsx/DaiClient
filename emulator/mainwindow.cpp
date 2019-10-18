@@ -164,8 +164,8 @@ void Main_Window::fill_data() noexcept
                 if (reg_type == Dai::Item_Type::rtHoldingRegisters ||
                     reg_type == Dai::Item_Type::rtInputRegisters)
                 {
-                    auto val = dev_item->needNormalize() ? (qrand() % 100) + 240 : (qrand() % 3000) + 50;
-                    dev_item->setData(val, val);
+                    auto val = dev_item->need_normalize() ? (qrand() % 100) + 240 : (qrand() % 3000) + 50;
+                    dev_item->set_data(val, val);
                 }
 
                 for (auto it = favorites_list.begin(); it != favorites_list.end(); ++it)
@@ -330,10 +330,10 @@ void Main_Window::changeTemperature()
     for (GH::Device* dev: dai_project_.devices())
         for (GH::DeviceItem* item: dev->items())
         {
-            if (!item->isControl() && item->isConnected())
+            if (!item->is_control() && item->is_connected())
             {
-                auto val = item->needNormalize() ? (qrand() % 100) + 240 : (qrand() % 3000) + 50;
-                item->setData(val, val);
+                auto val = item->need_normalize() ? (qrand() % 100) + 240 : (qrand() % 3000) + 50;
+                item->set_data(val, val);
             }
         }
 

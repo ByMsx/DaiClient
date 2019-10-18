@@ -94,7 +94,7 @@ void DeviceTableItem::update_table_values(QModbusDataUnit::RegisterType type, in
 
             if (dev_item)
             {
-                dev_item->setRawValue(value);
+                dev_item->set_raw_value(value);
                 any_data_changed = true;
             }
         }

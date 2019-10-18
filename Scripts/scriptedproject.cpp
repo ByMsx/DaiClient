@@ -167,7 +167,7 @@ void ScriptedProject::reinitialization(const Helpz::Database::Connection_Info& d
 
     for(Device* dev: devices())
         for (DeviceItem* dev_item: dev->items())
-                if (dev_item->needNormalize())
+                if (dev_item->need_normalize())
                     connect(dev_item, &DeviceItem::normalize, this, &ScriptedProject::normalize);
 
     for(Section* sct: sections())
@@ -536,7 +536,7 @@ void ScriptedProject::itemChanged(DeviceItem *item, uint32_t user_id, const QVar
     t.restart();
     callFunction(FUNC_CHANGED_ITEM, args);
 
-    if (item->isControl())
+    if (item->is_control())
         callFunction(FUNC_CHANGED_CONTROL, args);
     else
         callFunction(FUNC_CHANGED_SENSOR, args);
