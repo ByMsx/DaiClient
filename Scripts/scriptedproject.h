@@ -65,6 +65,7 @@ public:
     QScriptValue valueFromVariant(const QVariant& data) const;
 signals:
     void sctItemChanged(DeviceItem*, uint32_t user_id, const QVariant& old_raw_value);
+    void sct_connection_state_change(DeviceItem*, bool value);
 
     void status_added(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t user_id);
     void status_removed(quint32 group_id, quint32 info_id, uint32_t user_id);

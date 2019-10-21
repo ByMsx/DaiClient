@@ -113,6 +113,8 @@ ScriptedProject::ScriptedProject(Worker* worker, Helpz::ConsoleReader *consoleRe
     connect(this, &T::add_event_message, worker, &Worker::add_event_message, Qt::QueuedConnection);
 //    connect(worker, &Worker::dumpSectionsInfo, this, &T::dumpInfo, Qt::BlockingQueuedConnection);
 
+    connect(this, &T::sct_connection_state_change, worker, &Worker::connection_state_changed, Qt::QueuedConnection);
+
     connect(this, &ScriptedProject::dayTimeChanged, &m_dayTime, &DayTimeHelper::init, Qt::QueuedConnection);
 
     if (consoleReader)
@@ -180,6 +182,8 @@ void ScriptedProject::reinitialization(const Helpz::Database::Connection_Info& d
             connect(group, &ItemGroup::paramChanged, this, &ScriptedProject::group_param_changed);
             connect(group, &ItemGroup::status_added, this, &ScriptedProject::status_added);
             connect(group, &ItemGroup::status_removed, this, &ScriptedProject::status_removed);
+
+            connect(group, &ItemGroup::connection_state_change, this, &ScriptedProject::sct_connection_state_change);
 
             if (get_handler(FUNC_CONTROL_CHANGE_CHECK).isFunction())
                 connect(group, &ItemGroup::controlChangeCheck, this, &ScriptedProject::controlChangeCheck);
