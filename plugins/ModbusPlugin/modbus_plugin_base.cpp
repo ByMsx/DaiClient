@@ -211,7 +211,7 @@ class Modbus_Pack_Read_Manager
 public:
     Modbus_Pack_Read_Manager(const Modbus_Pack_Read_Manager&) = delete;
     Modbus_Pack_Read_Manager& operator =(const Modbus_Pack_Read_Manager&) = delete;
-    Modbus_Pack_Read_Manager(std::vector<Modbus_Pack<DeviceItem*>>&& packs) : packs_(std::move(packs))
+    Modbus_Pack_Read_Manager(std::vector<Modbus_Pack<DeviceItem*>>&& packs) : is_connected_(true), packs_(std::move(packs))
     {
         for (Modbus_Pack<DeviceItem*> &item_pack : packs_)
         {
@@ -223,7 +223,7 @@ public:
     }
 
     Modbus_Pack_Read_Manager(Modbus_Pack_Read_Manager&& o) :
-        packs_(std::move(o.packs_)), new_values_(std::move(o.new_values_)), position_(std::move(o.position_))
+        is_connected_(std::move(o.is_connected_)), packs_(std::move(o.packs_)), new_values_(std::move(o.new_values_)), position_(std::move(o.position_))
     {
         o.packs_.clear();
         o.new_values_.clear();
@@ -231,7 +231,12 @@ public:
 
     ~Modbus_Pack_Read_Manager()
     {
-        if (packs_.size())
+        if (!is_connected_)
+        {
+            QMetaObject::invokeMethod(packs_.front().items_.front()->device(), "set_device_items_disconnect",
+                                      QArgument<std::vector<DeviceItem*>>("std::vector<DeviceItem*>", packs_.front().items_));
+        }
+        else if (packs_.size())
         {
             QMetaObject::invokeMethod(packs_.front().items_.front()->device(), "set_device_items_values",
                                       QArgument<std::map<DeviceItem*, QVariant>>("std::map<DeviceItem*, QVariant>", new_values_));
@@ -244,9 +249,10 @@ public:
         }
     }
 
+    bool is_connected_;
+    int position_ = -1;
     std::vector<Modbus_Pack<DeviceItem*>> packs_;
     std::map<DeviceItem*, QVariant> new_values_;
-    int position_ = -1;
 };
 
 
@@ -722,31 +728,9 @@ void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
 
         pack.reply_ = nullptr;
 
-        QVariant raw_data;
-        const QModbusDataUnit unit = reply->result();
-        for (uint i = 0; i < pack.items_.size(); ++i)
-        {
-            if (reply->error() == NoError && i < unit.valueCount())
-            {
-                if (pack.register_type_ == QModbusDataUnit::Coils ||
-                        pack.register_type_ == QModbusDataUnit::DiscreteInputs)
-                {
-                    raw_data = static_cast<bool>(unit.value(i));
-                }
-                else
-                {
-                    raw_data = static_cast<qint32>(unit.value(i));
-                }
-            }
-            else
-                raw_data.clear();
-
-            modbus_pack_read_manager.new_values_.at(pack.items_.at(i)) = raw_data;
-//                QMetaObject::invokeMethod(pack.items_.at(i), "set_raw_value", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data));
-        }
-
         if (reply->error() != NoError)
         {
+            modbus_pack_read_manager.is_connected_ = false;
             print_cached(pack.server_address_, pack.register_type_, reply->error(), tr("Read response error: %5 Device address: %1 (%6) registerType: %2 Start: %3 Value count: %4")
                          .arg(pack.server_address_).arg(pack.register_type_).arg(pack.start_address_).arg(pack.items_.size())
                          .arg(reply->errorString())
@@ -756,7 +740,28 @@ void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
             queue_->clear_by_address(pack.server_address_);
         }
         else
-        {            
+        {
+            QVariant raw_data;
+            const QModbusDataUnit unit = reply->result();
+            for (uint i = 0; i < pack.items_.size(); ++i)
+            {
+                if (i < unit.valueCount())
+                {
+                    if (pack.register_type_ == QModbusDataUnit::Coils ||
+                            pack.register_type_ == QModbusDataUnit::DiscreteInputs)
+                    {
+                        raw_data = static_cast<bool>(unit.value(i));
+                    }
+                    else
+                    {
+                        raw_data = static_cast<qint32>(unit.value(i));
+                    }
+                }
+
+                modbus_pack_read_manager.new_values_.at(pack.items_.at(i)) = raw_data;
+    //                QMetaObject::invokeMethod(pack.items_.at(i), "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data));
+            }
+
             auto status_it = dev_status_cache_.find(std::make_pair(pack.server_address_, pack.register_type_));
             if (status_it != dev_status_cache_.end())
             {

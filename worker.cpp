@@ -750,6 +750,23 @@ void Worker::new_value(DeviceItem *item, uint32_t user_id)
     }
 }
 
+void Worker::connection_state_changed(DeviceItem *item, bool value)
+{
+    Log_Value_Item log_value_item{ QDateTime::currentDateTimeUtc().toMSecsSinceEpoch(), 0, false, item->id()};
+
+    if (value)
+    {
+        log_value_item.set_raw_value(item->raw_value());
+        log_value_item.set_value(item->value());
+    }
+
+    auto proto = net_protocol();
+    if (proto)
+    {
+        proto->log_sender().send(log_value_item);
+    }
+}
+
 Scripted_Project* Worker::prj()
 {
     return project_thread_ ? project_thread_->ptr() : prj_;
