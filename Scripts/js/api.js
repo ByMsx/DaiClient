@@ -1,5 +1,5 @@
 var api = {
-    version: 201,
+    version: 202,
 
     actDevice: function(group, type, newState, user_id) {
         group.write_to_control(type, newState, api.type.mode.automatic, user_id)
@@ -51,22 +51,21 @@ api.get_number = function(value, default_value)
     return default_value;
 };
 
-api.get_number_from_property = function(item, anyway_renurn_zero, prop_name)
+api.get_number_from_property = function(item, default_value, prop_name)
 {
-    var default_value = anyway_renurn_zero ? 0 : undefined;
     if (item && item.isConnected())
         return api.get_number(item[prop_name], default_value);
     return default_value;
 };
 
-api.get_number_value = function(item, anyway_renurn_zero)
+api.get_number_value = function(item, default_value)
 {
-    return api.get_number_from_property(item, anyway_renurn_zero, 'value');
+    return api.get_number_from_property(item, default_value, 'value');
 };
 
-api.get_number_raw_value = function(item, anyway_renurn_zero)
+api.get_number_raw_value = function(item, default_value)
 {
-    return api.get_number_from_property(item, anyway_renurn_zero, 'raw_value');
+    return api.get_number_from_property(item, default_value, 'raw_value');
 };
 
 api.extend = function(Child, Parent)
