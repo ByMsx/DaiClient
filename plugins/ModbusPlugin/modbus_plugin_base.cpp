@@ -234,12 +234,12 @@ public:
         if (!is_connected_)
         {
             QMetaObject::invokeMethod(packs_.front().items_.front()->device(), "set_device_items_disconnect",
-                                      QArgument<std::vector<DeviceItem*>>("std::vector<DeviceItem*>", packs_.front().items_), QArgument<bool>("bool", true));
+                                      QArgument<std::vector<DeviceItem*>>("std::vector<DeviceItem*>", packs_.front().items_));
         }
         else if (packs_.size())
         {
             QMetaObject::invokeMethod(packs_.front().items_.front()->device(), "set_device_items_values",
-                                      QArgument<std::map<DeviceItem*, QVariant>>("std::map<DeviceItem*, QVariant>", new_values_));
+                                      QArgument<std::map<DeviceItem*, QVariant>>("std::map<DeviceItem*, QVariant>", new_values_), QArgument<bool>("bool", true));
             while (packs_.size())
             {
                 if (packs_.front().reply_)
