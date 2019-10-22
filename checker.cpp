@@ -20,36 +20,36 @@ Checker::Checker(Worker *worker, const QStringList &plugins, QObject *parent) :
     QObject(parent),
     b_break(false), first_check_(true)
 {
-    prj = worker->prj();
+    prj_ = worker->prj();
 
-    plugin_type_mng_ = prj->plugin_type_mng_;
+    plugin_type_mng_ = prj_->plugin_type_mng_;
     loadPlugins(plugins, worker);
 
-    connect(prj, &Project::controlStateChanged, this, &Checker::write_data, Qt::QueuedConnection);
+    connect(prj_, &Project::control_state_changed, this, &Checker::write_data, Qt::QueuedConnection);
 
-    connect(prj, SIGNAL(modbusStop()), SLOT(stop()), Qt::QueuedConnection);
-    connect(prj, SIGNAL(modbusStart()), SLOT(start()), Qt::QueuedConnection);
+    connect(prj_, &Scripted_Project::checker_stop, this, &Checker::stop, Qt::QueuedConnection);
+    connect(prj_, &Scripted_Project::checker_start, this, &Checker::start, Qt::QueuedConnection);
 //    connect(prj, SIGNAL(modbusRead(int,uchar,int,quint16)),
 //            SLOT(read2(int,uchar,int,quint16)), Qt::BlockingQueuedConnection);
 //    connect(prj, SIGNAL(modbusWrite(int,uchar,int,quint16)), SLOT(write(int,uchar,int,quint16)), Qt::QueuedConnection);
 
-    connect(&check_timer_, &QTimer::timeout, this, &Checker::checkDevices);
+    connect(&check_timer_, &QTimer::timeout, this, &Checker::check_devices);
     //check_timer_.setInterval(interval);
     check_timer_.setSingleShot(true);
 
-    connect(&write_timer, &QTimer::timeout, this, &Checker::writeCache);
-    write_timer.setInterval(MINIMAL_WRITE_INTERVAL);
-    write_timer.setSingleShot(true);
+    connect(&write_timer_, &QTimer::timeout, this, &Checker::write_cache);
+    write_timer_.setInterval(MINIMAL_WRITE_INTERVAL);
+    write_timer_.setSingleShot(true);
     // --------------------------------------------------------------------------------
 
-    for (Device* dev: prj->devices())
+    for (Device* dev: prj_->devices())
     {
         last_check_time_map_.insert(dev->id(), { true, 0 });
     }
-    checkDevices(); // Первый опрос контроллеров
+    check_devices(); // Первый опрос контроллеров
     first_check_ = false;
 
-    QMetaObject::invokeMethod(prj, "afterAllInitialization", Qt::QueuedConnection);
+    QMetaObject::invokeMethod(prj_, "after_all_initialization", Qt::QueuedConnection);
 }
 
 Checker::~Checker()
@@ -145,7 +145,7 @@ void Checker::loadPlugins(const QStringList &allowed_plugins, Worker *worker)
 
                         if (!settings)
                             settings = Worker::settings();
-                        pl_type->checker->configure(settings.get(), prj);
+                        pl_type->checker->configure(settings.get(), prj_);
                         continue;
                     }
                     else
@@ -167,7 +167,7 @@ void Checker::loadPlugins(const QStringList &allowed_plugins, Worker *worker)
     }
 }
 
-void Checker::breakChecking()
+void Checker::break_checking()
 {
     b_break = true;
 
@@ -183,21 +183,21 @@ void Checker::stop()
     if (check_timer_.isActive())
         check_timer_.stop();
 
-    breakChecking();
+    break_checking();
 }
 
 void Checker::start()
 {
     qCDebug(CheckerLog) << "Start check";
-    checkDevices();
+    check_devices();
 }
 
-void Checker::checkDevices()
+void Checker::check_devices()
 {
     b_break = false;   
 
     qint64 next_shot, min_shot = QDateTime::currentMSecsSinceEpoch() + 60000, now_ms;
-    for (Device* dev: prj->devices())
+    for (Device* dev: prj_->devices())
     {
         if (dev->check_interval() <= 0)
         {
@@ -246,7 +246,7 @@ void Checker::checkDevices()
                         else if (!dev_item->is_connected()) // else disconnect
                             continue;
 
-                        QMetaObject::invokeMethod(dev_item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, value));
+                        QMetaObject::invokeMethod(dev_item, "set_raw_value", Qt::QueuedConnection, Q_ARG(const QVariant&, value));
                     }
                 }
             }
@@ -269,8 +269,8 @@ void Checker::checkDevices()
     }
     check_timer_.start(min_shot);
 
-    if (write_cache_.size() && !write_timer.isActive())
-        writeCache();
+    if (write_cache_.size() && !write_timer_.isActive())
+        write_cache();
 }
 
 void Checker::write_data(DeviceItem *item, const QVariant &raw_data, uint32_t user_id)
@@ -291,10 +291,10 @@ void Checker::write_data(DeviceItem *item, const QVariant &raw_data, uint32_t us
     }
 
     if (!b_break)
-        write_timer.start();
+        write_timer_.start();
 }
 
-void Checker::writeCache()
+void Checker::write_cache()
 {
     std::map<Plugin_Type*, std::vector<Write_Cache_Item>> cache(std::move(write_cache_));
     write_cache_.clear();
@@ -322,7 +322,7 @@ void Checker::write_items(Plugin_Type* plugin, std::vector<Write_Cache_Item>& it
     {
         for (const Write_Cache_Item& item: items)
         {
-            QMetaObject::invokeMethod(item.dev_item_, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, item.raw_data_), Q_ARG(bool, false), Q_ARG(uint32_t, item.user_id_));
+            QMetaObject::invokeMethod(item.dev_item_, "set_raw_value", Qt::QueuedConnection, Q_ARG(const QVariant&, item.raw_data_), Q_ARG(bool, false), Q_ARG(uint32_t, item.user_id_));
         }
     }
 }

@@ -1,5 +1,5 @@
-#ifndef DAI_SCRIPTEDPROJECT_H
-#define DAI_SCRIPTEDPROJECT_H
+#ifndef DAI_Scripted_Project_H
+#define DAI_Scripted_Project_H
 
 #include <QScriptEngine>
 #include <QtSerialBus/qmodbusdataunit.h>
@@ -29,7 +29,7 @@ class Worker;
 class AutomationHelper;
 class DayTimeHelper;
 
-class ScriptedProject final : public Project
+class Scripted_Project final : public Project
 {
     Q_OBJECT
     Q_PROPERTY(qint64 uptime READ uptime)
@@ -54,30 +54,30 @@ public:
     };
     Q_ENUM(Handler_Type)
 
-    ScriptedProject(Worker* worker, Helpz::ConsoleReader* consoleReader, const QString &sshHost, bool allow_shell);
-    ~ScriptedProject();
+    Scripted_Project(Worker* worker, Helpz::ConsoleReader* consoleReader, const QString &sshHost, bool allow_shell);
+    ~Scripted_Project();
 
-    void setSSHHost(const QString &value);
+    void set_ssh_host(const QString &value);
 
     qint64 uptime() const;
     Section *add_section(Section&& section) override;
 
-    QScriptValue valueFromVariant(const QVariant& data) const;
+    QScriptValue value_from_variant(const QVariant& data) const;
 signals:
-    void sctItemChanged(DeviceItem*, uint32_t user_id, const QVariant& old_raw_value);
+    void sct_item_changed(DeviceItem*, uint32_t user_id, const QVariant& old_raw_value);
 
     void status_added(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t user_id);
     void status_removed(quint32 group_id, quint32 info_id, uint32_t user_id);
 
-    void modbusStop();
-    void modbusStart();
+    void checker_stop();
+    void checker_start();
 
     void add_event_message(Log_Event_Item event);
 //    QVariantList modbusRead(int serverAddress, uchar registerType = QModbusDataUnit::InputRegisters,
 //                                                 int startAddress = 0, quint16 unitCount = 1);
 //    void modbusWrite(int server, uchar registerType, int unit, quint16 state);
 
-    void dayTimeChanged(/*Section* sct*/);
+    void day_time_changed(/*Section* sct*/);
 public slots:
     bool stop(uint32_t user_id = 0);
 
@@ -85,23 +85,23 @@ public slots:
     void log(const QString& msg, uint8_t type_id, uint32_t user_id = 0, bool inform_flag = false, bool print_backtrace = false);
     void console(uint32_t user_id, const QString& cmd, bool is_function = false, const QVariantList& arguments = {});
     void reinitialization(const Helpz::Database::Connection_Info &db_info);
-    void afterAllInitialization();
+    void after_all_initialization();
 
     void ssh(quint16 port = 22, quint32 remote_port = 25589);
     QVariantMap run_command(const QString& programm, const QVariantList& args = QVariantList(), int timeout_msec = 5000) const;
 
     void connect_group_is_can_change(ItemGroup *group, const QScriptValue& obj, const QScriptValue& func);
 private slots:
-    void groupInitialized(ItemGroup* group);
+    void group_initialized(ItemGroup* group);
     QVariant normalize(const QVariant& val);
 //    void dayTimeChanged(Section* sct);
 
-    bool controlChangeCheck(DeviceItem* item, const QVariant& raw_data, uint32_t user_id);
+    bool control_change_check(DeviceItem* item, const QVariant& raw_data, uint32_t user_id);
 
-    void groupModeChanged(uint32_t user_id, uint32_t mode, uint32_t group_id);
+    void group_mode_changed(uint32_t user_id, uint32_t mode, uint32_t group_id);
     void group_param_changed(Param *param, uint32_t user_id = 0);
-    void itemChanged(DeviceItem* item, uint32_t user_id, const QVariant& old_raw_value);
-    void handlerException(const QScriptValue &exception);
+    void item_changed(DeviceItem* item, uint32_t user_id, const QVariant& old_raw_value);
+    void handler_exception(const QScriptValue &exception);
 private:
     QString handler_full_name(int handler_type) const;
     QPair<QString, QString> handler_name(int handler_type) const;
@@ -113,33 +113,33 @@ private:
     void check_error(const QString &name, const QString &code) const;
 
     template<typename T>
-    struct TypeEmpty {
+    struct Type_Empty {
         QScriptValue operator() (QScriptContext*, QScriptEngine*) {
             return QScriptValue();
         }
     };
     template<typename T>
-    struct TypeDefault {
+    struct Type_Default {
         QScriptValue operator() (QScriptContext*, QScriptEngine* eng) {
             return eng->newQObject(new T, QScriptEngine::ScriptOwnership);
         }
     };
 
-    template<typename T, template<typename> class P = TypeEmpty, typename... Args>
-    void addType();
+    template<typename T, template<typename> class P = Type_Empty, typename... Args>
+    void add_type();
 
     template<typename T, typename... Args>
-    void addTypeN() { addType<T, TypeEmpty, Args...>(); }
+    void add_type_n() { add_type<T, Type_Empty, Args...>(); }
 
-    void registerTypes();
-    void scriptsInitialization();
-    QScriptValue callFunction(int handler_type, const QScriptValueList& args = QScriptValueList()) const;
+    void register_types();
+    void scripts_initialization();
+    QScriptValue call_function(int handler_type, const QScriptValueList& args = QScriptValueList()) const;
 
-    QScriptEngine *m_script_engine;
+    QScriptEngine *script_engine_;
 
-    DayTimeHelper m_dayTime;
+    DayTimeHelper day_time_;
 
-    qint64 m_uptime;
+    qint64 uptime_;
 
     mutable std::map<uint32_t, QScriptValue> cache_handler_;
 
@@ -154,4 +154,4 @@ private:
 
 } // namespace Dai
 
-#endif // DAI_SCRIPTEDPROJECT_H
+#endif // DAI_Scripted_Project_H

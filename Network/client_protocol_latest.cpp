@@ -41,12 +41,12 @@ void Protocol_Latest::connect_worker_signals()
     prj_ = worker()->prj();
 
     connect(this, &Protocol_Latest::restart, worker(), &Worker::restart_service_object, Qt::QueuedConnection);
-    connect(this, &Protocol_Latest::write_to_item, worker(), &Worker::writeToItem, Qt::QueuedConnection);
-    connect(this, &Protocol_Latest::set_mode, worker(), &Worker::setMode, Qt::QueuedConnection);
+    connect(this, &Protocol_Latest::write_to_item, worker(), &Worker::write_to_item, Qt::QueuedConnection);
+    connect(this, &Protocol_Latest::set_mode, worker(), &Worker::set_mode, Qt::QueuedConnection);
     connect(this, &Protocol_Latest::set_group_param_values, worker(), &Worker::set_group_param_values, Qt::QueuedConnection);
-    connect(this, &Protocol_Latest::exec_script_command, worker()->prj(), &ScriptedProject::console, Qt::QueuedConnection);
+    connect(this, &Protocol_Latest::exec_script_command, worker()->prj(), &Scripted_Project::console, Qt::QueuedConnection);
 
-    connect(worker(), &Worker::modeChanged, this, &Protocol_Latest::send_mode, Qt::QueuedConnection);
+    connect(worker(), &Worker::mode_changed, this, &Protocol_Latest::send_mode, Qt::QueuedConnection);
     connect(worker(), &Worker::status_added, this, &Protocol_Latest::send_status_added, Qt::QueuedConnection);
     connect(worker(), &Worker::status_removed, this, &Protocol_Latest::send_status_removed, Qt::QueuedConnection);
     connect(worker(), &Worker::group_param_values_changed, this, &Protocol_Latest::send_group_param_values, Qt::QueuedConnection);

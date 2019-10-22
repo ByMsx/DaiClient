@@ -38,7 +38,7 @@ int ParamGroupPrototype::length() const
 
 QScriptValue ParamGroupPrototype::byTypeId(quint32 param_type) const
 {
-    Param* param = thisParam()->getByTypeId(param_type);
+    Param* param = thisParam()->get_by_type_id(param_type);
     if (!param)
         return QScriptValue();
     return ParamGroupClass::toScriptValue(engine(), param);

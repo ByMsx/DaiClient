@@ -29,6 +29,7 @@ namespace Modbus {
 QElapsedTimer tt;
 
 Q_LOGGING_CATEGORY(ModbusLog, "modbus")
+Q_LOGGING_CATEGORY(ModbusDetailLog, "modbus.detail")
 
 template <typename T>
 struct Modbus_Pack_Item_Cast {
@@ -618,7 +619,7 @@ void Modbus_Plugin_Base::write_pack(int server_address, QModbusDataUnit::Registe
         return;
 
     QVector<quint16> values = cache_items_to_values(items);
-    qCDebug(ModbusLog).noquote().nospace()
+    qCDebug(ModbusDetailLog).noquote().nospace()
             << items.front().user_id_ << "|WRITE " << values << ' '
             << (register_type == QModbusDataUnit::Coils ? "Coils" : "HoldingRegisters")
             << " START " << start_address << " TO ADR " << server_address;
@@ -741,7 +742,7 @@ void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
                 raw_data.clear();
 
             modbus_pack_read_manager.new_values_.at(pack.items_.at(i)) = raw_data;
-//                QMetaObject::invokeMethod(pack.items_.at(i), "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data));
+//                QMetaObject::invokeMethod(pack.items_.at(i), "set_raw_value", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data));
         }
 
         if (reply->error() != NoError)

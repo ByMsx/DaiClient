@@ -60,7 +60,7 @@ bool WiringPiPlugin::check(Device* dev)
             state = digitalRead(pin.toUInt()) ? true : false;
             if (!item->isConnected() || item->raw_value().toBool() != state)
             {
-                QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, state));
+                QMetaObject::invokeMethod(item, "set_raw_value", Qt::QueuedConnection, Q_ARG(const QVariant&, state));
             }
         }
     }

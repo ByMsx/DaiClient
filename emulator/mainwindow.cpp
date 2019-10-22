@@ -97,7 +97,7 @@ void Main_Window::init() noexcept
     qsrand(QDateTime::currentDateTime().toTime_t());
 
     init_database();
-    db_manager_.initProject(&dai_project_);
+    db_manager_.init_project(&dai_project_);
 
     fill_data();
 

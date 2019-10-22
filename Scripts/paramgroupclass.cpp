@@ -147,7 +147,7 @@ void ParamGroupClass::setProperty(QScriptValue &object, const QScriptString &nam
 
     Param* child_param = isArrayIndex ? param->get(id) : param->get(name.toString());
     if (child_param)
-        child_param->setValue(value.toVariant());
+        child_param->set_value(value.toVariant());
 
 //    if (child_param->type().type == Param_Type::TimeType)
 //    {

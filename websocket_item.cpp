@@ -12,7 +12,7 @@ Websocket_Item::Websocket_Item(Worker *obj) :
 {
     set_id(1);
     set_teams({1});
-    connect(w, &Worker::modeChanged, this, &Websocket_Item::modeChanged, Qt::QueuedConnection);
+    connect(w, &Worker::mode_changed, this, &Websocket_Item::mode_changed, Qt::QueuedConnection);
 }
 
 Websocket_Item::~Websocket_Item()
@@ -26,7 +26,7 @@ void Websocket_Item::send_event_message(const Log_Event_Item& event)
                               Q_ARG(Project_Info, this), Q_ARG(QVector<Log_Event_Item>, QVector<Log_Event_Item>{event}));
 }
 
-void Websocket_Item::modeChanged(uint mode_id, uint group_id) {
+void Websocket_Item::mode_changed(uint mode_id, uint group_id) {
 
     QMetaObject::invokeMethod(w->websock_th_->ptr(), "sendModeChanged", Qt::QueuedConnection,
                               Q_ARG(Project_Info, this), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id));
@@ -50,8 +50,8 @@ void Websocket_Item::proc_command(std::shared_ptr<Network::Websocket_Client> cli
             break;
 
         case WS_RESTART:                  Helpz::apply_parse(ds, &Worker::restart_service_object, w); break;
-        case WS_WRITE_TO_DEV_ITEM:        Helpz::apply_parse(ds, &Worker::writeToItem, w); break;
-        case WS_CHANGE_GROUP_MODE:        Helpz::apply_parse(ds, &Worker::setMode, w); break;
+        case WS_WRITE_TO_DEV_ITEM:        Helpz::apply_parse(ds, &Worker::write_to_item, w); break;
+        case WS_CHANGE_GROUP_MODE:        Helpz::apply_parse(ds, &Worker::set_mode, w); break;
         case WS_CHANGE_GROUP_PARAM_VALUES:Helpz::apply_parse(ds, &Worker::set_group_param_values, w); break;
         case WS_STRUCT_MODIFY:            Helpz::apply_parse(ds, &Client::Structure_Synchronizer::process_modify_message, w->structure_sync_.get(), ds.device(), QString(), nullptr); break;
         case WS_EXEC_SCRIPT:              Helpz::apply_parse(ds, &Websocket_Item::parse_script_command, this, &ds); break;

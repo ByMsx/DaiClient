@@ -50,7 +50,7 @@ bool RandomPlugin::check(Device* dev)
             break;
         }
 
-        QMetaObject::invokeMethod(item, "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, value));
+        QMetaObject::invokeMethod(item, "set_raw_value", Qt::QueuedConnection, Q_ARG(const QVariant&, value));
     }
 
     return true;
@@ -62,7 +62,7 @@ void RandomPlugin::write(std::vector<Write_Cache_Item>& items)
 {
     for (const Write_Cache_Item& item: items)
     {
-        QMetaObject::invokeMethod(item.dev_item_, "setRawValue", Qt::QueuedConnection,
+        QMetaObject::invokeMethod(item.dev_item_, "set_raw_value", Qt::QueuedConnection,
                                   Q_ARG(const QVariant&, item.raw_data_), Q_ARG(bool, false), Q_ARG(uint32_t, item.user_id_));
         writed_list_.insert(item.dev_item_->id());
     }

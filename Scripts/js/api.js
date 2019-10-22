@@ -2,7 +2,7 @@ var api = {
     version: 201,
 
     actDevice: function(group, type, newState, user_id) {
-        group.writeToControl(type, newState, api.type.mode.automatic, user_id)
+        group.write_to_control(type, newState, api.type.mode.automatic, user_id)
     },
     findItem: function(items, func) {
         for (var item_idx in items)
@@ -113,12 +113,12 @@ api.init_as_group_manager = function(obj, group)
         var type_name = api.get_type_name(item.type, api.type.item);
         obj.item[type_name] = item;
 
-        api.connect_if_exist(item.valueChanged, obj, 'on_' + type_name); // args: user_id
+        api.connect_if_exist(item.value_changed, obj, 'on_' + type_name); // args: user_id
     }
 
-    api.connect_if_exist(group.modeChanged , obj, 'on_mode_changed');  // args: user_id, mode_id
-    api.connect_if_exist(group.itemChanged , obj, 'on_item_changed');  // args: item, user_id
-    api.connect_if_exist(group.paramChanged, obj, 'on_param_changed'); // args: param, user_id
+    api.connect_if_exist(group.mode_changed , obj, 'on_mode_changed');  // args: user_id, mode_id
+    api.connect_if_exist(group.item_changed , obj, 'on_item_changed');  // args: item, user_id
+    api.connect_if_exist(group.param_changed, obj, 'on_param_changed'); // args: param, user_id
 
     if (typeof obj.on_item_change_check === 'function')
         api.mng.connect_group_is_can_change(group, obj, obj.on_item_change_check); // args: item, raw_data, user_id

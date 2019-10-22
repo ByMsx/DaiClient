@@ -72,14 +72,14 @@ public:
     static void store_connection_id(const QUuid& connection_id);
 private:
     void init_logging(QSettings* s);
-    void init_Database(QSettings *s);
-    void init_Project(QSettings* s);
-    void init_Checker(QSettings* s);
+    void init_database(QSettings *s);
+    void init_project(QSettings* s);
+    void init_checker(QSettings* s);
     void init_network_client(QSettings* s);
-    void init_LogTimer();
+    void init_log_timer();
 
     std::shared_ptr<Websocket_Item> websock_item;
-    void initWebSocketManager(QSettings *s);
+    void init_websocket_manager(QSettings *s);
 signals:
     void serviceRestart();
 
@@ -87,7 +87,7 @@ signals:
     void started();
     void change(const Log_Value_Item& item, bool immediately);
 
-    void modeChanged(uint32_t user_id, uint32_t mode_id, uint32_t group_id);
+    void mode_changed(uint32_t user_id, uint32_t mode_id, uint32_t group_id);
 
     void status_added(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t user_id);
     void status_removed(quint32 group_id, quint32 info_id, uint32_t user_id);
@@ -102,19 +102,19 @@ public slots:
     void add_event_message(Log_Event_Item event);
     void processCommands(const QStringList& args);
 
-    QString getUserDevices();
-    QString getUserStatus();
+    QString get_user_devices();
+    QString get_user_status();
 
-    void initDevice(const QString& device, const QString& device_name, const QString &device_latin, const QString& device_desc);
-    void clearServerConfig();
-    void saveServerAuthData(const QString& login, const QString& password);
-    void saveServerData(const QUuid &devive_uuid, const QString& login, const QString& password);
+    void init_device(const QString& device, const QString& device_name, const QString &device_latin, const QString& device_desc);
+    void clear_server_config();
+    void save_server_auth_data(const QString& login, const QString& password);
+    void save_server_data(const QUuid &devive_uuid, const QString& login, const QString& password);
 
-    bool setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs);
+    bool set_day_time(uint section_id, uint dayStartSecs, uint dayEndSecs);
 
-    void writeToItem(uint32_t user_id, uint32_t item_id, const QVariant &raw_data);
+    void write_to_item(uint32_t user_id, uint32_t item_id, const QVariant &raw_data);
     void write_to_item_file(const QString& file_name);
-    bool setMode(uint32_t user_id, uint32_t mode_id, uint32_t group_id);
+    bool set_mode(uint32_t user_id, uint32_t mode_id, uint32_t group_id);
 
     void set_group_param_values(uint32_t user_id, const QVector<Group_Param_Value>& pack);
 
@@ -123,7 +123,7 @@ public slots:
 
     void update_plugin_param_names(const QVector<Plugin_Type>& plugins);
 public slots:
-    void newValue(DeviceItem* item, uint32_t user_id = 0);
+    void new_value(DeviceItem* item, uint32_t user_id = 0);
 private:
     std::unique_ptr<DB_Connection_Info> db_info_;
     Database::Helper* db_mng_;
@@ -135,10 +135,10 @@ private:
     QThread net_protocol_thread_;
     std::unique_ptr<Client::Structure_Synchronizer> structure_sync_;
 
-    using ScriptsThread = Helpz::SettingsThreadHelper<ScriptedProject, Worker*, Helpz::ConsoleReader*, QString, bool>;
+    using ScriptsThread = Helpz::SettingsThreadHelper<Scripted_Project, Worker*, Helpz::ConsoleReader*, QString, bool>;
     ScriptsThread::Type* project_thread_;
-    ScriptedProject* prj();
-    ScriptedProject* prj_;
+    Scripted_Project* prj();
+    Scripted_Project* prj_;
 
     friend class Checker;
     using CheckerThread = Helpz::SettingsThreadHelper<Checker, Worker*, QStringList>;

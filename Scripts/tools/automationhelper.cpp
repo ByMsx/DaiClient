@@ -70,7 +70,7 @@ void AutomationHelperItem::setType(uint type) { m_type = type; }
 
 void AutomationHelperItem::writeToControl(const QVariant &raw_data, uint mode)
 {
-    group()->writeToControl(m_type, raw_data, mode);
+    group()->write_to_control(m_type, raw_data, mode);
 }
 
 QScriptValue AutomationHelperItem::data() const { return m_data; }

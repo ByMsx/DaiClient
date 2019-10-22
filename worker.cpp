@@ -38,14 +38,14 @@ Worker::Worker(QObject *parent) :
     auto s = settings();
 
     init_logging(s.get());
-    init_Database(s.get());
-    init_Project(s.get()); // инициализация структуры проекта
-    init_Checker(s.get()); // запуск потока опроса устройств
+    init_database(s.get());
+    init_project(s.get()); // инициализация структуры проекта
+    init_checker(s.get()); // запуск потока опроса устройств
     init_network_client(s.get()); // подключение к серверу
-    init_LogTimer(); // сохранение статуса устройства по таймеру
+    init_log_timer(); // сохранение статуса устройства по таймеру
 
     // используется для подключения к Orange на прямую
-    initWebSocketManager(s.get());
+    init_websocket_manager(s.get());
 
     emit started();
 
@@ -139,7 +139,7 @@ void Worker::init_logging(QSettings *s)
     QMetaObject::invokeMethod(&logg(), "init", Qt::QueuedConnection);
 }
 
-void Worker::init_Database(QSettings* s)
+void Worker::init_database(QSettings* s)
 {
     db_info_ = Helpz::SettingsHelper
         #if (__cplusplus < 201402L) || (defined(__GNUC__) && (__GNUC__ < 7))
@@ -173,7 +173,7 @@ void Worker::init_Database(QSettings* s)
     db_pending_thread_->add_pending_query(std::move(sql), std::vector<QVariantList>());
 }
 
-void Worker::init_Project(QSettings* s)
+void Worker::init_project(QSettings* s)
 {
     Helpz::ConsoleReader* cr = nullptr;
     if (Service::instance().isImmediately())
@@ -188,7 +188,7 @@ void Worker::init_Project(QSettings* s)
                                 Z::Param<QString>{"SSHHost", "80.89.129.98"},
                                 Z::Param<bool>{"AllowShell", false}
                             }();
-            prj_ = new ScriptedProject(this, cr, std::get<0>(server_conf), std::get<1>(server_conf));
+            prj_ = new Scripted_Project(this, cr, std::get<0>(server_conf), std::get<1>(server_conf));
         }
 #endif
     }
@@ -204,7 +204,7 @@ void Worker::init_Project(QSettings* s)
     }
 }
 
-void Worker::init_Checker(QSettings* s)
+void Worker::init_checker(QSettings* s)
 {
     qRegisterMetaType<Device*>("Device*");
 
@@ -272,12 +272,12 @@ void Worker::init_network_client(QSettings* s)
     net_thread_.reset(new Helpz::DTLS::Client_Thread{std::move(conf)});
 }
 
-void Worker::init_LogTimer()
+void Worker::init_log_timer()
 {
     connect(&item_values_timer_, &QTimer::timeout, [this]()
     {
         for (auto it: waited_item_values_)
-            if (!db_mng_->setDevItemValue(it.first, it.second.first, it.second.second))
+            if (!db_mng_->set_dev_item_value(it.first, it.second.first, it.second.second))
             {
                 // TODO: Do something
             }
@@ -291,7 +291,7 @@ void Worker::init_LogTimer()
     connect(log_timer_thread_->ptr(), &Log_Value_Save_Timer::change, this, &Worker::change, Qt::QueuedConnection);
 }
 
-void Worker::initWebSocketManager(QSettings *s)
+void Worker::init_websocket_manager(QSettings *s)
 {
     std::tuple<bool, QByteArray> en_t = Helpz::SettingsHelper<Helpz::Param<bool>, Helpz::Param<QByteArray>
             >(s, "WebSocket",
@@ -388,7 +388,7 @@ void Worker::add_event_message(Log_Event_Item event)
     {
         // TODO: save all log
 
-        if (!db_mng_->eventLog(event))
+        if (!db_mng_->event_log(event))
         {
             // TODO: Error event
         }
@@ -440,7 +440,7 @@ void Worker::processCommands(const QStringList &args)
         qCInfo(Service::Log) << args << parser.helpText();
 }
 
-QString Worker::getUserDevices()
+QString Worker::get_user_devices()
 {
     QVector<QPair<QUuid, QString>> devices;
 
@@ -463,7 +463,7 @@ QString Worker::getUserDevices()
     return QJsonDocument(json).toJson(QJsonDocument::Compact);
 }
 
-QString Worker::getUserStatus()
+QString Worker::get_user_status()
 {
     QJsonObject json;
     auto proto = net_protocol();
@@ -475,7 +475,7 @@ QString Worker::getUserStatus()
     return QJsonDocument(json).toJson(QJsonDocument::Compact);
 }
 
-void Worker::initDevice(const QString &device, const QString &device_name, const QString &device_latin, const QString &device_desc)
+void Worker::init_device(const QString &device, const QString &device_name, const QString &device_latin, const QString &device_desc)
 {
     QUuid devive_uuid(device);
     if (devive_uuid.isNull() && (device_name.isEmpty() || device_latin.isEmpty()))
@@ -512,21 +512,21 @@ void Worker::initDevice(const QString &device, const QString &device_name, const
     emit serviceRestart();
 }
 
-void Worker::clearServerConfig()
+void Worker::clear_server_config()
 {
-    saveServerData(QUuid(), QString(), QString());
+    save_server_data(QUuid(), QString(), QString());
 }
 
-void Worker::saveServerAuthData(const QString &login, const QString &password)
+void Worker::save_server_auth_data(const QString &login, const QString &password)
 {
     auto proto = net_protocol();
     if (proto)
     {
-        saveServerData(proto->auth_info().device_id(), login, password);
+        save_server_data(proto->auth_info().device_id(), login, password);
     }
 }
 
-void Worker::saveServerData(const QUuid &devive_uuid, const QString &login, const QString &password)
+void Worker::save_server_data(const QUuid &devive_uuid, const QString &login, const QString &password)
 {
     auto s = settings();
     s->beginGroup("RemoteServer");
@@ -543,10 +543,10 @@ void Worker::saveServerData(const QUuid &devive_uuid, const QString &login, cons
     }
 }
 
-bool Worker::setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs)
+bool Worker::set_day_time(uint section_id, uint dayStartSecs, uint dayEndSecs)
 {
     bool res = false;
-    if (Section* sct = prj()->sectionById( section_id ))
+    if (Section* sct = prj()->section_by_id(section_id))
     {
         TimeRange tempRange( dayStartSecs, dayEndSecs );
         if (*sct->day_time() != tempRange)
@@ -556,16 +556,16 @@ bool Worker::setDayTime(uint section_id, uint dayStartSecs, uint dayEndSecs)
             if (res)
             {
                 *sct->day_time() = tempRange;
-                prj()->dayTimeChanged(/*sct*/);
+                prj()->day_time_changed(/*sct*/);
             }
         }
     }
     return res;
 }
 
-void Worker::writeToItem(uint32_t user_id, uint32_t item_id, const QVariant &raw_data)
+void Worker::write_to_item(uint32_t user_id, uint32_t item_id, const QVariant &raw_data)
 {
-    if (DeviceItem* item = prj()->itemById( item_id ))
+    if (DeviceItem* item = prj()->item_by_id(item_id))
     {
         if (item->register_type() == Item_Type::rtFile)
         {
@@ -582,7 +582,7 @@ void Worker::writeToItem(uint32_t user_id, uint32_t item_id, const QVariant &raw
 
 void Worker::write_to_item_file(const QString& file_name)
 {
-    if (DeviceItem* item = prj()->itemById( last_file_item_and_user_id_.first ))
+    if (DeviceItem* item = prj()->item_by_id(last_file_item_and_user_id_.first))
     {
         qCDebug(Service::Log) << "write_to_item_file" << file_name;
         QMetaObject::invokeMethod(item->group(), "writeToControl", Qt::QueuedConnection,
@@ -594,9 +594,9 @@ void Worker::write_to_item_file(const QString& file_name)
     }
 }
 
-bool Worker::setMode(uint32_t user_id, uint32_t mode_id, uint32_t group_id)
+bool Worker::set_mode(uint32_t user_id, uint32_t mode_id, uint32_t group_id)
 {
-    bool res = db_mng_->setMode(mode_id, group_id);
+    bool res = db_mng_->set_mode(mode_id, group_id);
     if (res)
         QMetaObject::invokeMethod(prj(), "setMode", Qt::QueuedConnection, Q_ARG(uint32_t, user_id), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id) );
     return res;
@@ -698,7 +698,7 @@ void Worker::update_plugin_param_names(const QVector<Plugin_Type>& plugins)
     }
 }
 
-void Worker::newValue(DeviceItem *item, uint32_t user_id)
+void Worker::new_value(DeviceItem *item, uint32_t user_id)
 {
     uint8_t save_algorithm = prj()->item_type_mng_.save_algorithm(item->type_id());
     if (save_algorithm == Item_Type::saInvalid)
@@ -750,7 +750,7 @@ void Worker::newValue(DeviceItem *item, uint32_t user_id)
     }
 }
 
-ScriptedProject* Worker::prj()
+Scripted_Project* Worker::prj()
 {
     return project_thread_ ? project_thread_->ptr() : prj_;
 }
