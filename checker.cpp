@@ -231,22 +231,38 @@ void Checker::check_devices()
                 }
                 else
                 {
-                    bool is_virtual = dev->checker_id() == 0;
-                    QVariant value;
-
-                    for (DeviceItem* dev_item: dev->items())
+                    if (dev->checker_id() == 0) // is_virtual
                     {
-                        if (is_virtual)
+                        if (first_check_)
+                        {
+                            for (DeviceItem* dev_item: dev->items())
+                            {
+                                if (!dev_item->is_connected())
+                                {
+                                    // It's only first check
+                                    QMetaObject::invokeMethod(dev_item, "set_raw_value", Qt::QueuedConnection, Q_ARG(QVariant, 0));
+                                    QMetaObject::invokeMethod(dev_item, "set_connection_state", Qt::QueuedConnection, Q_ARG(bool, true));
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        std::vector<DeviceItem*> items;
+
+                        for (DeviceItem* dev_item: dev->items())
                         {
                             if (dev_item->is_connected())
-                                continue;
-                            else if (first_check_)
-                                value = 0; // Init virtual item
+                            {
+                                items.push_back(dev_item);
+                            }
                         }
-                        else if (!dev_item->is_connected()) // else disconnect
-                            continue;
 
-                        QMetaObject::invokeMethod(dev_item, "set_raw_value", Qt::QueuedConnection, Q_ARG(const QVariant&, value));
+                        if (!items.empty())
+                        {
+                            QMetaObject::invokeMethod(dev, "set_device_items_disconnect",
+                                                      Q_ARG(std::vector<DeviceItem*>, items));
+                        }
                     }
                 }
             }
