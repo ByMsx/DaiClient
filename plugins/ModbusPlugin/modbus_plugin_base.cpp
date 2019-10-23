@@ -233,9 +233,13 @@ public:
     ~Modbus_Pack_Read_Manager()
     {
         if (!is_connected_)
-        {           
-            QMetaObject::invokeMethod(packs_.front().items_.front()->device(), "set_device_items_disconnect",
-                Q_ARG(std::vector<DeviceItem*>, packs_.front().items_));
+        {
+            std::vector<DeviceItem*> v;
+            for (auto it : packs_)
+            {
+              v.insert(v.end(), it.items_.begin(), it.items_.end());
+            }
+            QMetaObject::invokeMethod(packs_.front().items_.front()->device(), "set_device_items_disconnect", Q_ARG(std::vector<DeviceItem*>, v));
         }
         else if (packs_.size())
         {
@@ -525,7 +529,7 @@ bool Modbus_Plugin_Base::reconnect()
 }
 
 void Modbus_Plugin_Base::read(const QVector<DeviceItem*>& dev_items)
-{    
+{
     if (dev_items.isEmpty())
     {
         return;
@@ -591,7 +595,7 @@ void Modbus_Plugin_Base::process_queue()
                 Modbus_Pack<DeviceItem*>& pack = modbus_pack_read_manager.packs_.at(modbus_pack_read_manager.position_);
 //                qint64 elapsed = tt.restart();
 //                qWarning().nospace() << "->>>> read " << (elapsed < 100 ? (elapsed < 10 ? "  " : " ") : "") <<  elapsed << " \tsize " << pack.items_.size() << ' ' << pack.items_.front()->device()->toString();
-                read_pack(pack.server_address_, pack.register_type_, pack.start_address_, pack.items_, &pack.reply_);                
+                read_pack(pack.server_address_, pack.register_type_, pack.start_address_, pack.items_, &pack.reply_);
 
                 if (!pack.reply_)
                 {
@@ -691,8 +695,8 @@ void Modbus_Plugin_Base::write_finished(QModbusReply* reply)
 
 void Modbus_Plugin_Base::read_pack(int server_address, QModbusDataUnit::RegisterType register_type, int start_address, const std::vector<DeviceItem*>& items, QModbusReply** reply)
 {
-    QModbusDataUnit request(register_type, start_address, items.size());    
-    *reply = sendReadRequest(request, server_address);    
+    QModbusDataUnit request(register_type, start_address, items.size());
+    *reply = sendReadRequest(request, server_address);
 
     if (*reply)
     {
@@ -710,16 +714,16 @@ void Modbus_Plugin_Base::read_pack(int server_address, QModbusDataUnit::Register
 }
 
 void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
-{    
+{
     if (!reply || b_break)
     {
         qCCritical(ModbusLog).noquote() << tr("Read finish error: ") + this->errorString();
         process_queue();
         return;
-    }        
+    }
 
     if (queue_->read_.size())
-    {        
+    {
         Modbus_Pack_Read_Manager& modbus_pack_read_manager = queue_->read_.front();
         Modbus_Pack<DeviceItem*>& pack = modbus_pack_read_manager.packs_.at(modbus_pack_read_manager.position_);
         if (reply != pack.reply_)
