@@ -233,19 +233,24 @@ public:
     {
         if (!is_connected_)
         {
+            std::vector<DeviceItem*> v;
+            for (std::map<DeviceItem*, QVariant>::iterator it = new_values_.begin(); it != new_values_.end(); ++it)
+            {
+              v.emplace_back(it->first);
+            }
             QMetaObject::invokeMethod(packs_.front().items_.front()->device(), "set_device_items_disconnect",
-                                      QArgument<std::vector<DeviceItem*>>("std::vector<DeviceItem*>", packs_.front().items_));
+                                      QArgument<std::vector<DeviceItem*>>("std::vector<DeviceItem*>", v));
         }
         else if (packs_.size())
         {
             QMetaObject::invokeMethod(packs_.front().items_.front()->device(), "set_device_items_values",
-                                      QArgument<std::map<DeviceItem*, QVariant>>("std::map<DeviceItem*, QVariant>", new_values_), QArgument<bool>("bool", true));
-            while (packs_.size())
-            {
-                if (packs_.front().reply_)
-                    QObject::disconnect(packs_.front().reply_, 0, 0, 0);
-                packs_.pop_back();
-            }
+                                      QArgument<std::map<DeviceItem*, QVariant>>("std::map<DeviceItem*, QVariant>", new_values_), Q_ARG(bool, true));
+        }
+        while (packs_.size())
+        {
+            if (packs_.front().reply_)
+                QObject::disconnect(packs_.front().reply_, 0, 0, 0);
+            packs_.pop_back();
         }
     }
 
