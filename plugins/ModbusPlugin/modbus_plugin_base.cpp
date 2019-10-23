@@ -211,7 +211,8 @@ class Modbus_Pack_Read_Manager
 public:
     Modbus_Pack_Read_Manager(const Modbus_Pack_Read_Manager&) = delete;
     Modbus_Pack_Read_Manager& operator =(const Modbus_Pack_Read_Manager&) = delete;
-    Modbus_Pack_Read_Manager(std::vector<Modbus_Pack<DeviceItem*>>&& packs) : is_connected_(true), packs_(std::move(packs))
+    Modbus_Pack_Read_Manager(std::vector<Modbus_Pack<DeviceItem*>>&& packs) :
+        is_connected_(true), position_(-1), packs_(std::move(packs))
     {
         for (Modbus_Pack<DeviceItem*> &item_pack : packs_)
         {
@@ -223,7 +224,7 @@ public:
     }
 
     Modbus_Pack_Read_Manager(Modbus_Pack_Read_Manager&& o) :
-        is_connected_(std::move(o.is_connected_)), packs_(std::move(o.packs_)), new_values_(std::move(o.new_values_)), position_(std::move(o.position_))
+        is_connected_(std::move(o.is_connected_)), position_(std::move(o.position_)), packs_(std::move(o.packs_)), new_values_(std::move(o.new_values_))
     {
         o.packs_.clear();
         o.new_values_.clear();
@@ -250,7 +251,7 @@ public:
     }
 
     bool is_connected_;
-    int position_ = -1;
+    int position_; // int becose -1 is default
     std::vector<Modbus_Pack<DeviceItem*>> packs_;
     std::map<DeviceItem*, QVariant> new_values_;
 };
