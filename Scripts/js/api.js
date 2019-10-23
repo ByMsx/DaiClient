@@ -113,6 +113,14 @@ api.init_as_group_manager = function(obj, group)
         obj.item[type_name] = item;
 
         api.connect_if_exist(item.value_changed, obj, 'on_' + type_name); // args: user_id
+
+        var func = obj['on_' + type_name + '_raw_to_display'];
+        if (typeof func === 'function')
+            api.mng.connect_item_raw_to_display(item, obj, func); // args: data
+
+        func = obj['on_' + type_name + '_display_to_raw'];
+        if (typeof func === 'function')
+            api.mng.connect_item_display_to_raw(item, obj, func); // args: data
     }
 
     api.connect_if_exist(group.mode_changed , obj, 'on_mode_changed');  // args: user_id, mode_id

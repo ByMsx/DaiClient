@@ -608,6 +608,32 @@ void Scripted_Project::connect_group_is_can_change(ItemGroup* group, const QScri
     }
 }
 
+void Scripted_Project::connect_item_raw_to_display(DeviceItem *item, const QScriptValue &obj, const QScriptValue &func)
+{
+    if (item && func.isFunction())
+    {
+        connect(item, &DeviceItem::raw_to_display, [this, obj, func](const QVariant& data) -> QVariant
+        {
+            QScriptValue f = func;
+            QScriptValue res = f.call(obj, QScriptValueList{ value_from_variant(data) });
+            return res.toVariant();
+        });
+    }
+}
+
+void Scripted_Project::connect_item_display_to_raw(DeviceItem *item, const QScriptValue &obj, const QScriptValue &func)
+{
+    if (item && func.isFunction())
+    {
+        connect(item, &DeviceItem::display_to_raw, [this, obj, func](const QVariant& data) -> QVariant
+        {
+            QScriptValue f = func;
+            QScriptValue res = f.call(obj, QScriptValueList{ value_from_variant(data) });
+            return res.toVariant();
+        });
+    }
+}
+
 void Scripted_Project::group_initialized(ItemGroup* group)
 {
     QString group_type_name = group_type_mng_.name(group->type_id()),
