@@ -1,5 +1,5 @@
 var api = {
-    version: 201,
+    version: 202,
 
     actDevice: function(group, type, newState, user_id) {
         group.write_to_control(type, newState, api.type.mode.automatic, user_id)
@@ -51,22 +51,21 @@ api.get_number = function(value, default_value)
     return default_value;
 };
 
-api.get_number_from_property = function(item, anyway_renurn_zero, prop_name)
+api.get_number_from_property = function(item, default_value, prop_name)
 {
-    var default_value = anyway_renurn_zero ? 0 : undefined;
     if (item && item.isConnected())
         return api.get_number(item[prop_name], default_value);
     return default_value;
 };
 
-api.get_number_value = function(item, anyway_renurn_zero)
+api.get_number_value = function(item, default_value)
 {
-    return api.get_number_from_property(item, anyway_renurn_zero, 'value');
+    return api.get_number_from_property(item, default_value, 'value');
 };
 
-api.get_number_raw_value = function(item, anyway_renurn_zero)
+api.get_number_raw_value = function(item, default_value)
 {
-    return api.get_number_from_property(item, anyway_renurn_zero, 'raw_value');
+    return api.get_number_from_property(item, default_value, 'raw_value');
 };
 
 api.extend = function(Child, Parent)
@@ -114,6 +113,14 @@ api.init_as_group_manager = function(obj, group)
         obj.item[type_name] = item;
 
         api.connect_if_exist(item.value_changed, obj, 'on_' + type_name); // args: user_id
+
+        var func = obj['on_' + type_name + '_raw_to_display'];
+        if (typeof func === 'function')
+            api.mng.connect_item_raw_to_display(item, obj, func); // args: data
+
+        func = obj['on_' + type_name + '_display_to_raw'];
+        if (typeof func === 'function')
+            api.mng.connect_item_display_to_raw(item, obj, func); // args: data
     }
 
     api.connect_if_exist(group.mode_changed , obj, 'on_mode_changed');  // args: user_id, mode_id

@@ -92,6 +92,8 @@ public slots:
     QVariantMap run_command(const QString& programm, const QVariantList& args = QVariantList(), int timeout_msec = 5000) const;
 
     void connect_group_is_can_change(ItemGroup *group, const QScriptValue& obj, const QScriptValue& func);
+    void connect_item_raw_to_display(DeviceItem *item, const QScriptValue& obj, const QScriptValue& func);
+    void connect_item_display_to_raw(DeviceItem *item, const QScriptValue& obj, const QScriptValue& func);
 private slots:
     void group_initialized(ItemGroup* group);
     QVariant normalize(const QVariant& val);
