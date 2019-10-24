@@ -764,7 +764,7 @@ void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
                 }
 
                 modbus_pack_read_manager.new_values_.at(pack.items_.at(i)) = raw_data;
-    //                QMetaObject::invokeMethod(pack.items_.at(i), "setRawValue", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data));
+    //                QMetaObject::invokeMethod(pack.items_.at(i), "set_raw_value", Qt::QueuedConnection, Q_ARG(const QVariant&, raw_data));
             }
 
             auto status_it = dev_status_cache_.find(std::make_pair(pack.server_address_, pack.register_type_));

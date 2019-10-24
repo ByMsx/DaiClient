@@ -571,7 +571,7 @@ void Worker::write_to_item(uint32_t user_id, uint32_t item_id, const QVariant &r
         {
             last_file_item_and_user_id_ = std::make_pair(item_id, user_id);
         }
-        QMetaObject::invokeMethod(item->group(), "writeToControl", Qt::QueuedConnection,
+        QMetaObject::invokeMethod(item->group(), "write_to_control", Qt::QueuedConnection,
                                   Q_ARG(DeviceItem*, item), Q_ARG(QVariant, raw_data), Q_ARG(uint32_t, 0), Q_ARG(uint32_t, user_id) );
     }
     else
@@ -585,7 +585,7 @@ void Worker::write_to_item_file(const QString& file_name)
     if (DeviceItem* item = prj()->item_by_id(last_file_item_and_user_id_.first))
     {
         qCDebug(Service::Log) << "write_to_item_file" << file_name;
-        QMetaObject::invokeMethod(item->group(), "writeToControl", Qt::QueuedConnection,
+        QMetaObject::invokeMethod(item->group(), "write_to_control", Qt::QueuedConnection,
                                   Q_ARG(DeviceItem*, item), Q_ARG(QVariant, file_name), Q_ARG(uint32_t, 0), Q_ARG(uint32_t, last_file_item_and_user_id_.second));
     }
     else
@@ -598,7 +598,7 @@ bool Worker::set_mode(uint32_t user_id, uint32_t mode_id, uint32_t group_id)
 {
     bool res = db_mng_->set_mode(mode_id, group_id);
     if (res)
-        QMetaObject::invokeMethod(prj(), "setMode", Qt::QueuedConnection, Q_ARG(uint32_t, user_id), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id) );
+        QMetaObject::invokeMethod(prj(), "set_mode", Qt::QueuedConnection, Q_ARG(uint32_t, user_id), Q_ARG(quint32, mode_id), Q_ARG(quint32, group_id) );
     return res;
 }
 
