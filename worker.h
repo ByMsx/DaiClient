@@ -30,6 +30,10 @@ typedef QGuiApplication App_Type;
 
 namespace Dai {
 
+namespace Client {
+    class Dbus_Object;
+}
+
 class DB_Connection_Info : public Helpz::Database::Connection_Info
 {
 public:
@@ -77,6 +81,7 @@ private:
     void init_checker(QSettings* s);
     void init_network_client(QSettings* s);
     void init_log_timer();
+    void init_dbus(QSettings* s);
 
     std::shared_ptr<Websocket_Item> websock_item;
     void init_websocket_manager(QSettings *s);
@@ -159,7 +164,9 @@ private:
     std::vector<Log_Value_Item> to_save_log_value_vect_;
     std::vector<Log_Event_Item> to_save_log_event_vect_;
 
-    std::pair<uint32_t,uint32_t> last_file_item_and_user_id_;
+    std::pair<uint32_t, uint32_t> last_file_item_and_user_id_;
+
+    Client::Dbus_Object* dbus_;
 };
 
 typedef Helpz::Service::Impl<Worker, App_Type> Service;
