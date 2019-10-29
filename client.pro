@@ -1,4 +1,4 @@
-QT += core network sql websockets
+QT += core network dbus sql websockets
 
 QT += script
 #QT += qml
@@ -34,7 +34,8 @@ SOURCES += main.cpp \
     websocket_item.cpp \
     log_value_save_timer.cpp \
     id_timer.cpp \
-    Network/client_protocol_latest.cpp
+    Network/client_protocol_latest.cpp \
+    dbus_object.cpp
 
 HEADERS  += \
     worker.h \
@@ -55,7 +56,8 @@ HEADERS  += \
     websocket_item.h \
     log_value_save_timer.h \
     id_timer.h \
-    Network/client_protocol_latest.h
+    Network/client_protocol_latest.h \
+    dbus_object.h
 
 #Target version
 VER_MAJ = 1
@@ -71,7 +73,7 @@ linux-rasp-pi2-g++|linux-opi-zero-g++|linux-rasp-pi3-g++ {
     INCLUDEPATH += $$[QT_INSTALL_HEADERS]/botan-2
 }
 
-LIBS += -lDai -lDaiPlus -lHelpzBase -lHelpzService -lHelpzNetwork -lHelpzDBMeta -lHelpzDB -lHelpzDTLS -lbotan-2 -lboost_system -lboost_thread -ldl
+LIBS += -lDai -lDaiPlus -ldaidbus -lHelpzBase -lHelpzService -lHelpzNetwork -lHelpzDBMeta -lHelpzDB -lHelpzDTLS -lbotan-2 -lboost_system -lboost_thread -ldl
 
 RESOURCES += \
     main.qrc
