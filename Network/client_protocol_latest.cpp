@@ -13,10 +13,11 @@
 #include "client_protocol_latest.h"
 
 namespace Dai {
+namespace Ver_2_2 {
 namespace Client {
 
-Protocol_Latest::Protocol_Latest(Worker *worker, Structure_Synchronizer *structure_synchronizer, const Authentication_Info &auth_info) :
-    Protocol{worker, auth_info},
+Protocol::Protocol(Worker *worker, Structure_Synchronizer *structure_synchronizer, const Authentication_Info &auth_info) :
+    Protocol_Base{worker, auth_info},
     log_sender_(this),
     structure_sync_(structure_synchronizer)
 {
@@ -24,45 +25,45 @@ Protocol_Latest::Protocol_Latest(Worker *worker, Structure_Synchronizer *structu
     connect_worker_signals();
 }
 
-Protocol_Latest::~Protocol_Latest()
+Protocol::~Protocol()
 {
     QMetaObject::invokeMethod(structure_sync_, "set_protocol", Qt::QueuedConnection);
 }
 
-Log_Sender &Protocol_Latest::log_sender()
+Log_Sender &Protocol::log_sender()
 {
     return log_sender_;
 }
 
-void Protocol_Latest::connect_worker_signals()
+void Protocol::connect_worker_signals()
 {
     qRegisterMetaType<QVector<Group_Param_Value>>("QVector<Group_Param_Value>");
 
     prj_ = worker()->prj();
 
-    connect(this, &Protocol_Latest::restart, worker(), &Worker::restart_service_object, Qt::QueuedConnection);
-    connect(this, &Protocol_Latest::write_to_item, worker(), &Worker::write_to_item, Qt::QueuedConnection);
-    connect(this, &Protocol_Latest::set_mode, worker(), &Worker::set_mode, Qt::QueuedConnection);
-    connect(this, &Protocol_Latest::set_group_param_values, worker(), &Worker::set_group_param_values, Qt::QueuedConnection);
-    connect(this, &Protocol_Latest::exec_script_command, worker()->prj(), &Scripted_Project::console, Qt::QueuedConnection);
+    connect(this, &Protocol::restart, worker(), &Worker::restart_service_object, Qt::QueuedConnection);
+    connect(this, &Protocol::write_to_item, worker(), &Worker::write_to_item, Qt::QueuedConnection);
+    connect(this, &Protocol::set_mode, worker(), &Worker::set_mode, Qt::QueuedConnection);
+    connect(this, &Protocol::set_group_param_values, worker(), &Worker::set_group_param_values, Qt::QueuedConnection);
+    connect(this, &Protocol::exec_script_command, worker()->prj(), &Scripted_Project::console, Qt::QueuedConnection);
 
-    connect(worker(), &Worker::mode_changed, this, &Protocol_Latest::send_mode, Qt::QueuedConnection);
-    connect(worker(), &Worker::status_added, this, &Protocol_Latest::send_status_added, Qt::QueuedConnection);
-    connect(worker(), &Worker::status_removed, this, &Protocol_Latest::send_status_removed, Qt::QueuedConnection);
-    connect(worker(), &Worker::group_param_values_changed, this, &Protocol_Latest::send_group_param_values, Qt::QueuedConnection);
+    connect(worker(), &Worker::mode_changed, this, &Protocol::send_mode, Qt::QueuedConnection);
+    connect(worker(), &Worker::status_added, this, &Protocol::send_status_added, Qt::QueuedConnection);
+    connect(worker(), &Worker::status_removed, this, &Protocol::send_status_removed, Qt::QueuedConnection);
+    connect(worker(), &Worker::group_param_values_changed, this, &Protocol::send_group_param_values, Qt::QueuedConnection);
 
     /*
     qRegisterMetaType<Code_Item>("Code_Item");
     qRegisterMetaType<std::vector<uint>>("std::vector<uint>");
-    connect(this, &Protocol_Latest::setCode, worker, &Worker::setCode, Qt::BlockingQueuedConnection);
-//    connect(this, &Protocol_Latest::lostValues, worker, &Worker::sendLostValues, Qt::QueuedConnection);
-    connect(this, &Protocol_Latest::getServerInfo, worker->prj->ptr(), &Project::dumpInfoToStream, Qt::DirectConnection);
-    connect(this, &Protocol_Latest::setServerInfo, worker->prj->ptr(), &Project::initFromStream, Qt::BlockingQueuedConnection);
-    connect(this, &Protocol_Latest::saveServerInfo, worker->database(), &Database::saveProject, Qt::BlockingQueuedConnection);
+    connect(this, &Protocol::setCode, worker, &Worker::setCode, Qt::BlockingQueuedConnection);
+//    connect(this, &Protocol::lostValues, worker, &Worker::sendLostValues, Qt::QueuedConnection);
+    connect(this, &Protocol::getServerInfo, worker->prj->ptr(), &Project::dumpInfoToStream, Qt::DirectConnection);
+    connect(this, &Protocol::setServerInfo, worker->prj->ptr(), &Project::initFromStream, Qt::BlockingQueuedConnection);
+    connect(this, &Protocol::saveServerInfo, worker->database(), &Database::saveProject, Qt::BlockingQueuedConnection);
     */
 }
 
-void Protocol_Latest::ready_write()
+void Protocol::ready_write()
 {
     auto ctrl = dynamic_cast<Helpz::DTLS::Client_Node*>(writer());
     if (ctrl)
@@ -73,7 +74,7 @@ void Protocol_Latest::ready_write()
     start_authentication();
 }
 
-void Protocol_Latest::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data_dev)
+void Protocol::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data_dev)
 {
     switch (cmd)
     {
@@ -82,15 +83,15 @@ void Protocol_Latest::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &d
     case Cmd::VERSION:                  send_version(msg_id);   break;
     case Cmd::TIME_INFO:                send_time_info(msg_id); break;
 
-    case Cmd::LOG_RANGE_COUNT:          Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_log_range, &log_sender_, msg_id);    break;
-    case Cmd::LOG_DATA:                 Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_log_data, &log_sender_, msg_id);     break;
+    case Cmd::LOG_DATA_REQUEST:         Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_data, &log_sender_, msg_id);    break;
+//    case Cmd::LOG_DATA:                 Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_log_data, &log_sender_, msg_id);     break;
 
-    case Cmd::RESTART:                  apply_parse(data_dev, &Protocol_Latest::restart);                          break;
-    case Cmd::WRITE_TO_ITEM:            apply_parse(data_dev, &Protocol_Latest::write_to_item);                    break;
+    case Cmd::RESTART:                  apply_parse(data_dev, &Protocol::restart);                          break;
+    case Cmd::WRITE_TO_ITEM:            apply_parse(data_dev, &Protocol::write_to_item);                    break;
     case Cmd::WRITE_TO_ITEM_FILE:       process_item_file(data_dev);                                               break;
-    case Cmd::SET_MODE:                 apply_parse(data_dev, &Protocol_Latest::set_mode);                         break;
-    case Cmd::SET_GROUP_PARAM_VALUES:   apply_parse(data_dev, &Protocol_Latest::set_group_param_values);           break;
-    case Cmd::EXEC_SCRIPT_COMMAND:      apply_parse(data_dev, &Protocol_Latest::parse_script_command, &data_dev);  break;
+    case Cmd::SET_MODE:                 apply_parse(data_dev, &Protocol::set_mode);                         break;
+    case Cmd::SET_GROUP_PARAM_VALUES:   apply_parse(data_dev, &Protocol::set_group_param_values);           break;
+    case Cmd::EXEC_SCRIPT_COMMAND:      apply_parse(data_dev, &Protocol::parse_script_command, &data_dev);  break;
 
     case Cmd::GET_PROJECT:              Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::send_project_structure, structure_sync_, msg_id, &data_dev); break;
     case Cmd::MODIFY_PROJECT:           Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::process_modify_message, structure_sync_, &data_dev, QString(), nullptr); break;
@@ -104,12 +105,12 @@ void Protocol_Latest::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &d
     }
 }
 
-void Protocol_Latest::process_answer_message(uint8_t msg_id, uint16_t cmd, QIODevice& /*data_dev*/)
+void Protocol::process_answer_message(uint8_t msg_id, uint16_t cmd, QIODevice& /*data_dev*/)
 {
     qCWarning(NetClientLog) << "unprocess answer" << int(msg_id) << cmd;
 }
 
-void Protocol_Latest::parse_script_command(uint32_t user_id, const QString& script, QIODevice* data_dev)
+void Protocol::parse_script_command(uint32_t user_id, const QString& script, QIODevice* data_dev)
 {
     QVariantList arguments;
     bool is_function = data_dev->bytesAvailable();
@@ -120,7 +121,7 @@ void Protocol_Latest::parse_script_command(uint32_t user_id, const QString& scri
     exec_script_command(user_id, script, is_function, arguments);
 }
 
-void Protocol_Latest::process_item_file(QIODevice& data_dev)
+void Protocol::process_item_file(QIODevice& data_dev)
 {
     if (!data_dev.isOpen())
     {
@@ -161,17 +162,17 @@ void Protocol_Latest::process_item_file(QIODevice& data_dev)
         QMetaObject::invokeMethod(worker(), "write_to_item_file", Qt::QueuedConnection, Q_ARG(QString, file_name));
 }
 
-void Protocol_Latest::start_authentication()
+void Protocol::start_authentication()
 {
     send(Cmd::AUTH).answer([this](QIODevice& data_dev)
     {
-        apply_parse(data_dev, &Protocol_Latest::process_authentication);
+        apply_parse(data_dev, &Protocol::process_authentication);
     }).timeout([]() {
         std::cout << "Authentication timeout" << std::endl;
     }, std::chrono::seconds(45), std::chrono::seconds(15)) << auth_info() << structure_sync_->modified();
 }
 
-void Protocol_Latest::process_authentication(bool authorized, const QUuid& connection_id)
+void Protocol::process_authentication(bool authorized, const QUuid& connection_id)
 {
     qCDebug(NetClientLog) << "Authentication status:" << authorized;
     if (authorized)
@@ -183,7 +184,7 @@ void Protocol_Latest::process_authentication(bool authorized, const QUuid& conne
     }
 }
 
-void Protocol_Latest::send_version(uint8_t msg_id)
+void Protocol::send_version(uint8_t msg_id)
 {
     send_answer(Cmd::VERSION, msg_id)
             << Helpz::DTLS::ver_major() << Helpz::DTLS::ver_minor() << Helpz::DTLS::ver_build()
@@ -194,28 +195,28 @@ void Protocol_Latest::send_version(uint8_t msg_id)
             << (quint8)VER_MJ << (quint8)VER_MN << (int)VER_B;
 }
 
-void Protocol_Latest::send_time_info(uint8_t msg_id)
+void Protocol::send_time_info(uint8_t msg_id)
 {
     auto dt = QDateTime::currentDateTime();
     send_answer(Cmd::TIME_INFO, msg_id) << dt << dt.timeZone();
 }
 
-void Protocol_Latest::send_mode(uint32_t user_id, uint mode_id, quint32 group_id)
+void Protocol::send_mode(uint32_t user_id, uint mode_id, quint32 group_id)
 {
     send(Cmd::SET_MODE).timeout(nullptr, std::chrono::seconds(16), std::chrono::seconds(5)) << user_id << mode_id << group_id;
 }
 
-void Protocol_Latest::send_status_added(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t)
+void Protocol::send_status_added(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t)
 {
     send(Cmd::ADD_STATUS).timeout(nullptr, std::chrono::seconds(16), std::chrono::seconds(5)) << group_id << info_id << args;
 }
 
-void Protocol_Latest::send_status_removed(quint32 group_id, quint32 info_id, uint32_t)
+void Protocol::send_status_removed(quint32 group_id, quint32 info_id, uint32_t)
 {
     send(Cmd::REMOVE_STATUS).timeout(nullptr, std::chrono::seconds(16), std::chrono::seconds(5)) << group_id << info_id;
 }
 
-void Protocol_Latest::send_group_param_values(uint32_t user_id, const QVector<Group_Param_Value> &pack)
+void Protocol::send_group_param_values(uint32_t user_id, const QVector<Group_Param_Value> &pack)
 {
     send(Cmd::SET_GROUP_PARAM_VALUES).timeout(nullptr, std::chrono::seconds(16), std::chrono::seconds(5)) << user_id << pack;
 }
@@ -371,4 +372,5 @@ private:
 #endif
 
 } // namespace Client
+} // namespace Ver_2_2
 } // namespace Dai

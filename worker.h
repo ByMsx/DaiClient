@@ -67,7 +67,7 @@ public:
 
     static std::unique_ptr<QSettings> settings();
 
-    std::shared_ptr<Client::Protocol_Latest> net_protocol();
+    std::shared_ptr<Ver_2_2::Client::Protocol> net_protocol();
 
     static void store_connection_id(const QUuid& connection_id);
 private:
@@ -93,7 +93,6 @@ signals:
     void status_removed(quint32 group_id, quint32 info_id, uint32_t user_id);
 
     void group_param_values_changed(uint32_t user_id, const QVector<Group_Param_Value>& pack);
-
 public slots:
     void restart_service_object(uint32_t user_id = 0);
     bool stop_scripts(uint32_t user_id = 0);
@@ -123,41 +122,37 @@ public slots:
 
     void update_plugin_param_names(const QVector<Plugin_Type>& plugins);
 public slots:
-    void new_value(DeviceItem* item, uint32_t user_id = 0);
+    void new_value(const Log_Value_Item &log_value_item);
     void connection_state_changed(DeviceItem *item, bool value);
 private:
     std::unique_ptr<DB_Connection_Info> db_info_;
     Database::Helper* db_mng_;
 
-    friend class Client::Protocol_Latest;
-    friend class Client::Protocol;
+    friend class Ver_2_2::Client::Protocol;
+    friend class Client::Protocol_Base;
     std::shared_ptr<Helpz::DTLS::Client_Thread> net_thread_;
     std::unique_ptr<Helpz::Database::Thread> db_pending_thread_;
     QThread net_protocol_thread_;
-    std::unique_ptr<Client::Structure_Synchronizer> structure_sync_;
+    std::unique_ptr<Ver_2_2::Client::Structure_Synchronizer> structure_sync_;
 
-    using ScriptsThread = Helpz::SettingsThreadHelper<Scripted_Project, Worker*, Helpz::ConsoleReader*, QString, bool>;
-    ScriptsThread::Type* project_thread_;
+    using Scripts_Thread = Helpz::SettingsThreadHelper<Scripted_Project, Worker*, Helpz::ConsoleReader*, QString, bool>;
+    Scripts_Thread::Type* project_thread_;
     Scripted_Project* prj();
     Scripted_Project* prj_;
 
     friend class Checker;
-    using CheckerThread = Helpz::SettingsThreadHelper<Checker, Worker*, QStringList>;
-    CheckerThread::Type* checker_th = nullptr;
+    using Checker_Thread = Helpz::SettingsThreadHelper<Checker, Worker*, QStringList>;
+    Checker_Thread::Type* checker_th_ = nullptr;
 
-    using WebSocketThread = Helpz::SettingsThreadHelper<Network::WebSocket, std::shared_ptr<JWT_Helper>, quint16, QString, QString>;
-    WebSocketThread::Type* websock_th_ = nullptr;
+    using Websocket_Thread = Helpz::SettingsThreadHelper<Network::WebSocket, std::shared_ptr<JWT_Helper>, quint16, QString, QString>;
+    Websocket_Thread::Type* websock_th_ = nullptr;
     friend class Websocket_Item;
 
-    using Log_Value_Save_Timer_Thread = Helpz::ParamThread<Log_Value_Save_Timer, Project*, Helpz::Database::Thread*>;
+    using Log_Value_Save_Timer_Thread = Helpz::ParamThread<Log_Value_Save_Timer, Project*, Worker*>;
     Log_Value_Save_Timer_Thread* log_timer_thread_ = nullptr;
+    friend class Scripted_Project;
 
     bool restart_timer_started_;
-    std::map<quint32, std::pair<QVariant, QVariant>> waited_item_values_;
-    QTimer item_values_timer_;
-
-    std::vector<Log_Value_Item> to_save_log_value_vect_;
-    std::vector<Log_Event_Item> to_save_log_event_vect_;
 
     std::pair<uint32_t,uint32_t> last_file_item_and_user_id_;
 };

@@ -14,39 +14,27 @@
 #include "client_protocol.h"
 
 namespace Dai {
+namespace Ver_2_2 {
 namespace Client {
+
+using namespace Dai::Client;
 
 class Log_Sender
 {
 public:
-    explicit Log_Sender(Protocol* protocol);
-    ~Log_Sender();
+    explicit Log_Sender(Protocol_Base* protocol);
 
-    void send_log_range(Log_Type_Wrapper log_type, qint64 from_time_ms, qint64 to_time_ms, uint8_t msg_id);
-    void send_log_data(Log_Type_Wrapper log_type, qint64 from_time_ms, qint64 to_time_ms, uint8_t msg_id);
-
-    void send(const Log_Value_Item &item);
-    void send(const Log_Event_Item &item);
+    void send_data(Log_Type_Wrapper log_type, uint8_t msg_id);
 private:
-    void start_timer(int new_interval_value);
-    void timer_run();
-    void send_log_packs();
-    Protocol* protocol_;
-    Database::Log_Helper db_helper_;
 
-//    QTimer timer_;
+    template<typename T>
+    void send_log_data(uint8_t log_type);
 
-    QVector<Log_Value_Item> value_pack_;
-    QVector<Log_Event_Item> event_pack_;
-
-    bool timer_break_;
-    std::mutex mutex_;
-    std::condition_variable cond_;
-    std::chrono::system_clock::time_point timer_wakeup_;
-    std::thread timer_thread_;
+    Protocol_Base* protocol_;
 };
 
 } // namespace Client
+} // namespace Ver_2_2
 } // namespace Dai
 
 #endif // DAI_LOG_SENDER_H

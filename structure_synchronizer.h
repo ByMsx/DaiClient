@@ -8,11 +8,14 @@
 #include <plus/dai/structure_synchronizer.h>
 
 namespace Dai {
+namespace Ver_2_2 {
 namespace Client {
+
+//using namespace Dai::Client;
 
 class Protocol;
 
-class Structure_Synchronizer : public QObject, public Dai::Structure_Synchronizer
+class Structure_Synchronizer : public QObject, public Structure_Synchronizer_Base
 {
     Q_OBJECT
 public:
@@ -27,7 +30,7 @@ public:
 signals:
     void client_modified(uint32_t user_id);
 public slots:
-    void set_protocol(std::shared_ptr<Client::Protocol> protocol = {});
+    void set_protocol(std::shared_ptr<Ver_2_2::Client::Protocol> protocol = {});
     void send_project_structure(uint8_t struct_type, uint8_t msg_id, QIODevice* data_dev);
 private:
     void send_structure_items_hash(uint8_t struct_type, uint8_t msg_id);
@@ -46,6 +49,7 @@ private:
 };
 
 } // namespace Client
+} // namespace Ver_2_2
 } // namespace Dai
 
 #endif // DAI_CLIENT_STRUCTURE_SYNCHRONIZER_H

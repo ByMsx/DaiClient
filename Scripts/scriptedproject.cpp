@@ -109,7 +109,8 @@ Scripted_Project::Scripted_Project(Worker* worker, Helpz::ConsoleReader *console
     connect(this, &T::mode_changed, worker, &Worker::mode_changed, Qt::QueuedConnection);
     connect(this, &T::status_added, worker, &Worker::status_added, Qt::QueuedConnection);
     connect(this, &T::status_removed, worker, &Worker::status_removed, Qt::QueuedConnection);
-    connect(this, &T::sct_item_changed, worker, &Worker::new_value, Qt::QueuedConnection);
+    connect(this, &T::log_item_available, worker->log_timer_thread_->ptr(), &Log_Value_Save_Timer::add_log_value_item, Qt::QueuedConnection);
+    connect(this, &T::log_item_available, worker, &Worker::new_value, Qt::QueuedConnection);
     connect(this, &T::add_event_message, worker, &Worker::add_event_message, Qt::QueuedConnection);
 //    connect(worker, &Worker::dumpSectionsInfo, this, &T::dumpInfo, Qt::BlockingQueuedConnection);
 
@@ -176,7 +177,6 @@ void Scripted_Project::reinitialization(const Helpz::Database::Connection_Info& 
         for (ItemGroup* group: sct->groups())
         {
             connect(group, &ItemGroup::item_changed, this, &Scripted_Project::item_changed);
-            connect(group, &ItemGroup::item_changed, this, &Scripted_Project::sct_item_changed);
             connect(group, &ItemGroup::mode_changed, this, &Scripted_Project::group_mode_changed);
             connect(group, &ItemGroup::param_changed, this, &Scripted_Project::group_param_changed);
             connect(group, &ItemGroup::status_added, this, &Scripted_Project::status_added);
@@ -527,9 +527,27 @@ void Scripted_Project::group_param_changed(Param* /*param*/, uint32_t user_id)
 QElapsedTimer t;
 void Scripted_Project::item_changed(DeviceItem *item, uint32_t user_id, const QVariant& old_raw_value)
 {
-    auto group = static_cast<ItemGroup*>(sender());
-    if (!group)
+    if (!item)
+    {
         return;
+    }
+
+    auto group = static_cast<ItemGroup*>(sender());
+
+    uint8_t save_algorithm = item_type_mng_.save_algorithm(item->type_id());
+    if (save_algorithm == Item_Type::saInvalid)
+    {
+        qWarning(ProjectLog).nospace() << user_id << "|Неправильный параметр сохранения: " << item->toString();
+    }
+    bool immediately = save_algorithm == Item_Type::saSaveImmediately;
+    Log_Value_Item log_value_item{ QDateTime::currentDateTimeUtc().toMSecsSinceEpoch(), user_id, immediately,
+                item->id(), item->raw_value(), item->value() };
+    emit log_item_available(log_value_item);
+
+    if (!group)
+    {
+        return;
+    }
 
     QScriptValue groupObj = script_engine_->newQObject(group);
     QScriptValue itemObj = script_engine_->newQObject(item);
@@ -549,7 +567,7 @@ void Scripted_Project::item_changed(DeviceItem *item, uint32_t user_id, const QV
 //    eng->collectGarbage();
 
     if (t.elapsed() > 500)
-        qCWarning(ScriptEngineLog) << "itemChanged timeout" << t.elapsed();
+        qCWarning(ScriptEngineLog) << "item_changed timeout" << t.elapsed();
 
     t.invalidate();
 }

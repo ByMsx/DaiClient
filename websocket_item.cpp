@@ -53,7 +53,7 @@ void Websocket_Item::proc_command(std::shared_ptr<Network::Websocket_Client> cli
         case WS_WRITE_TO_DEV_ITEM:        Helpz::apply_parse(ds, &Worker::write_to_item, w); break;
         case WS_CHANGE_GROUP_MODE:        Helpz::apply_parse(ds, &Worker::set_mode, w); break;
         case WS_CHANGE_GROUP_PARAM_VALUES:Helpz::apply_parse(ds, &Worker::set_group_param_values, w); break;
-        case WS_STRUCT_MODIFY:            Helpz::apply_parse(ds, &Client::Structure_Synchronizer::process_modify_message, w->structure_sync_.get(), ds.device(), QString(), nullptr); break;
+        case WS_STRUCT_MODIFY:            Helpz::apply_parse(ds, &Ver_2_2::Client::Structure_Synchronizer::process_modify_message, w->structure_sync_.get(), ds.device(), QString(), nullptr); break;
         case WS_EXEC_SCRIPT:              Helpz::apply_parse(ds, &Websocket_Item::parse_script_command, this, &ds); break;
 
         default:

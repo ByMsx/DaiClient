@@ -53,14 +53,16 @@ Worker::Worker(QObject *parent) :
 }
 
 template<typename T>
-void stop_thread(T** thread_ptr)
+void stop_thread(T** thread_ptr, unsigned long wait_time = 15000)
 {
     if (*thread_ptr)
     {
         QThread* thread = *thread_ptr;
         thread->quit();
-        if (!thread->wait(15000))
+        if (!thread->wait(wait_time))
+        {
             thread->terminate();
+        }
         delete *thread_ptr;
         *thread_ptr = nullptr;
     }
@@ -71,15 +73,14 @@ Worker::~Worker()
     blockSignals(true);
     QObject::disconnect(this, 0, 0, 0);
 
+    stop_thread(&log_timer_thread_, 30000);
+
     websock_item.reset();
     stop_thread(&websock_th_);
 
-    stop_thread(&log_timer_thread_);
-    item_values_timer_.stop();
-
     net_protocol_thread_.quit(); net_protocol_thread_.wait();
     net_thread_.reset();
-    stop_thread(&checker_th);
+    stop_thread(&checker_th_);
     if (!project_thread_ && prj_)
     {
         delete prj_;
@@ -104,11 +105,11 @@ const DB_Connection_Info &Worker::database_info() const { return *db_info_; }
     return std::unique_ptr<QSettings>(new QSettings(configFileName, QSettings::NativeFormat));
 }
 
-std::shared_ptr<Client::Protocol_Latest> Worker::net_protocol()
+std::shared_ptr<Ver_2_2::Client::Protocol> Worker::net_protocol()
 {
     auto client = net_thread_->client();
     if (client)
-        return std::static_pointer_cast<Client::Protocol_Latest>(client->protocol());
+        return std::static_pointer_cast<Ver_2_2::Client::Protocol>(client->protocol());
     return {};
 }
 
@@ -195,7 +196,7 @@ void Worker::init_project(QSettings* s)
 
     if (!prj_)
     {
-        project_thread_ = ScriptsThread()(s, "Server", this,
+        project_thread_ = Scripts_Thread()(s, "Server", this,
                               cr,
                               Z::Param<QString>{"SSHHost", "80.89.129.98"},
                               Z::Param<bool>{"AllowShell", false}
@@ -208,15 +209,15 @@ void Worker::init_checker(QSettings* s)
 {
     qRegisterMetaType<Device*>("Device*");
 
-    checker_th = CheckerThread()(s, "Checker", this, Z::Param<QStringList>{"Plugins", QStringList{"ModbusPlugin","WiringPiPlugin"}} );
-    checker_th->start();
+    checker_th_ = Checker_Thread()(s, "Checker", this, Z::Param<QStringList>{"Plugins", QStringList{"ModbusPlugin","WiringPiPlugin"}} );
+    checker_th_->start();
 }
 
 void Worker::init_network_client(QSettings* s)
 {
     net_protocol_thread_.start();
-    structure_sync_.reset(new Client::Structure_Synchronizer{ db_pending_thread_.get() });
-    connect(structure_sync_.get(), &Client::Structure_Synchronizer::client_modified, this, &Worker::restart_service_object, Qt::QueuedConnection);
+    structure_sync_.reset(new Ver_2_2::Client::Structure_Synchronizer{ db_pending_thread_.get() });
+    connect(structure_sync_.get(), &Ver_2_2::Client::Structure_Synchronizer::client_modified, this, &Worker::restart_service_object, Qt::QueuedConnection);
     structure_sync_->moveToThread(&net_protocol_thread_);
     structure_sync_->set_project(prj());
 
@@ -259,9 +260,9 @@ void Worker::init_network_client(QSettings* s)
             qCritical(Service::Log) << "Server doesn't support protocol:" << DAI_PROTOCOL_LATEST << "server want:" << app_protocol.c_str();
         }
 
-        std::shared_ptr<Client::Protocol_Latest> ptr(new Client::Protocol_Latest{this, structure_sync_.get(), auth_info});
+        std::shared_ptr<Ver_2_2::Client::Protocol> ptr(new Ver_2_2::Client::Protocol{this, structure_sync_.get(), auth_info});
         QMetaObject::invokeMethod(structure_sync_.get(), "set_protocol", Qt::BlockingQueuedConnection,
-                                  Q_ARG(std::shared_ptr<Client::Protocol>, std::static_pointer_cast<Client::Protocol>(ptr)));
+                                  Q_ARG(std::shared_ptr<Ver_2_2::Client::Protocol_Base>, ptr));
         return std::static_pointer_cast<Helpz::Network::Protocol>(ptr);
     };
 
@@ -274,19 +275,7 @@ void Worker::init_network_client(QSettings* s)
 
 void Worker::init_log_timer()
 {
-    connect(&item_values_timer_, &QTimer::timeout, [this]()
-    {
-        for (auto it: waited_item_values_)
-            if (!db_mng_->set_dev_item_value(it.first, it.second.first, it.second.second))
-            {
-                // TODO: Do something
-            }
-        waited_item_values_.clear();
-    });
-    item_values_timer_.setInterval(5000);
-    item_values_timer_.setSingleShot(true);
-
-    log_timer_thread_ = new Log_Value_Save_Timer_Thread(prj(), db_pending());
+    log_timer_thread_ = new Log_Value_Save_Timer_Thread(prj(), this);
     log_timer_thread_->start();
     connect(log_timer_thread_->ptr(), &Log_Value_Save_Timer::change, this, &Worker::change, Qt::QueuedConnection);
 }
@@ -304,7 +293,7 @@ void Worker::init_websocket_manager(QSettings *s)
     QByteArray secret_key = std::get<1>(en_t);
     std::shared_ptr<JWT_Helper> jwt_helper = std::make_shared<JWT_Helper>(std::string{secret_key.constData(), static_cast<std::size_t>(secret_key.size())});
 
-    websock_th_ = WebSocketThread()(
+    websock_th_ = Websocket_Thread()(
                 s, "WebSocket",
                 jwt_helper,
                 Helpz::Param<quint16>{"Port", 25589},
@@ -374,25 +363,7 @@ void Worker::logMessage(QtMsgType type, const Helpz::LogContext &ctx, const QStr
 
 void Worker::add_event_message(Log_Event_Item event)
 {
-    if (to_save_log_event_vect_.size() >= 100)
-    {
-        //TODO: save all log
-    }
-    to_save_log_event_vect_.push_back(event);
-    auto proto = net_protocol();
-    if (proto)
-    {
-        proto->log_sender().send(event);
-    }
-    else
-    {
-        // TODO: save all log
-
-        if (!db_mng_->event_log(event))
-        {
-            // TODO: Error event
-        }
-    }
+    QMetaObject::invokeMethod(log_timer_thread_->ptr(), "add_log_event_item", Qt::QueuedConnection, Q_ARG(Log_Event_Item, event));
 
     if (websock_item)
     {
@@ -698,50 +669,9 @@ void Worker::update_plugin_param_names(const QVector<Plugin_Type>& plugins)
     }
 }
 
-void Worker::new_value(DeviceItem *item, uint32_t user_id)
+void Worker::new_value(const Log_Value_Item& log_value_item)
 {
-    uint8_t save_algorithm = prj()->item_type_mng_.save_algorithm(item->type_id());
-    if (save_algorithm == Item_Type::saInvalid)
-    {
-        qWarning(Service::Log).nospace() << user_id << "|Неправильный параметр сохранения: " << item->toString();
-    }
-    bool immediately = save_algorithm == Item_Type::saSaveImmediately;
-
-    waited_item_values_[item->id()] = std::make_pair(item->raw_value(), item->value());
-    if (!item_values_timer_.isActive() || (immediately && item_values_timer_.remainingTime() > 500))
-    {
-        item_values_timer_.start(immediately ? 500 : 5000);
-    }
-
-    if (to_save_log_value_vect_.size() >= 100)
-    {
-        // TODO: save all log
-    }
-
-    Log_Value_Item log_value_item{ QDateTime::currentDateTimeUtc().toMSecsSinceEpoch(), user_id, immediately, item->id(), item->raw_value(), item->value() };
-
-    if (immediately)
-    {
-        to_save_log_value_vect_.push_back(log_value_item);
-    }
-
-    auto proto = net_protocol();
-    if (proto)
-    {
-        proto->log_sender().send(log_value_item);
-    }
-    else
-    {
-        // TODO: save all log
-
-        if (!Database::Helper::save_log_changes(db_mng_, log_value_item))
-        {
-            qWarning(Service::Log).nospace() << user_id << "|Упущенное значение:" << item->toString() << item->value().toString();
-            // TODO: Error event
-        }
-    }
-
-    emit change(log_value_item, immediately);
+    emit change(log_value_item, log_value_item.need_to_save());
 
     if (websock_th_)
     {
@@ -760,11 +690,8 @@ void Worker::connection_state_changed(DeviceItem *item, bool value)
         log_value_item.set_value(item->value());
     }
 
-    auto proto = net_protocol();
-    if (proto)
-    {
-        proto->log_sender().send(log_value_item);
-    }
+    QMetaObject::invokeMethod(log_timer_thread_->ptr(), "add_log_value_item", Qt::QueuedConnection,
+                              Q_ARG(Log_Value_Item, log_value_item));
 }
 
 Scripted_Project* Worker::prj()

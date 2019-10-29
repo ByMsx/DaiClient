@@ -8,14 +8,17 @@
 #include "client_protocol.h"
 
 namespace Dai {
+namespace Ver_2_2 {
 namespace Client {
 
-class Protocol_Latest : public Protocol
+using namespace Dai::Client;
+
+class Protocol : public Protocol_Base
 {
     Q_OBJECT
 public:
-    Protocol_Latest(Worker* worker, Structure_Synchronizer* structure_synchronizer, const Authentication_Info &auth_info);
-    ~Protocol_Latest();
+    Protocol(Worker* worker, Structure_Synchronizer* structure_synchronizer, const Authentication_Info &auth_info);
+    ~Protocol();
 
     Log_Sender& log_sender();
 signals:
@@ -54,6 +57,7 @@ private:
 };
 
 } // namespace Client
+} // namespace Ver_2_2
 } // namespace Dai
 
 #endif // DAI_PROTOCOL_LATEST_H

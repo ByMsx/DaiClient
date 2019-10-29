@@ -10,13 +10,14 @@
 #include "structure_synchronizer.h"
 
 namespace Dai {
+namespace Ver_2_2 {
 namespace Client {
 
 Structure_Synchronizer::Structure_Synchronizer(Helpz::Database::Thread *db_thread) :
-    QObject(), Dai::Structure_Synchronizer(db_thread),
+    QObject(), Structure_Synchronizer_Base(db_thread),
     protocol_(nullptr)
 {
-    qRegisterMetaType<std::shared_ptr<Client::Protocol>>("std::shared_ptr<Client::Protocol>");
+    qRegisterMetaType<std::shared_ptr<Ver_2_2::Client::Protocol>>("std::shared_ptr<Ver_2_2::Client::Protocol_Base>");
 }
 
 void Structure_Synchronizer::set_project(Project *project)
@@ -183,4 +184,5 @@ void Structure_Synchronizer::send_modify_response(uint8_t struct_type, const QBy
 }
 
 } // namespace Client
+} // namespace Ver_2_2
 } // namespace Dai
