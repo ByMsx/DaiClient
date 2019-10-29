@@ -779,7 +779,7 @@ Scripted_Project* Worker::prj()
 void Worker::init_dbus(QSettings* s)
 {
     dbus_ = Helpz::SettingsHelper(s, "DBus", this,
-                Helpz::Param{"Service", DAI_DBUS_DEFAULT_SERVICE},
+                Helpz::Param{"Service", DAI_DBUS_DEFAULT_SERVICE_CLIENT},
                 Helpz::Param{"Object", DAI_DBUS_DEFAULT_OBJECT}
                 ).ptr<Client::Dbus_Object>();
 }
