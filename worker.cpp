@@ -19,6 +19,7 @@
 #include <Dai/db/group_status_item.h>
 #include <Dai/db/view.h>
 #include <plus/dai/jwt_helper.h>
+#include "dbus_object.h"
 
 #include "websocket_item.h"
 #include "worker.h"
@@ -31,7 +32,8 @@ using namespace std::placeholders;
 Worker::Worker(QObject *parent) :
     QObject(parent),
     project_thread_(nullptr), prj_(nullptr),
-    restart_timer_started_(false)
+    restart_timer_started_(false),
+    dbus_(nullptr)
 {
     qRegisterMetaType<uint32_t>("uint32_t");
 
@@ -46,6 +48,7 @@ Worker::Worker(QObject *parent) :
 
     // используется для подключения к Orange на прямую
     init_websocket_manager(s.get());
+    init_dbus(s.get());
 
     emit started();
 
@@ -92,6 +95,7 @@ Worker::~Worker()
     if (db_mng_)
         delete db_mng_;
     db_pending_thread_.reset();
+    delete dbus_;
 }
 
 Database::Helper* Worker::database() const { return db_mng_; }
@@ -770,6 +774,14 @@ void Worker::connection_state_changed(DeviceItem *item, bool value)
 Scripted_Project* Worker::prj()
 {
     return project_thread_ ? project_thread_->ptr() : prj_;
+}
+
+void Worker::init_dbus(QSettings* s)
+{
+    dbus_ = Helpz::SettingsHelper(s, "DBus", this,
+                Helpz::Param{"Service", DAI_DBUS_DEFAULT_SERVICE_CLIENT},
+                Helpz::Param{"Object", DAI_DBUS_DEFAULT_OBJECT}
+                ).ptr<Client::Dbus_Object>();
 }
 
 } // namespace Dai
