@@ -5,7 +5,7 @@
 
 #include <Dai/project.h>
 #include <Dai/db/group_status_item.h>
-#include <plus/dai/structure_synchronizer.h>
+#include <plus/dai/structure_synchronizer_base.h>
 
 namespace Dai {
 namespace Ver_2_2 {
@@ -22,10 +22,6 @@ public:
     Structure_Synchronizer(Helpz::Database::Thread *db_thread);
 
     void set_project(Project* project);
-
-    void send_status_insert(uint32_t user_id, const Group_Status_Item& item);
-    void send_status_update(uint32_t user_id, const Group_Status_Item& item);
-    void send_status_delete(uint32_t user_id, uint32_t group_status_id);
 
 signals:
     void client_modified(uint32_t user_id);

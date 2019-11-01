@@ -208,12 +208,18 @@ void Protocol::send_mode(uint32_t user_id, uint mode_id, quint32 group_id)
 
 void Protocol::send_status_added(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t)
 {
-    send(Cmd::ADD_STATUS).timeout(nullptr, std::chrono::seconds(16), std::chrono::seconds(5)) << group_id << info_id << args;
+    send(Cmd::ADD_STATUS).timeout([]()
+    {
+        // TODO: resync statuses
+    }, std::chrono::seconds(5), std::chrono::milliseconds(1500)) << group_id << info_id << args;
 }
 
 void Protocol::send_status_removed(quint32 group_id, quint32 info_id, uint32_t)
 {
-    send(Cmd::REMOVE_STATUS).timeout(nullptr, std::chrono::seconds(16), std::chrono::seconds(5)) << group_id << info_id;
+    send(Cmd::REMOVE_STATUS).timeout([]()
+    {
+        // TODO: resync statuses
+    }, std::chrono::seconds(5), std::chrono::milliseconds(1500)) << group_id << info_id;
 }
 
 void Protocol::send_group_param_values(uint32_t user_id, const QVector<Group_Param_Value> &pack)

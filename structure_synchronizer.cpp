@@ -25,30 +25,6 @@ void Structure_Synchronizer::set_project(Project *project)
     prj_ = project;
 }
 
-void Structure_Synchronizer::send_status_insert(uint32_t user_id, const Group_Status_Item& item)
-{
-    if (protocol_)
-    {
-        protocol_->send(Cmd::MODIFY_PROJECT) << user_id << uint8_t(STRUCT_TYPE_GROUP_STATUS) << uint32_t(0) << uint32_t(1) << item << uint32_t(0);
-    }
-}
-
-void Structure_Synchronizer::send_status_update(uint32_t user_id, const Group_Status_Item& item)
-{
-    if (protocol_)
-    {
-        protocol_->send(Cmd::MODIFY_PROJECT) << user_id << uint8_t(STRUCT_TYPE_GROUP_STATUS) << uint32_t(1) << item << uint32_t(0) << uint32_t(0);
-    }
-}
-
-void Structure_Synchronizer::send_status_delete(uint32_t user_id, uint32_t group_status_id)
-{
-    if (protocol_)
-    {
-        protocol_->send(Cmd::MODIFY_PROJECT) << user_id << uint8_t(STRUCT_TYPE_GROUP_STATUS) << uint32_t(0) << uint32_t(0) << uint32_t(1) << group_status_id;
-    }
-}
-
 void Structure_Synchronizer::set_protocol(std::shared_ptr<Protocol> protocol)
 {
     protocol_ = std::move(protocol);

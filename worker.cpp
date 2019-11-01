@@ -170,8 +170,6 @@ void Worker::init_database(QSettings* s)
     qRegisterMetaType<QVector<View>>("QVector<View>");
     qRegisterMetaType<QVector<View_Item>>("QVector<View_Item>");
     db_mng_ = new Database::Helper(*db_info_, "Worker_" + QString::number((quintptr)this));
-    connect(this, &Worker::status_added, this, &Worker::add_status, Qt::QueuedConnection);
-    connect(this, &Worker::status_removed, this, &Worker::remove_status, Qt::QueuedConnection);
 
     QString sql = "DELETE hle FROM %1.house_list_employee hle LEFT JOIN %1.auth_user au ON hle.user_id = au.id WHERE au.id IS NULL;";
     sql = sql.arg(db_info_->common_db_name());
@@ -604,57 +602,13 @@ QVariant db_get_group_status_item_id(Helpz::Database::Base* db, const QString& t
     return {};
 }
 
-void Worker::add_status(quint32 group_id, quint32 info_id, const QStringList& args, uint32_t user_id)
-{
-    db_pending_thread_->add_query([=](Helpz::Database::Base* db)
-    {
-        auto table = Helpz::Database::db_table<Group_Status_Item>();
-
-        QVariant id_value = db_get_group_status_item_id(db, table.name(), group_id, info_id);
-        Group_Status_Item item{id_value.toUInt(), group_id, info_id, args};
-
-        if (id_value.isValid())
-        {
-            if (db->update({table.name(), {}, {"args"}}, {args.join(';')}, "id=" + id_value.toString()))
-            {
-                structure_sync_->send_status_update(user_id, item);
-            }
-        }
-        else
-        {
-            table.field_names().removeFirst(); // remove id
-            if (db->insert(table, {group_id, info_id, args.join(';')}, &id_value))
-            {
-                item.set_id(id_value.toUInt());
-                structure_sync_->send_status_insert(user_id, item);
-            }
-        }
-    });
-}
-
-void Worker::remove_status(quint32 group_id, quint32 info_id, uint32_t user_id)
-{
-    db_pending_thread_->add_query([=](Helpz::Database::Base* db)
-    {
-        auto table_name = Helpz::Database::db_table_name<Group_Status_Item>();
-        QVariant id_value = db_get_group_status_item_id(db, table_name, group_id, info_id);
-        if (id_value.isValid())
-        {
-            if (db->del(table_name, QString("group_id = %1 AND status_id = %2").arg(group_id).arg(info_id)).numRowsAffected())
-            {
-                structure_sync_->send_status_delete(user_id, id_value.toUInt());
-            }
-        }
-    });
-}
-
 void Worker::update_plugin_param_names(const QVector<Plugin_Type>& plugins)
 {
     QByteArray data;
     QDataStream ds(&data, QIODevice::ReadWrite);
     ds << plugins << uint32_t(0) << uint32_t(0);
     ds.device()->seek(0);
-    structure_sync_->process_modify_message(0, STRUCT_TYPE_CHECKER_TYPES, ds.device());
+    structure_sync_->process_modify_message(0, Ver_2_2::STRUCT_TYPE_CHECKER_TYPES, ds.device());
 
     for (Device* dev: prj()->devices())
     {
