@@ -2,6 +2,6 @@
     "type": "WiringPi",
     "param": {
         "device": [],
-        "device_item": ["pin"]
+        "device_item": ["pin", "mode"]
     }
 }

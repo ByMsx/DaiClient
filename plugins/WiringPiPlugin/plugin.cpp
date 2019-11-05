@@ -7,8 +7,8 @@
 #include <Helpz/settingshelper.h>
 #include <Dai/deviceitem.h>
 #include <Dai/device.h>
-
 #include "plugin.h"
+#include "Dai/project.h"
 
 namespace Dai {
 namespace WiringPi {
@@ -29,7 +29,7 @@ WiringPiPlugin::~WiringPiPlugin()
     qCDebug(WiringPiLog) << "free" << this;
 }
 
-void WiringPiPlugin::configure(QSettings *settings, Project *)
+void WiringPiPlugin::configure(QSettings *settings, Project *project)
 {
     /*
     using Helpz::Param;
@@ -45,6 +45,28 @@ void WiringPiPlugin::configure(QSettings *settings, Project *)
     */
 
     wiringPiSetup();
+    QVariant mode;
+    QVariant pin;
+    for (auto * device : project->devices())
+    {
+        const QVector<DeviceItem *> &items = device->items();
+        for (DeviceItem * item: items)
+        {
+            mode = item->param("mode");
+            pin = item->param("pin");
+            if (mode.isValid() && pin.isValid())
+            {
+                if (mode.toString().trimmed() == "in")
+                {
+                    pinMode(pin.toUInt(), INPUT);
+                }
+                else if (mode.toString().trimmed() == "out")
+                {
+                    pinMode(pin.toUInt(), OUTPUT);
+                }
+            }
+        }
+    }
 }
 
 bool WiringPiPlugin::check(Device* dev)
@@ -52,17 +74,23 @@ bool WiringPiPlugin::check(Device* dev)
     const QVector<DeviceItem *> &items = dev->items();
     bool state;
     QVariant pin;
+    QVariant mode;
     for (DeviceItem * item: items)
-    {
-        pin = item->param("pin");
-        if (pin.isValid())
+    {        
+        mode = item->param("mode");
+        if (mode.isValid() && mode.toString() == "in")
         {
-            state = digitalRead(pin.toUInt()) ? true : false;
-            if (!item->isConnected() || item->raw_value().toBool() != state)
+            pin = item->param("pin");
+            if (pin.isValid())
             {
-                QMetaObject::invokeMethod(item, "set_raw_value", Qt::QueuedConnection, Q_ARG(const QVariant&, state));
+                state = digitalRead(pin.toUInt()) ? true : false;
+                if (!item->isConnected() || item->raw_value().toBool() != state)
+                {
+                    QMetaObject::invokeMethod(item, "set_raw_value", Qt::QueuedConnection, Q_ARG(const QVariant&, state));
+                }
             }
         }
+
     }
 
     return true;
@@ -73,12 +101,17 @@ void WiringPiPlugin::stop() {}
 void WiringPiPlugin::write(std::vector<Write_Cache_Item>& items)
 {
     QVariant pin;
+    QVariant mode;
     for (const Write_Cache_Item& item: items)
     {
-        pin = item.dev_item_->param("pin");
-        if (pin.isValid())
+        mode = item.dev_item_->param("mode");
+        if (mode.isValid() && mode.toString() == "out")
         {
-            digitalWrite(pin.toUInt(), item.raw_data_.toBool() ? HIGH : LOW);
+            pin = item.dev_item_->param("pin");
+            if (pin.isValid())
+            {
+                digitalWrite(pin.toUInt(), item.raw_data_.toBool() ? HIGH : LOW);
+            }
         }
     }
 }
