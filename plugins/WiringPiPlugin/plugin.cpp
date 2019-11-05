@@ -78,7 +78,7 @@ bool WiringPiPlugin::check(Device* dev)
     for (DeviceItem * item: items)
     {        
         mode = item->param("mode");
-        if (mode.isValid() && mode.toString() == "in")
+        if (mode.isValid() && mode.toString().trimmed() == "in")
         {
             pin = item->param("pin");
             if (pin.isValid())
@@ -105,7 +105,7 @@ void WiringPiPlugin::write(std::vector<Write_Cache_Item>& items)
     for (const Write_Cache_Item& item: items)
     {
         mode = item.dev_item_->param("mode");
-        if (mode.isValid() && mode.toString() == "out")
+        if (mode.isValid() && mode.toString().trimmed() == "out")
         {
             pin = item.dev_item_->param("pin");
             if (pin.isValid())
