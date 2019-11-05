@@ -7,8 +7,8 @@
 #include <Helpz/settingshelper.h>
 #include <Dai/deviceitem.h>
 #include <Dai/device.h>
+#include <Dai/project.h>
 #include "plugin.h"
-#include "Dai/project.h"
 
 namespace Dai {
 namespace WiringPi {
@@ -56,11 +56,11 @@ void WiringPiPlugin::configure(QSettings *settings, Project *project)
             pin = item->param("pin");
             if (mode.isValid() && pin.isValid())
             {
-                if (mode.toString().trimmed() == "in")
+                if (mode.toString().trimmed().toLower() == "in")
                 {
                     pinMode(pin.toUInt(), INPUT);
                 }
-                else if (mode.toString().trimmed() == "out")
+                else if (mode.toString().trimmed().toLower() == "out")
                 {
                     pinMode(pin.toUInt(), OUTPUT);
                 }
@@ -76,9 +76,9 @@ bool WiringPiPlugin::check(Device* dev)
     QVariant pin;
     QVariant mode;
     for (DeviceItem * item: items)
-    {        
+    {
         mode = item->param("mode");
-        if (mode.isValid() && mode.toString().trimmed() == "in")
+        if (mode.isValid() && mode.toString().trimmed().toLower() == "in")
         {
             pin = item->param("pin");
             if (pin.isValid())
@@ -105,7 +105,7 @@ void WiringPiPlugin::write(std::vector<Write_Cache_Item>& items)
     for (const Write_Cache_Item& item: items)
     {
         mode = item.dev_item_->param("mode");
-        if (mode.isValid() && mode.toString().trimmed() == "out")
+        if (mode.isValid() && mode.toString().trimmed().toLower() == "out")
         {
             pin = item.dev_item_->param("pin");
             if (pin.isValid())
