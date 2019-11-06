@@ -6,6 +6,7 @@
 #include <Helpz/db_thread.h>
 
 #include <Dai/log/log_pack.h>
+#include <Dai/db/device_item_value.h>
 
 namespace Dai {
 
@@ -23,6 +24,8 @@ public:
 signals:
     void change(const Log_Value_Item& item, bool immediately);
 public slots:
+    QVector<Device_Item_Value> get_unsaved_values() const;
+
     void add_log_value_item(const Log_Value_Item& item);
     void add_log_event_item(const Log_Event_Item& item);
 private slots:

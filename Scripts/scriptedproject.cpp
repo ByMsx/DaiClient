@@ -652,6 +652,24 @@ void Scripted_Project::connect_item_display_to_raw(DeviceItem *item, const QScri
     }
 }
 
+QVector<Group_Status_Item> Scripted_Project::get_group_statuses() const
+{
+    QVector<Group_Status_Item> status_vect;
+
+    for (const Section* sct: sections())
+    {
+        for (const ItemGroup* group: sct->groups())
+        {
+            for (auto it: group->get_statuses())
+            {
+                status_vect.push_back(Group_Status_Item{0, group->id(), it.first, it.second});
+            }
+        }
+    }
+
+    return status_vect;
+}
+
 void Scripted_Project::group_initialized(ItemGroup* group)
 {
     QString group_type_name = group_type_mng_.name(group->type_id()),

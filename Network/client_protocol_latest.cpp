@@ -83,18 +83,34 @@ void Protocol::process_message(uint8_t msg_id, uint16_t cmd, QIODevice &data_dev
     case Cmd::VERSION:                  send_version(msg_id);   break;
     case Cmd::TIME_INFO:                send_time_info(msg_id); break;
 
-    case Cmd::LOG_DATA_REQUEST:         Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_data, &log_sender_, msg_id);    break;
-//    case Cmd::LOG_DATA:                 Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_log_data, &log_sender_, msg_id);     break;
-
     case Cmd::RESTART:                  apply_parse(data_dev, &Protocol::restart);                          break;
     case Cmd::WRITE_TO_ITEM:            apply_parse(data_dev, &Protocol::write_to_item);                    break;
-    case Cmd::WRITE_TO_ITEM_FILE:       process_item_file(data_dev);                                               break;
+    case Cmd::WRITE_TO_ITEM_FILE:       process_item_file(data_dev);                                        break;
     case Cmd::SET_MODE:                 apply_parse(data_dev, &Protocol::set_mode);                         break;
     case Cmd::SET_GROUP_PARAM_VALUES:   apply_parse(data_dev, &Protocol::set_group_param_values);           break;
     case Cmd::EXEC_SCRIPT_COMMAND:      apply_parse(data_dev, &Protocol::parse_script_command, &data_dev);  break;
 
     case Cmd::GET_PROJECT:              Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::send_project_structure, structure_sync_, msg_id, &data_dev); break;
     case Cmd::MODIFY_PROJECT:           Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Structure_Synchronizer::process_modify_message, structure_sync_, &data_dev, QString(), nullptr); break;
+
+    case Cmd::LOG_DATA_REQUEST:         Helpz::apply_parse(data_dev, DATASTREAM_VERSION, &Log_Sender::send_data, &log_sender_, msg_id);    break;
+
+    case Cmd::DEVICE_ITEM_VALUES:
+    {
+        QVector<Device_Item_Value> value_vect;
+        QMetaObject::invokeMethod(worker()->log_timer_thread_->ptr(), "get_unsaved_values", Qt::BlockingQueuedConnection,
+                                  Q_RETURN_ARG(QVector<Device_Item_Value>, value_vect));
+        send_answer(Cmd::DEVICE_ITEM_VALUES, msg_id) << value_vect;
+        break;
+    }
+    case Cmd::GROUP_STATUSES:
+    {
+        QVector<Group_Status_Item> status_vect;
+        QMetaObject::invokeMethod(worker()->prj(), "get_group_statuses", Qt::BlockingQueuedConnection,
+                                  Q_RETURN_ARG(QVector<Group_Status_Item>, status_vect));
+        send_answer(Cmd::GROUP_STATUSES, msg_id) << status_vect;
+        break;
+    }
 
     default:
         if (cmd >= Helpz::Network::Cmd::USER_COMMAND)

@@ -61,6 +61,16 @@ Log_Value_Save_Timer::~Log_Value_Save_Timer()
     save_to_db(event_pack_);
 }
 
+QVector<Device_Item_Value> Log_Value_Save_Timer::get_unsaved_values() const
+{
+    QVector<Device_Item_Value> value_vect;
+    for (auto it: waited_item_values_)
+    {
+        value_vect.push_back(Device_Item_Value{it.first, it.second.first, it.second.second});
+    }
+    return value_vect;
+}
+
 void Log_Value_Save_Timer::add_log_value_item(const Log_Value_Item &item)
 {
     waited_item_values_[item.item_id()] = std::make_pair(item.raw_value(), item.value());

@@ -10,6 +10,7 @@
 
 #include <Dai/project.h>
 #include <Dai/log/log_pack.h>
+#include <Dai/db/group_status_item.h>
 
 #include "tools/daytimehelper.h"
 #include "tools/automationhelper.h"
@@ -94,6 +95,8 @@ public slots:
     void connect_group_is_can_change(ItemGroup *group, const QScriptValue& obj, const QScriptValue& func);
     void connect_item_raw_to_display(DeviceItem *item, const QScriptValue& obj, const QScriptValue& func);
     void connect_item_display_to_raw(DeviceItem *item, const QScriptValue& obj, const QScriptValue& func);
+
+    QVector<Group_Status_Item> get_group_statuses() const;
 private slots:
     void group_initialized(ItemGroup* group);
     QVariant normalize(const QVariant& val);

@@ -166,7 +166,6 @@ void Worker::init_database(QSettings* s)
 
     db_pending_thread_.reset(new Helpz::Database::Thread{Helpz::Database::Connection_Info(*db_info_)});
 
-    qRegisterMetaType<QVector<Group_Status_Item>>("QVector<Group_Status_Item>");
     qRegisterMetaType<QVector<View>>("QVector<View>");
     qRegisterMetaType<QVector<View_Item>>("QVector<View_Item>");
     db_mng_ = new Database::Helper(*db_info_, "Worker_" + QString::number((quintptr)this));
@@ -178,6 +177,8 @@ void Worker::init_database(QSettings* s)
 
 void Worker::init_project(QSettings* s)
 {
+    qRegisterMetaType<QVector<Group_Status_Item>>("QVector<Group_Status_Item>");
+
     Helpz::ConsoleReader* cr = nullptr;
     if (Service::instance().isImmediately())
     {
@@ -277,6 +278,8 @@ void Worker::init_network_client(QSettings* s)
 
 void Worker::init_log_timer()
 {
+    qRegisterMetaType<QVector<Device_Item_Value>>("QVector<Device_Item_Value>");
+
     log_timer_thread_ = new Log_Value_Save_Timer_Thread(prj(), this);
     log_timer_thread_->start();
     connect(log_timer_thread_->ptr(), &Log_Value_Save_Timer::change, this, &Worker::change, Qt::QueuedConnection);
