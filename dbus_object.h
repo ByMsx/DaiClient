@@ -29,8 +29,8 @@ public:
 public slots:
     void write_item_file(uint32_t item_id, const QString& file_path);
 private:
-    QString service_name_, object_path_;
     Dai::Worker* worker_;
+    QString service_name_, object_path_;
 };
 
 } // namespace Client
