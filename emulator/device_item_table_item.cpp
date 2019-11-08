@@ -46,6 +46,10 @@ QVariant DeviceItemTableItem::data(const QModelIndex &index, int role) const {
                         }
                         return 0;
                     }
+                    if (role == Qt::UserRole)
+                    {
+                        return 1;
+                    }
                 }
                 else if (reg_type > QModbusDataUnit::Invalid)
                 {

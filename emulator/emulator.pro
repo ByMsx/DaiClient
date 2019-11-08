@@ -18,6 +18,7 @@ LIBS += -lDai -lDaiPlus -lHelpzBase -lHelpzService -lHelpzDBMeta -lHelpzDB -lHel
 SOURCES += main.cpp \
     device_item_table_item.cpp \
     device_table_item.cpp \
+    device_tree_view_delegate.cpp \
     devices_table_item.cpp \
     devices_table_model.cpp \
     mainwindow.cpp \
@@ -28,6 +29,7 @@ SOURCES += main.cpp \
 HEADERS  += \
     device_item_table_item.h \
     device_table_item.h \
+    device_tree_view_delegate.h \
     devices_table_item.h \
     devices_table_model.h \
     mainwindow.h \

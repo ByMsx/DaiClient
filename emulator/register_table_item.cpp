@@ -25,7 +25,9 @@ void RegisterTableItem::assign(const QVector<Dai::DeviceItem*>& items)
 }
 
 QVariant RegisterTableItem::data(const QModelIndex &index, int role) const {
-    if (index.isValid() && role == Qt::DisplayRole) {
+    if (!index.isValid()) return QVariant();
+
+    if (role == Qt::DisplayRole) {
         if (index.column() == 0) {
             auto register_type = static_cast<RegistersVectorItem*>(this->itemData_)->type();
             switch (register_type) {

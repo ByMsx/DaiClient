@@ -14,6 +14,7 @@
 #include <iostream>
 
 #include <Helpz/settingshelper.h>
+#include "device_tree_view_delegate.h"
 
 #include <Dai/device.h>
 
@@ -55,6 +56,8 @@ Main_Window::Main_Window(QWidget *parent) : QMainWindow(parent), ui_(new Ui::Mai
 {
     obj = this;
     ui_->setupUi(this);
+    DeviceTreeViewDelegate *delegate = new DeviceTreeViewDelegate(ui_->tree_view);
+    ui_->tree_view->setItemDelegateForColumn(2, delegate);
 
     init();              
 }

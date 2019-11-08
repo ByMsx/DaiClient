@@ -21,6 +21,9 @@ class DevicesTableModel : public QAbstractItemModel
     Dai::Database::Item_Type_Manager* item_type_manager_;
 
     void add_items(const Devices_Vector* devices, QModbusServer* modbus_server);
+
+    int get_real_row(int row) const;
+    int row_count() const;
 public slots:
     void child_item_changed(DeviceTableItem* child_item);
 public:

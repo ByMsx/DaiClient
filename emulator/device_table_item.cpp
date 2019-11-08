@@ -21,9 +21,9 @@ DeviceTableItem::DeviceTableItem(Dai::Item_Type_Manager *mng, QModbusServer* mod
 
 void DeviceTableItem::assign(Dai::Device* device)
 {
-    for (int i = 0; i < childCount(); ++i)
+    for (int i = 0; i < get_child_count(); ++i)
     {
-        RegisterTableItem* item = dynamic_cast<RegisterTableItem*>(child(i));
+        RegisterTableItem* item = dynamic_cast<RegisterTableItem*>(get_child(i));
         if (item)
         {
             item->assign(device->items());
@@ -33,11 +33,32 @@ void DeviceTableItem::assign(Dai::Device* device)
     update_modbus_server_map();
 }
 
+DevicesTableItem *DeviceTableItem::child(int row) const
+{
+    int real_row = this->get_real_row(row);
+    return this->get_child(real_row);
+}
+
+int DeviceTableItem::childCount() const
+{
+    int non_empty_childs = 0;
+
+    for (int i = 0; i < get_child_count(); i++)
+    {
+        if (this->get_child(i)->hasChild())
+        {
+            non_empty_childs++;
+        }
+    }
+
+    return non_empty_childs;
+}
+
 RegisterTableItem *DeviceTableItem::get_child_register_item_by_type(QModbusDataUnit::RegisterType type) const
 {
-    for (int i = 0; i < childCount(); i++)
+    for (int i = 0; i < get_child_count(); i++)
     {
-        RegisterTableItem* item = dynamic_cast<RegisterTableItem*>(child(i));
+        RegisterTableItem* item = dynamic_cast<RegisterTableItem*>(get_child(i));
         if (item)
         {
             const RegistersVectorItem* registersItem = static_cast<RegistersVectorItem*>(item->item());
@@ -61,9 +82,9 @@ void DeviceTableItem::init_by_register_type(Dai::Item_Type_Manager *mng, QModbus
 QModbusDataUnitMap DeviceTableItem::generate_modbus_data_unit_map() const
 {
     QModbusDataUnitMap modbus_data_unit_map;
-    for (int child_idx = 0; child_idx < childCount(); child_idx++)
+    for (int child_idx = 0; child_idx < get_child_count(); child_idx++)
     {
-        RegistersVectorItem* registers_item = static_cast<RegistersVectorItem*>(child(child_idx)->item());
+        RegistersVectorItem* registers_item = static_cast<RegistersVectorItem*>(get_child(child_idx)->item());
         const auto modbus_data_unit = registers_item->modbus_data_unit();
 
         if (modbus_data_unit.isValid())
@@ -71,6 +92,18 @@ QModbusDataUnitMap DeviceTableItem::generate_modbus_data_unit_map() const
     }
 
     return modbus_data_unit_map;
+}
+
+int DeviceTableItem::get_real_row(int row) const
+{
+    for (int i = 0; i <= row && i < this->get_child_count(); i++)
+    {
+        if (!this->get_child(row)->hasChild()) {
+            row++;
+        }
+    }
+
+    return row;
 }
 
 void DeviceTableItem::update_modbus_server_map()

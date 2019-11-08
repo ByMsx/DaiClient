@@ -25,6 +25,10 @@ DevicesTableItem *DevicesTableItem::parent() const {
 }
 
 DevicesTableItem *DevicesTableItem::child(int row) const {
+    return this->get_child(row);
+}
+
+DevicesTableItem *DevicesTableItem::get_child(int row) const {
     return this->child_.value(row);
 }
 
@@ -33,6 +37,10 @@ bool DevicesTableItem::hasChild() const {
 }
 
 int DevicesTableItem::childCount() const {
+    return this->get_child_count();
+}
+
+int DevicesTableItem::get_child_count() const {
     return this->child_.count();
 }
 

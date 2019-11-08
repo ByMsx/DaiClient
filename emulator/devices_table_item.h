@@ -15,6 +15,9 @@ class DevicesTableItem : public QObject
     DevicesTableItem* parent_;
 protected:
     QObject* itemData_;
+
+    int get_child_count() const;
+    DevicesTableItem* get_child(int row) const;
 public:
     DevicesTableItem(QObject* data, const QVector<DevicesTableItem*>& children = QVector<DevicesTableItem*>(), DevicesTableItem* parent = nullptr);
     DevicesTableItem(QObject* data, DevicesTableItem* parent = nullptr);

@@ -28,7 +28,14 @@ int DevicesTableModel::rowCount(const QModelIndex &parent) const
         return internalPtr->childCount();
     }
 
-    return this->modbus_devices_vector_.count();
+    int non_empty_row_count = 0;
+    for (int i = 0; i < this->row_count(); i++)
+    {
+        if (this->modbus_devices_vector_.value(i)->hasChild())
+            non_empty_row_count++;
+    }
+
+    return non_empty_row_count;
 }
 
 int DevicesTableModel::columnCount(const QModelIndex &parent) const
@@ -147,7 +154,8 @@ QModelIndex DevicesTableModel::index(int row, int column, const QModelIndex &par
     }
 
     if (column == 0 && modbus_devices_vector_.size() > row) {
-        DevicesTableItem* ptr = this->modbus_devices_vector_.at(row);
+        int real_row = get_real_row(row);
+        DevicesTableItem* ptr = this->modbus_devices_vector_.at(real_row);
         return createIndex(row, column, ptr);
     }
     return QModelIndex();
@@ -213,6 +221,22 @@ void DevicesTableModel::add_items(const Devices_Vector *devices, QModbusServer* 
     for (auto& device : *devices) {
         this->modbus_devices_vector_.push_back(new DeviceTableItem(item_type_manager_, modbus_server, device));
     }
+}
+
+int DevicesTableModel::get_real_row(int row) const
+{
+    for (int i = 0; i <= row && i < this->row_count(); i++)
+    {
+        if (!this->modbus_devices_vector_.value(i)->hasChild())
+            row++;
+    }
+
+    return row;
+}
+
+int DevicesTableModel::row_count() const
+{
+    return this->modbus_devices_vector_.size();
 }
 
 void DevicesTableModel::child_item_changed(DeviceTableItem *child_item)
