@@ -1,11 +1,13 @@
 #ifndef DAI_MODBUS_PLAGIN_BASE_H
 #define DAI_MODBUS_PLAGIN_BASE_H
 
+#include <memory>
+#include <chrono>
+
 #include <QLoggingCategory>
 #include <QModbusRtuSerialMaster>
 #include <QSerialPort>
-
-#include <memory>
+#include <QTimer>
 
 #include <Dai/checkerinterface.h>
 
@@ -39,7 +41,6 @@ public:
     // CheckerInterface interface
 public:
     virtual void configure(QSettings* settings, Project*) override;
-    virtual int minimal_interval_msec() override;
     virtual bool check(Device *dev) override;
     virtual void stop() override;
     virtual void write(std::vector<Write_Cache_Item>& items) override;
@@ -70,6 +71,8 @@ private:
     Modbus_Queue* queue_;
 
     bool b_break, is_port_name_in_config_;
+    std::chrono::system_clock::time_point use_line_last_time_;
+    QTimer process_queue_timer_;
 };
 
 } // namespace Modbus

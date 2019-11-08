@@ -327,8 +327,12 @@ struct Modbus_Queue
 Modbus_Plugin_Base::Modbus_Plugin_Base() :
     QModbusRtuSerialMaster(),
     b_break(false),
-    is_port_name_in_config_(false)
+    is_port_name_in_config_(false),
+    use_line_last_time_(std::chrono::system_clock::now())
 {
+    process_queue_timer_.setSingleShot(true);
+    connect(&process_queue_timer_, &QTimer::timeout, this, &Modbus_Plugin_Base::process_queue);
+
     queue_ = new Modbus_Queue;
 }
 
@@ -426,11 +430,6 @@ void Modbus_Plugin_Base::configure(QSettings *settings, Project *)
     });
 
     Config::set(config_, this);
-}
-
-int Modbus_Plugin_Base::minimal_interval_msec()
-{
-    return 200;
 }
 
 bool Modbus_Plugin_Base::check(Device* dev)
@@ -576,6 +575,18 @@ void Modbus_Plugin_Base::process_queue()
             }
         }
 
+        static const std::chrono::milliseconds line_use_timeout{50};
+        const std::chrono::system_clock::duration elapsed_time = std::chrono::system_clock::now() - use_line_last_time_;
+        if (elapsed_time < line_use_timeout)
+        {
+            if (!process_queue_timer_.isActive())
+            {
+                auto elapsed_msec = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_time);
+                process_queue_timer_.start((line_use_timeout - elapsed_msec).count());
+            }
+            return;
+        }
+
         if (queue_->write_.size())
         {
             Modbus_Pack<Write_Cache_Item>& pack = queue_->write_.front();
@@ -660,9 +671,14 @@ void Modbus_Plugin_Base::write_pack(int server_address, QModbusDataUnit::Registe
 
 void Modbus_Plugin_Base::write_finished(QModbusReply* reply)
 {
+    use_line_last_time_ = std::chrono::system_clock::now();
     if (!reply || b_break)
     {
         qCCritical(ModbusLog).noquote() << tr("Write finish error: ") + this->errorString();
+        if (reply)
+        {
+            reply->deleteLater();
+        }
         process_queue();
         return;
     }
@@ -720,9 +736,14 @@ void Modbus_Plugin_Base::read_pack(int server_address, QModbusDataUnit::Register
 
 void Modbus_Plugin_Base::read_finished(QModbusReply* reply)
 {
+    use_line_last_time_ = std::chrono::system_clock::now();
     if (!reply || b_break)
     {
         qCCritical(ModbusLog).noquote() << tr("Read finish error: ") + this->errorString();
+        if (reply)
+        {
+            reply->deleteLater();
+        }
         process_queue();
         return;
     }
