@@ -21,6 +21,8 @@ namespace Database {
 class Plugin_Type;
 class Plugin_Type_Manager;
 } // namespace Database
+
+class Checker_Interface;
 class Scripted_Project;
 class Worker;
 typedef std::map<DeviceItem*, QVariant> ChangesList;
@@ -60,6 +62,7 @@ private:
         qint64 time_;
     };
     QMap<uint32_t, Check_Info> last_check_time_map_;
+    std::map<Checker_Interface*, qint64> last_check_plugin_time_map_;
 };
 
 } // namespace Dai

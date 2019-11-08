@@ -216,17 +216,38 @@ void Checker::check_devices()
             {
                 if (dev->checker_type()->loader && dev->checker_type()->checker)
                 {
-                    if (dev->checker_type()->checker->check(dev))
+                    auto it = last_check_plugin_time_map_.find(dev->checker_type()->checker);
+                    if (it == last_check_plugin_time_map_.end() || (it->second + it->first->minimal_interval_msec() < now_ms))
                     {
-                        if (!check_info.status_)
+                        if (dev->checker_type()->checker->check(dev))
                         {
-                            check_info.status_ = true;
+                            if (!check_info.status_)
+                            {
+                                check_info.status_ = true;
+                            }
+                        }
+                        else if (check_info.status_)
+                        {
+                            check_info.status_ = false;
+                            qCDebug(CheckerLog) << "Fail check" << dev->checker_type()->name() << dev->toString();
                         }
                     }
-                    else if (check_info.status_)
+                    else
                     {
-                        check_info.status_ = false;
-                        qCDebug(CheckerLog) << "Fail check" << dev->checker_type()->name() << dev->toString();
+                        if (min_shot > it->second + it->first->minimal_interval_msec())
+                        {
+                            min_shot = it->second + it->first->minimal_interval_msec();
+                        }
+                        continue;
+                    }
+
+                    if (it == last_check_plugin_time_map_.end())
+                    {
+                        last_check_plugin_time_map_.emplace(dev->checker_type()->checker, now_ms);
+                    }
+                    else
+                    {
+                        it->second = now_ms;
                     }
                 }
                 else

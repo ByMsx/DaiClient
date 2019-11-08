@@ -39,6 +39,7 @@ public:
     // CheckerInterface interface
 public:
     virtual void configure(QSettings* settings, Project*) override;
+    virtual int minimal_interval_msec() override;
     virtual bool check(Device *dev) override;
     virtual void stop() override;
     virtual void write(std::vector<Write_Cache_Item>& items) override;

@@ -428,6 +428,11 @@ void Modbus_Plugin_Base::configure(QSettings *settings, Project *)
     Config::set(config_, this);
 }
 
+int Modbus_Plugin_Base::minimal_interval_msec()
+{
+    return 200;
+}
+
 bool Modbus_Plugin_Base::check(Device* dev)
 {
     if (!checkConnect())
