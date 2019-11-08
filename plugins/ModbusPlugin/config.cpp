@@ -8,7 +8,8 @@ namespace Dai {
 namespace Modbus {
 
 Config::Config(const QString& portName, QSerialPort::BaudRate speed, QSerialPort::DataBits bits_num, QSerialPort::Parity parity,
-               QSerialPort::StopBits stopBits, QSerialPort::FlowControl flowControl, int modbusTimeout, int modbusNumberOfRetries, int frameDelayMicroseconds) :
+               QSerialPort::StopBits stopBits, QSerialPort::FlowControl flowControl, int modbusTimeout, int modbusNumberOfRetries,
+               int frameDelayMicroseconds, int line_use_timeout) :
     name(portName),
     baudRate(speed),
     dataBits(bits_num),
@@ -18,7 +19,8 @@ Config::Config(const QString& portName, QSerialPort::BaudRate speed, QSerialPort
 
     modbusTimeout(modbusTimeout),
     modbusNumberOfRetries(modbusNumberOfRetries),
-    frameDelayMicroseconds(frameDelayMicroseconds)
+    frameDelayMicroseconds(frameDelayMicroseconds),
+    line_use_timeout_(line_use_timeout)
 {
 }
 

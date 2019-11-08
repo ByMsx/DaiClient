@@ -1,6 +1,8 @@
 #ifndef DAI_MODBUS_CONFIG_H
 #define DAI_MODBUS_CONFIG_H
 
+#include <chrono>
+
 #include <QSerialPort>
 
 QT_FORWARD_DECLARE_CLASS(QModbusRtuSerialMaster)
@@ -18,7 +20,7 @@ struct Config {
          QSerialPort::Parity parity = QSerialPort::NoParity,
          QSerialPort::StopBits stopBits = QSerialPort::OneStop,
          QSerialPort::FlowControl flowControl = QSerialPort::NoFlowControl,
-         int modbusTimeout = 200, int modbusNumberOfRetries = 5, int frameDelayMicroseconds = 0);
+         int modbusTimeout = 200, int modbusNumberOfRetries = 5, int frameDelayMicroseconds = 0, int line_use_timeout = 50);
 
     /*static QString firstPort() {
         return QSerialPortInfo::availablePorts().count() ? QSerialPortInfo::availablePorts().first().portName() : QString();
@@ -40,6 +42,7 @@ struct Config {
     int modbusTimeout;
     int modbusNumberOfRetries;
     int frameDelayMicroseconds;
+    std::chrono::milliseconds line_use_timeout_;
 };
 
 } // namespace Modbus

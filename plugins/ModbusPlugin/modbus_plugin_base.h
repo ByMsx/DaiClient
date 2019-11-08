@@ -2,7 +2,6 @@
 #define DAI_MODBUS_PLAGIN_BASE_H
 
 #include <memory>
-#include <chrono>
 
 #include <QLoggingCategory>
 #include <QModbusRtuSerialMaster>
@@ -71,7 +70,7 @@ private:
     Modbus_Queue* queue_;
 
     bool b_break, is_port_name_in_config_;
-    std::chrono::system_clock::time_point use_line_last_time_;
+    std::chrono::system_clock::time_point line_use_last_time_;
     QTimer process_queue_timer_;
 };
 
