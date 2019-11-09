@@ -142,7 +142,8 @@ void DeviceTableItem::update_table_values(QModbusDataUnit::RegisterType type, in
 Qt::ItemFlags DeviceTableItem::flags(const QModelIndex &index) const {
     Qt::ItemFlags flags = Qt::ItemFlag::ItemIsEnabled;
 
-    if (index.isValid() && index.column() == 0) {
+    if (index.isValid() && index.column() == 0)
+    {
         flags |= Qt::ItemFlag::ItemIsUserCheckable;
     }
 
@@ -152,13 +153,19 @@ Qt::ItemFlags DeviceTableItem::flags(const QModelIndex &index) const {
 QVariant DeviceTableItem::data(const QModelIndex &index, int role) const {
     if (!index.isValid()) return QVariant();
 
-    if (index.column() == 0) {
-        if (role == Qt::DisplayRole) {
+    if (index.column() == 0)
+    {
+        if (role == Qt::DisplayRole)
+        {
             return "Устройство " + static_cast<Dai::Device*>(this->itemData_)->param("address").toString();
-        } else if (role == Qt::CheckStateRole) {
+        }
+        else if (role == Qt::CheckStateRole)
+        {
             return static_cast<int>(enabled_ ? Qt::Checked : Qt::Unchecked);
         }
     }
+
+    if (index.column() == 2 && role == Qt::UserRole) return 2;
 
     return QVariant();
 }

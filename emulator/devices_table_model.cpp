@@ -153,7 +153,7 @@ QModelIndex DevicesTableModel::index(int row, int column, const QModelIndex &par
         return createIndex(row, column, childPtr);
     }
 
-    if (column == 0 && modbus_devices_vector_.size() > row) {
+    if (modbus_devices_vector_.size() > row) {
         int real_row = get_real_row(row);
         DevicesTableItem* ptr = this->modbus_devices_vector_.at(real_row);
         return createIndex(row, column, ptr);
@@ -215,6 +215,18 @@ void DevicesTableModel::set_use_favorites_only(bool use_favorites_only)
     beginResetModel();
     RegisterTableItem::set_use_favorites_only(use_favorites_only);
     endResetModel();
+}
+
+void DevicesTableModel::emit_call_script(const QModelIndex &index)
+{
+    if (index.internalPointer())
+    {
+        DevicesTableItem* devices_table_item = static_cast<DevicesTableItem*>(index.internalPointer());
+        if (Dai::Device* device = qobject_cast<Dai::Device*>(devices_table_item->item()))
+        {
+            emit call_script(device);
+        }
+    }
 }
 
 void DevicesTableModel::add_items(const Devices_Vector *devices, QModbusServer* modbus_server) {

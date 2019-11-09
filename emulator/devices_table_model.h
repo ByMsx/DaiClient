@@ -26,6 +26,8 @@ class DevicesTableModel : public QAbstractItemModel
     int row_count() const;
 public slots:
     void child_item_changed(DeviceTableItem* child_item);
+signals:
+    void call_script(Dai::Device*);
 public:
     DevicesTableModel(Dai::Database::Item_Type_Manager* mng, const QVector<Dai::Device *> *devices_vector, QModbusServer *modbus_server, QObject *parent = nullptr);
     DevicesTableModel(Dai::Database::Item_Type_Manager* mng, QObject *parent = nullptr);
@@ -43,6 +45,8 @@ public:
 
     bool set_is_favorite(const QModelIndex &index, bool state);
     void set_use_favorites_only(bool use_favorites_only);
+
+    void emit_call_script(const QModelIndex& index);
 };
 
 #endif // DEVICETABLEMODEL_H
